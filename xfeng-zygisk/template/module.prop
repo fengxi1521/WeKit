@@ -1,0 +1,7 @@
+id=xfeng_zygisk
+name=XiaoFeng
+version=@VERSION_NAME@
+versionCode=@VERSION_CODE@
+author=xiao.feng
+description=XiaoFeng (@VARIANT@) — Zygisk mode. Manage per-Android-user injection targets from the KernelSU WebUI.
+#updateJson=

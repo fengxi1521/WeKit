@@ -4,7 +4,7 @@
 
 ## 反馈渠道
 
-**唯一的反馈渠道是 [GitHub Issues](https://github.com/Ujhhgtg/WeKit/issues)。**
+**唯一的反馈渠道是 [GitHub Issues](https://github.com/XiaoFeng/XiaoFeng/issues)。**
 
 请勿通过以下渠道反馈问题, 此类反馈不会被处理:
 
@@ -16,11 +16,11 @@
 
 在提交 Issue 前, 请先确认:
 
-1. **你的问题是否已经有人提过？** 搜索 [已有 Issues](https://github.com/Ujhhgtg/WeKit/issues) 和 [常见问题](faq.md) 避免重复提交。
+1. **你的问题是否已经有人提过？** 搜索 [已有 Issues](https://github.com/XiaoFeng/XiaoFeng/issues) 和 [常见问题](faq.md) 避免重复提交。
 2. **你的模块版本是否最新？** 请尝试升级到最新的 [CI 构建](installation.md#下载) 再确认问题是否仍然存在。
-3. **是否排除了其他模块干扰？** Xposed 模式在 LSPosed 中暂时仅勾选 WeKit;
+3. **是否排除了其他模块干扰？** Xposed 模式在 LSPosed 中暂时仅勾选 XiaoFeng;
    Zygisk 模式确认 WebUI 中只启用了需要测试的微信目标, 且该实例没有同时通过
-   Xposed 加载 WeKit。完全结束并重新启动微信后再重试。
+   Xposed 加载 XiaoFeng。完全结束并重新启动微信后再重试。
 4. **是否完整填写了 Issue 模板？** GitHub Issue 模板中的每一项都必须填写, 不要留空或删改。
 
 ## 提交 Issue 的必需内容
@@ -34,7 +34,7 @@
 根据实际加载方式提供日志:
 
 - **LSPosed**: LSPosed -> 底栏「设置」->「禁用详细日志」关闭 -> 底栏 「日志」-> 右上角菜单「保存」-> 上传压缩包
-- **Zygisk**: 在 WeKit 模块 WebUI 点击「导出日志」, 上传 `/data/adb/wekit_zygisk/logcat.log`
+- **Zygisk**: 在 XiaoFeng 模块 WebUI 点击「导出日志」, 上传 `/data/adb/xfeng_zygisk/logcat.log`
   并附上页面底部的 WebUI 日志。注明实际刷入的 APK 文件名和版本、Root 管理器与
   Zygisk 实现及其版本, 以及目标 Android 用户和微信包名。
 
@@ -57,7 +57,7 @@
 若模块加载成功, 上传模块运行日志:
 
 ```text
-/sdcard/Android/data/<宿主包名>/WeKit/logs/
+/sdcard/Android/data/<宿主包名>/XiaoFeng/logs/
 ```
 
 ## 高质量的 Issue 应当包含

@@ -12,7 +12,7 @@ import tempfile
 import zipfile
 
 
-REPOSITORY = "Xposed-Modules-Repo/dev.ujhhgtg.wekit"
+REPOSITORY = "Xposed-Modules-Repo/com.xiao.feng"
 API = f"repos/{REPOSITORY}"
 APK_NAME = "app-standard-release.apk"
 
@@ -153,9 +153,9 @@ def main():
         tools = max(stable, key=lambda p: tuple(map(int, p.name.split("."))))
     apk = args.apk.resolve()
     tag, version, min_sdk, digest = inspect_apk(apk, args.commit, tools)
-    marker = f"<!-- wekit-build:{args.commit}:{digest} -->"
+    marker = f"<!-- xfeng-build:{args.commit}:{digest} -->"
     notes = args.notes_file.read_text().strip()
-    body = f"""WeKit CI 构建 · standard（LSPosed）
+    body = f"""XiaoFeng CI 构建 · standard（LSPosed）
 
 版本：`{tag}`
 
@@ -168,8 +168,8 @@ def main():
 - 本发布仅提供 `app-standard-release.apk`，适用于 LSPosed。
 - APK 最低 Android SDK：{min_sdk}；架构：ARM64。
 - 安装后在 LSPosed 中启用模块并勾选微信，完全结束并重启微信。
-- 设置入口：微信「我 → 设置 → WeKit 设置」。
-- [兼容范围与使用说明](https://docs.wekit.ujhhgtg.dev/getting-started) · [其他框架所需的 legacy 版本](https://github.com/Ujhhgtg/WeKit/releases/tag/CI)
+- 设置入口：微信「我 → 设置 → XiaoFeng 设置」。
+- [兼容范围与使用说明](https://docs.xfeng.dev/getting-started) · [其他框架所需的 legacy 版本](https://github.com/XiaoFeng/XiaoFeng/releases/tag/CI)
 
 ### 校验
 

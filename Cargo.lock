@@ -3275,59 +3275,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a28ac98ddc8b9274cb41bb4d9d4d5c425b6020c50c46f25559911905610b4a88"
 
 [[package]]
-name = "wekit-native"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "bindgen 0.72.1",
- "cc",
- "flate2",
- "gif",
- "jni",
- "libc",
- "markdown",
- "mp3lame-encoder",
- "pkg-config",
- "rasterlottie",
- "serde",
- "serde_json",
- "sha2",
- "silk-v3-sys",
- "symphonia",
- "webm-iterable",
-]
-
-[[package]]
-name = "wekit-read-receipts-server"
-version = "0.1.0"
-dependencies = [
- "axum 0.8.9",
- "chrono",
- "hex",
- "libsql",
- "rustyline",
- "serde",
- "serde_json",
- "sha2",
- "tokio",
- "tower 0.5.3",
- "tracing",
- "tracing-subscriber",
-]
-
-[[package]]
-name = "wekit-zygisk"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "cmake",
- "jni",
- "libc",
- "sha2",
- "zip",
-]
-
-[[package]]
 name = "which"
 version = "4.4.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3525,6 +3472,59 @@ name = "winnow"
 version = "1.0.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "23b97319f7b8343df12cc98938e5c3eb436064524c8d2b4e30a1d3a36eecdf81"
+
+[[package]]
+name = "xfeng-native"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "bindgen 0.72.1",
+ "cc",
+ "flate2",
+ "gif",
+ "jni",
+ "libc",
+ "markdown",
+ "mp3lame-encoder",
+ "pkg-config",
+ "rasterlottie",
+ "serde",
+ "serde_json",
+ "sha2",
+ "silk-v3-sys",
+ "symphonia",
+ "webm-iterable",
+]
+
+[[package]]
+name = "xfeng-read-receipts-server"
+version = "0.1.0"
+dependencies = [
+ "axum 0.8.9",
+ "chrono",
+ "hex",
+ "libsql",
+ "rustyline",
+ "serde",
+ "serde_json",
+ "sha2",
+ "tokio",
+ "tower 0.5.3",
+ "tracing",
+ "tracing-subscriber",
+]
+
+[[package]]
+name = "xfeng-zygisk"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "cmake",
+ "jni",
+ "libc",
+ "sha2",
+ "zip",
+]
 
 [[package]]
 name = "xtask"

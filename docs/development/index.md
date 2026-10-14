@@ -1,6 +1,6 @@
 # 开发指南
 
-本页介绍 WeKit 的开发环境、构建命令和产物。专题说明请参阅：
+本页介绍 XiaoFeng 的开发环境、构建命令和产物。专题说明请参阅：
 
 - [DexKit 解析器测试](linux-dex-test.md)
 - [国际化开发指南](i18n.md)
@@ -10,8 +10,8 @@
 ## 克隆仓库
 
 ```bash
-git clone https://github.com/Ujhhgtg/WeKit.git --recursive
-cd WeKit
+git clone https://github.com/XiaoFeng/XiaoFeng.git --recursive
+cd XiaoFeng
 ```
 
 ## 环境要求
@@ -28,15 +28,15 @@ cd WeKit
 | uv | 使用仓库锁定的 CMake / Ninja，以及运行 Python 原生测试时需要 |
 | adb | 安装 APK 或将同一 APK 作为 Zygisk 模块刷入时需要 |
 
-Zygisk 的 Python 工具依赖由 `wekit-zygisk/pyproject.toml` 和 `uv.lock` 管理。
+Zygisk 的 Python 工具依赖由 `xfeng-zygisk/pyproject.toml` 和 `uv.lock` 管理。
 `build` 组固定 CMake 3.31.6、Ninja 1.11.1.4，`test` 组提供 Unicorn。在仓库根目录
 执行以下命令，可使用锁定的构建工具完成 APK 构建：
 
 ```bash
-uv run --locked --project wekit-zygisk --group build ./x build
+uv run --locked --project xfeng-zygisk --group build ./x build
 ```
 
-uv 自动管理 `wekit-zygisk/.venv`。也可将已安装的 CMake 和 Ninja 放入 `PATH` 后
+uv 自动管理 `xfeng-zygisk/.venv`。也可将已安装的 CMake 和 Ninja 放入 `PATH` 后
 直接使用 `./x build`。构建会初始化固定版本的 LSPlant 及其运行时子模块，无须拉取
 LSPlant 的测试和文档子模块。
 
@@ -110,8 +110,8 @@ exec cargo xtask "$@"
 该命令使用版本目录配置的 NDK，为 ARM64 生成 linker 配置，包括：
 
 ```text
-app/src/main/rust/wekit-native/.cargo/config.toml
-wekit-zygisk/native/.cargo/config.toml
+app/src/main/rust/xfeng-native/.cargo/config.toml
+xfeng-zygisk/native/.cargo/config.toml
 ```
 
 完整 APK 模式的 `./x build` 和 `./x run` 会自动执行该步骤。直接运行
@@ -224,7 +224,7 @@ ANDROID_SERIAL=SERIAL ./x run
 可选：应用基准配置（Baseline Profile）：
 
 ```bash
-adb shell cmd package compile -m speed-profile dev.ujhhgtg.wekit
+adb shell cmd package compile -m speed-profile com.xiao.feng
 ```
 
 ### 检查 Rust native 库
@@ -274,19 +274,19 @@ Magisk、KernelSU 或 APatch 的模块安装入口刷入。首次刷入后在 We
 ```
 
 APK 仍输出到 `app/build/outputs/apk/<standard|legacy>/<debug|release>/`。
-符号归档输出到 `target/zygisk-symbols/WeKit-<commit>-arm64-v8a-symbols.zip`。
+符号归档输出到 `target/zygisk-symbols/XiaoFeng-<commit>-arm64-v8a-symbols.zip`。
 注入器始终使用 release profile；`--release` 控制 Android 代码优化。
 
 ### 打包与加载
 
-`GenerateZygiskResourcesTask` 将 `wekit-zygisk/template/` 的安装脚本、WebUI 和
+`GenerateZygiskResourcesTask` 将 `xfeng-zygisk/template/` 的安装脚本、WebUI 和
 `module.prop` 作为资源加入每个 APK 变体，版本信息取自同一 APK 变体。
 模块文件在 AGP 签名前进入 APK；签名完成后不得再追加文件或重新打包。
 刷入用的 ZIP 与最终 APK 内容完全相同，`./x run --zygisk` 也只在推送到设备时
 使用 `.zip` 文件名。CI 检查后发布这份 APK，不另行构建或发布模块 ZIP。
 
 模块安装器直接保存原始 APK 为 `$MODPATH/module.apk`，注入器从这份 APK 读取 DEX。
-安装器同时从 `lib/arm64-v8a/libwekit_zygisk.so` 提取注入器至
+安装器同时从 `lib/arm64-v8a/libxfeng_zygisk.so` 提取注入器至
 `$MODPATH/zygisk/arm64-v8a.so`，不另行解包 DEX。
 
 `preAppSpecialize` 检查注入目标并保留模块目录 FD，`postAppSpecialize` 再打开
@@ -301,7 +301,7 @@ APK 仍输出到 `app/build/outputs/apk/<standard|legacy>/<debug|release>/`。
 `--root` 和 `--reboot` 仅用于 `--zygisk`。
 不再提供独立 `zygisk` 构建/刷入命令或按修改时间选择旧 ZIP 的选项。
 
-原生调试可在 `wekit-zygisk/native` 中直接运行 `cargo build --target aarch64-linux-android`；
+原生调试可在 `xfeng-zygisk/native` 中直接运行 `cargo build --target aarch64-linux-android`；
 先用 `./x configure` 准备 NDK 链接配置。正常出包始终使用 `./x build`，确保两个 Rust 库
 都已更新；Gradle 只负责消费这些 native 输入并打包签名。直接 Cargo 构建还需要已
 初始化的 LSPlant 运行时依赖，以及可用的 CMake / Ninja。
@@ -309,8 +309,8 @@ APK 仍输出到 `app/build/outputs/apk/<standard|legacy>/<debug|release>/`。
 ### ART Hook 实现与验证
 
 Zygisk 的生命周期、companion IPC、APK 加载、JNI 注册和 ART 符号解析由 Rust
-实现。Java 方法 Hook 使用静态链接到 `libwekit_zygisk.so` 的 LSPlant，原生
-inline hook 由 `wekit-zygisk/native/src/art/inline_hook/` 下的 Rust ARM64 后端
+实现。Java 方法 Hook 使用静态链接到 `libxfeng_zygisk.so` 的 LSPlant，原生
+inline hook 由 `xfeng-zygisk/native/src/art/inline_hook/` 下的 Rust ARM64 后端
 提供；不再使用原先自研的 ART 方法 Hook，也不再依赖 Dobby。
 
 LSPlant 在 `postAppSpecialize` 中、进入模块 Java 代码前初始化。Kotlin
@@ -320,11 +320,11 @@ LSPlant 在 `postAppSpecialize` 中、进入模块 Java 代码前初始化。Kot
 在仓库根目录运行原生桌面验证：
 
 ```bash
-cargo test -p wekit-zygisk --lib
-uv run --locked --project wekit-zygisk --group test python wekit-zygisk/native/tests/arm64_relocation.py
+cargo test -p xfeng-zygisk --lib
+uv run --locked --project xfeng-zygisk --group test python xfeng-zygisk/native/tests/arm64_relocation.py
 ```
 
 CI 还对每个产出的 APK 执行 `.github/scripts/verify-dual-apk.py --check-installer`，
 检查签名、对齐、APK/模块版本一致性及模块安装行为，并测试从实际 APK 读取 DEX。
 桌面验证和构建通过不代表真机 ART 或微信运行正常。支持的 Hook 目标、后端限制和
-真机验证项目见 [Zygisk 原生开发说明](https://github.com/Ujhhgtg/WeKit/blob/master/wekit-zygisk/README.md)。
+真机验证项目见 [Zygisk 原生开发说明](https://github.com/XiaoFeng/XiaoFeng/blob/master/xfeng-zygisk/README.md)。

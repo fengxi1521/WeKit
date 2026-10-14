@@ -1,19 +1,19 @@
 # ====================================================================
 # XPOSED ENTRY POINTS (Critical Startup)
 # ====================================================================
-Ldev/ujhhgtg/wekit/loader/entry/lxp/LxpHookEntry;
-Ldev/ujhhgtg/wekit/loader/entry/xp51/Xp51HookEntry;
+Lcom/xiao/feng/loader/entry/lxp/LxpHookEntry;
+Lcom/xiao/feng/loader/entry/xp51/Xp51HookEntry;
 
 # ====================================================================
 # CORE APIs & INTERNAL HOOKING INTERFACES
 # ====================================================================
-Ldev/ujhhgtg/wekit/features/api/core/WeAppMsgApi;
-Ldev/ujhhgtg/wekit/features/api/core/WeConversationApi;
-Ldev/ujhhgtg/wekit/features/api/core/WeDatabaseApi;
-Ldev/ujhhgtg/wekit/features/api/core/WeDatabaseListenerApi;
-Ldev/ujhhgtg/wekit/features/api/core/WeMessageApi;
-Ldev/ujhhgtg/wekit/features/api/core/WeServiceApi;
-Ldev/ujhhgtg/wekit/features/api/core/WeUnsafeApi;
-Ldev/ujhhgtg/wekit/features/api/net/WeNetSceneApi;
-Ldev/ujhhgtg/wekit/features/api/net/WePacketHelper;
-Ldev/ujhhgtg/wekit/features/api/net/listener/WePacketDispatcher;
+Lcom/xiao/feng/features/api/core/WeAppMsgApi;
+Lcom/xiao/feng/features/api/core/WeConversationApi;
+Lcom/xiao/feng/features/api/core/WeDatabaseApi;
+Lcom/xiao/feng/features/api/core/WeDatabaseListenerApi;
+Lcom/xiao/feng/features/api/core/WeMessageApi;
+Lcom/xiao/feng/features/api/core/WeServiceApi;
+Lcom/xiao/feng/features/api/core/WeUnsafeApi;
+Lcom/xiao/feng/features/api/net/WeNetSceneApi;
+Lcom/xiao/feng/features/api/net/WePacketHelper;
+Lcom/xiao/feng/features/api/net/listener/WePacketDispatcher;

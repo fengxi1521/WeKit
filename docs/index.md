@@ -1,12 +1,12 @@
-# WeKit
+# XiaoFeng
 
-本网站对应 WeKit 开发版，功能与设置以当前开发代码为准。
+本网站对应 XiaoFeng 开发版，功能与设置以当前开发代码为准。
 
-WeKit 是一个功能丰富的微信增强模块, 支持通过 Xposed 框架或 Zygisk 模块加载, 提供大量微信增强功能。
+XiaoFeng 是一个功能丰富的微信增强模块, 支持通过 Xposed 框架或 Zygisk 模块加载, 提供大量微信增强功能。
 
 两种加载方式共用同一 APK: 直接安装用于 Xposed, 将扩展名改为 `.zip` 后通过 Root 管理器刷入用于 Zygisk。具体步骤见 [安装指南](installation.md)。
 
-[![CI 状态](https://github.com/Ujhhgtg/WeKit/actions/workflows/ci.yml/badge.svg)](https://github.com/Ujhhgtg/WeKit/actions/workflows/ci.yml)
+[![CI 状态](https://github.com/XiaoFeng/XiaoFeng/actions/workflows/ci.yml/badge.svg)](https://github.com/XiaoFeng/XiaoFeng/actions/workflows/ci.yml)
 
 ## 导航
 
@@ -17,7 +17,7 @@ WeKit 是一个功能丰富的微信增强模块, 支持通过 Xposed 框架或 
 - [❓ 常见问题](faq.md)
 - [🛠 开发指南](development/index.md)
 
-## 修改内容 (相比 [上游](https://github.com/cwuom/WeKit))
+## 修改内容 (相比 [上游](https://github.com/cwuom/XiaoFeng))
 
 - 添加 Auxiliary 与 NewMiko 目前公开源代码中的部分功能
 - 移除全部校验, 减少模块体积, 避免不必要性能开销
@@ -33,24 +33,24 @@ WeKit 是一个功能丰富的微信增强模块, 支持通过 Xposed 框架或 
 
 ## 联系
 
-[GitHub 仓库](https://github.com/Ujhhgtg/WeKit)
+[GitHub 仓库](https://github.com/XiaoFeng/XiaoFeng)
 
 [Telegram 超级群组](https://t.me/+7j5dJ6g16B43OWVl)
 
 ## 致谢
 
-[WeKit 上游](https://github.com/cwuom/WeKit)
+[XiaoFeng 上游](https://github.com/cwuom/XiaoFeng)
 
 [WAuxiliary](https://github.com/HdShare/WAuxiliary_Public)
 
-[NewMiko](https://github.com/Ujhhgtg/NewMiko/)
+[NewMiko](https://github.com/XiaoFeng/NewMiko/)
 
 [QAuxiliary](https://github.com/cinit/QAuxiliary)
 
 [FingerprintPay](https://github.com/eritpchy/FingerprintPay)
 
-[WADN](https://github.com/Ujhhgtg/wauxv_deobf_new) [WAD](https://github.com/Ujhhgtg/wauxv_deobf)
+[WADN](https://github.com/XiaoFeng/wauxv_deobf_new) [WAD](https://github.com/XiaoFeng/wauxv_deobf)
 
-[FunBox](https://github.com/Ujhhgtg/funbox_deobf)
+[FunBox](https://github.com/XiaoFeng/funbox_deobf)
 
 [LSPlant](https://github.com/LSPosed/LSPlant)

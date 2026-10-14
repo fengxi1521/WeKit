@@ -52,7 +52,7 @@ pythonRuntimeCython = "3.0.11"
 pythonRuntimePython = "3.13"
 
 # noinspection UnusedVersionCatalogEntry
-namespace = "dev.ujhhgtg.wekit"
+namespace = "com.xiao.feng"
 # noinspection UnusedVersionCatalogEntry
 minSdk = "28"
 # noinspection UnusedVersionCatalogEntry

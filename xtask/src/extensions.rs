@@ -285,8 +285,8 @@ fn arch_proot_input_paths(root: &Path) -> (PathBuf, PathBuf) {
 
 fn build_archlinux_zip(root: &Path, dist: &Path) -> Result<PackIndexEntry> {
     let source = read_arch_sources(root)?;
-    let rootfs = std::env::var_os("WEKIT_ARCH_ROOTFS").map(PathBuf::from)
-        .context("WEKIT_ARCH_ROOTFS must point to the separately downloaded and signature/checksum-verified rootfs")?;
+    let rootfs = std::env::var_os("XFENG_ARCH_ROOTFS").map(PathBuf::from)
+        .context("XFENG_ARCH_ROOTFS must point to the separately downloaded and signature/checksum-verified rootfs")?;
     let (proot, proot_loader) = arch_proot_input_paths(root);
     let bridge = root.join("app/src/main/jniLibs/arm64-v8a/libinvoke_tool.so");
     anyhow::ensure!(
@@ -392,9 +392,9 @@ fn build_python_runtime(root: &Path, dist: &Path) -> Result<PackIndexEntry> {
         fs::remove_dir_all(&api_repo)?;
     }
     fs::create_dir_all(&api_repo)?;
-    let repo_property = format!("-PwekitPythonApiRepo={}", api_repo.display());
-    let version_property = format!("-PwekitPythonApiVersion={api_version}");
-    let python_property = format!("-PwekitPythonBuildExecutable={}", build_python.display());
+    let repo_property = format!("-PxfengPythonApiRepo={}", api_repo.display());
+    let version_property = format!("-PxfengPythonApiVersion={api_version}");
+    let python_property = format!("-PxfengPythonBuildExecutable={}", build_python.display());
 
     let status = Command::new(gradlew)
         .args([":libs:python-runtime-api:bundleReleaseAar", "--quiet"])
@@ -403,7 +403,7 @@ fn build_python_runtime(root: &Path, dist: &Path) -> Result<PackIndexEntry> {
         .context("failed to build Python runtime API")?;
     anyhow::ensure!(status.success(), "Python runtime API build failed");
     let api_dir = api_repo
-        .join("dev/ujhhgtg/wekit/python-runtime-api")
+        .join("com/xiao/feng/python-runtime-api")
         .join(api_version);
     fs::create_dir_all(&api_dir)?;
     let api_name = format!("python-runtime-api-{api_version}");
@@ -414,7 +414,7 @@ fn build_python_runtime(root: &Path, dist: &Path) -> Result<PackIndexEntry> {
     fs::write(
         api_dir.join(format!("{api_name}.pom")),
         format!(
-            "<project><modelVersion>4.0.0</modelVersion><groupId>dev.ujhhgtg.wekit</groupId><artifactId>python-runtime-api</artifactId><version>{api_version}</version><packaging>aar</packaging></project>"
+            "<project><modelVersion>4.0.0</modelVersion><groupId>com.xiao.feng</groupId><artifactId>python-runtime-api</artifactId><version>{api_version}</version><packaging>aar</packaging></project>"
         ),
     )?;
 
@@ -436,8 +436,8 @@ fn build_python_runtime(root: &Path, dist: &Path) -> Result<PackIndexEntry> {
     let patched_bridge = build_patched_chaquopy_bridge(root, &catalog)?;
     let native_wheels = build_python_native_wheels(root, &catalog, &build_python)?;
     let second_dex = build_runtime_multidex_probe(root, &catalog)?;
-    let bridge_property = format!("-PwekitPatchedChaquopyBridge={}", patched_bridge.display());
-    let wheel_property = format!("-PwekitPythonWheelDirectory={}", native_wheels.display());
+    let bridge_property = format!("-PxfengPatchedChaquopyBridge={}", patched_bridge.display());
+    let wheel_property = format!("-PxfengPythonWheelDirectory={}", native_wheels.display());
 
     let status = Command::new(gradlew)
         .args([
@@ -556,7 +556,7 @@ fn build_python_native_wheels(
         ),
     ];
     let mut cache_hasher = Sha256::new();
-    cache_hasher.update(b"wekit-python-native-wheels-v1\0");
+    cache_hasher.update(b"xfeng-python-native-wheels-v1\0");
     cache_hasher.update(revision.as_bytes());
     cache_hasher.update(python_version.as_bytes());
     cache_hasher.update(ndk_version.as_bytes());
@@ -703,7 +703,7 @@ fn build_patched_chaquopy_bridge(root: &Path, catalog: &toml::Value) -> Result<P
     let artifact = build_root.join("artifacts/chaquopy.so");
     let cache_key_path = build_root.join("cache-key");
     let mut cache_hasher = Sha256::new();
-    cache_hasher.update(b"wekit-chaquopy-bridge-v1\0");
+    cache_hasher.update(b"xfeng-chaquopy-bridge-v1\0");
     cache_hasher.update(revision.as_bytes());
     cache_hasher.update(cython_version.as_bytes());
     cache_hasher.update(python_version.as_bytes());
@@ -934,7 +934,7 @@ fn build_runtime_multidex_probe(root: &Path, catalog: &toml::Value) -> Result<Pa
         Command::new(d8)
             .args(["--min-api", min_sdk, "--output"])
             .arg(&dex)
-            .arg(classes.join("dev/ujhhgtg/wekit/python/runtime/RuntimeMultidexProbe.class")),
+            .arg(classes.join("com/xiao/feng/python/runtime/RuntimeMultidexProbe.class")),
         "build runtime classes2.dex probe",
     )?;
     let output = dex.join("classes.dex");
@@ -1040,7 +1040,7 @@ fn inspect_runtime_container(path: &Path) -> Result<String> {
 }
 
 fn build_python_sdk_artifact(root: &Path, dist: &Path) -> Result<()> {
-    let output = dist.join("wekit-python-sdk.zip");
+    let output = dist.join("xfeng-python-sdk.zip");
     let mut zip = ZipWriter::new(File::create(&output)?);
     let options = SimpleFileOptions::default().compression_method(zip::CompressionMethod::Deflated);
     for (prefix, directory) in [
@@ -1191,7 +1191,7 @@ mod tests {
     #[test]
     fn arch_rootfs_verification_rejects_sha256_mismatch() {
         let path =
-            std::env::temp_dir().join(format!("wekit-rootfs-checksum-test-{}", std::process::id()));
+            std::env::temp_dir().join(format!("xfeng-rootfs-checksum-test-{}", std::process::id()));
         fs::write(&path, b"rootfs").unwrap();
         let source = ArchRootfsSource {
             release: "2026.08".into(),
@@ -1224,7 +1224,7 @@ mod tests {
     #[test]
     fn arch_pack_contains_rootfs_launcher_loader_bridge_and_manifest() {
         let base =
-            std::env::temp_dir().join(format!("wekit-arch-pack-test-{}", std::process::id()));
+            std::env::temp_dir().join(format!("xfeng-arch-pack-test-{}", std::process::id()));
         let _ = fs::remove_dir_all(&base);
         fs::create_dir_all(&base).unwrap();
         let names = [

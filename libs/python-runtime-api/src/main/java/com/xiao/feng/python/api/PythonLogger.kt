@@ -1,0 +1,9 @@
+package com.xiao.feng.python.api
+
+interface PythonLogger {
+    fun debug(message: String, vararg arguments: Any?)
+    fun info(message: String, vararg arguments: Any?)
+    fun warning(message: String, vararg arguments: Any?)
+    fun error(message: String, vararg arguments: Any?)
+    fun exception(message: String, throwable: Throwable, vararg arguments: Any?)
+}

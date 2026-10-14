@@ -24,7 +24,7 @@ class PublicationTest(unittest.TestCase):
         self.apk = Path(directory.name) / publisher.APK_NAME
         self.apk.write_bytes(b"signed APK fixture")
         self.digest = "sha256:" + hashlib.sha256(self.apk.read_bytes()).hexdigest()
-        self.marker = "<!-- wekit-build:test -->"
+        self.marker = "<!-- xfeng-build:test -->"
         self.payload = {
             "tag_name": "1774-git+2be8d346", "name": "git+2be8d346",
             "body": self.marker, "draft": True, "prerelease": False,
@@ -163,7 +163,7 @@ class PublicationTest(unittest.TestCase):
         commit = "2be8d3462d9ee2e1173faa7566dfcdb1a6206f46"
         for sdk_field in ("sdkVersion", "minSdkVersion"):
             badging = (
-                "package: name='dev.ujhhgtg.wekit' versionCode='1774' versionName='git+2be8d346'\n"
+                "package: name='com.xiao.feng' versionCode='1774' versionName='git+2be8d346'\n"
                 f"{sdk_field}:'28'\n"
             )
             with self.subTest(sdk_field=sdk_field), patch.object(publisher.subprocess, "run"), patch.object(

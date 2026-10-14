@@ -6,8 +6,8 @@ plugins {
     id("com.android.library")
 }
 
-group = "dev.ujhhgtg.wekit"
-version = providers.gradleProperty("wekitPythonApiVersion")
+group = "com.xiao.feng"
+version = providers.gradleProperty("xfengPythonApiVersion")
     .orElse("1.0.0").get()
 
 java {
@@ -23,7 +23,7 @@ kotlin {
 }
 
 configure<LibraryExtension> {
-    namespace = "dev.ujhhgtg.wekit.python.api"
+    namespace = "com.xiao.feng.python.api"
 
     defaultConfig {
         minSdk = libs.versions.minSdk.get().toInt()

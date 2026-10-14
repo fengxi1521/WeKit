@@ -58,7 +58,7 @@ impl TestDirectory {
     fn new() -> Self {
         static NEXT_ID: AtomicU64 = AtomicU64::new(0);
         let path = std::env::temp_dir().join(format!(
-            "wekit-read-receipts-{}-{}",
+            "xfeng-read-receipts-{}-{}",
             std::process::id(),
             NEXT_ID.fetch_add(1, Ordering::Relaxed)
         ));

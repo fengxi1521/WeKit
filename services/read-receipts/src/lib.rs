@@ -62,7 +62,7 @@ pub async fn initialize_database(database: &Database) -> Result<(), libsql::Erro
     Ok(())
 }
 
-/// Computes the deterministic ID shared by the WeKit client and server.
+/// Computes the deterministic ID shared by the XiaoFeng client and server.
 pub fn compute_msg_id(wx_id: &str, content: &str, create_time: i64) -> String {
     let mut hasher = Sha256::new();
     hasher.update(wx_id.as_bytes());

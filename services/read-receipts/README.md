@@ -1,9 +1,9 @@
-# WeKit Read Receipts Server
+# XiaoFeng Read Receipts Server
 
-WeKit「已读追踪」功能的配套服务端，通过透明追踪像素记录消息的读取请求，并按来源 IP 去重后向 WeKit 返回已读人数。
+XiaoFeng「已读追踪」功能的配套服务端，通过透明追踪像素记录消息的读取请求，并按来源 IP 去重后向 XiaoFeng 返回已读人数。
 
 > [!IMPORTANT]
-> 本项目是一个**参考实现（Reference Implementation）**，主要用于展示 WeKit 已读追踪服务端的工作方式和 API 契约，而不是长期维护的官方托管服务。
+> 本项目是一个**参考实现（Reference Implementation）**，主要用于展示 XiaoFeng 已读追踪服务端的工作方式和 API 契约，而不是长期维护的官方托管服务。
 >
 > 本实现不再进行功能性更新，也大概率不会接受 Pull Request。若你需要更完整的功能、更强的安全性或适合生产环境的部署方式，建议寻找兼容的第三方实现，或者参考下方 API 契约，使用 AI 实现一个满足自己需求的服务端。
 
@@ -29,11 +29,11 @@ library 提供管理页面、管理 API 和核心协议路由。协议限制 wxI
 
 ## 工作方式
 
-1. WeKit 在发送消息时调用 `POST /register` 注册消息。
+1. XiaoFeng 在发送消息时调用 `POST /register` 注册消息。
 2. 服务端根据发送者 wxId、消息内容和创建时间生成消息 ID。
-3. WeKit 将指向 `GET /pixel` 的透明图片地址附加到消息中。
+3. XiaoFeng 将指向 `GET /pixel` 的透明图片地址附加到消息中。
 4. 收件人加载图片时，服务端记录请求来源 IP。
-5. 发送者的 WeKit 客户端定期调用 `GET /count`，获取按 IP 去重后的已读人数。
+5. 发送者的 XiaoFeng 客户端定期调用 `GET /count`，获取按 IP 去重后的已读人数。
 
 来源 IP 只能近似表示读者身份。同一 NAT 下的多个设备可能被计为一人，切换网络或使用 VPN 也可能导致同一人被重复计算。
 
@@ -45,7 +45,7 @@ library 提供管理页面、管理 API 和核心协议路由。协议限制 wxI
 
 ## 快速开始
 
-在 WeKit 仓库中运行：
+在 XiaoFeng 仓库中运行：
 
 ```bash
 cd services/read-receipts
@@ -58,7 +58,7 @@ cargo run --release
 http://localhost:8080/
 ```
 
-随后在 WeKit 的「已读追踪」设置中填写外部设备实际能够访问的服务地址。更完整的客户端使用说明见 [已读追踪功能文档](../../docs/features/chat/read-receipts.md)。
+随后在 XiaoFeng 的「已读追踪」设置中填写外部设备实际能够访问的服务地址。更完整的客户端使用说明见 [已读追踪功能文档](../../docs/features/chat/read-receipts.md)。
 
 ## 配置
 
@@ -80,7 +80,7 @@ BIND_ADDR=127.0.0.1 PORT=3000 RUST_LOG=info cargo run --release
 
 ## API 契约
 
-WeKit 客户端所需的核心接口如下：
+XiaoFeng 客户端所需的核心接口如下：
 
 ### 注册消息
 
@@ -121,7 +121,7 @@ sha256(wxId + "\0" + content + "\0" + createTime)
 GET /pixel?wxId=<wxId>&id=<messageId>
 ```
 
-服务端默认记录请求的直接 TCP 对端 IP，并始终返回禁止缓存的 1×1 透明 PNG。`Forwarded`、`X-Forwarded-For` 和 `CF-Connecting-IP` 等请求头本身不会改变读者身份。仅内嵌配置中由可信 connector 写入、且通过进程内认证值验证的 WeKit reader 元数据可以覆盖对端 IP。
+服务端默认记录请求的直接 TCP 对端 IP，并始终返回禁止缓存的 1×1 透明 PNG。`Forwarded`、`X-Forwarded-For` 和 `CF-Connecting-IP` 等请求头本身不会改变读者身份。仅内嵌配置中由可信 connector 写入、且通过进程内认证值验证的 XiaoFeng reader 元数据可以覆盖对端 IP。
 
 ### 查询已读人数
 
@@ -172,7 +172,7 @@ GET /count?wxId=<wxId>&id=<messageId>
 
 ## systemd 部署
 
-目录中提供了参考 service 文件：[wekit-read-receipts-server.service](wekit-read-receipts-server.service)。使用前至少需要修改其中的 `User`、`Group`、`WorkingDirectory`、`ExecStart` 和 `ReadWritePaths`，使其符合实际部署环境。
+目录中提供了参考 service 文件：[xfeng-read-receipts-server.service](xfeng-read-receipts-server.service)。使用前至少需要修改其中的 `User`、`Group`、`WorkingDirectory`、`ExecStart` 和 `ReadWritePaths`，使其符合实际部署环境。
 
 先构建服务：
 
@@ -187,7 +187,7 @@ cargo build --release
 - 独立参考服务没有身份认证、访问控制、协议速率限制或完整滥用防护，不应直接作为生产级公共服务部署。核心协议的字段/query/body 上限适用于两种路由配置；仅内嵌配置包含上述轻量速率限制和严格消息 ID/已知消息检查。
 - 服务会保存发送者 wxId、明文消息内容、读取请求来源 IP 和时间戳。部署者必须自行确认当地法律、隐私政策及用户授权要求。
 - 公网传输应使用 HTTPS，避免消息内容和标识符以明文形式经过网络。
-- 独立服务的 `/pixel` 只使用直接 TCP 对端地址作为读者 IP；任意转发请求头和公开可配置的“可信代理”例外都不会被信任。WeKit 内嵌配置只接受上述经过 connector authenticator 验证的私有元数据通道。
+- 独立服务的 `/pixel` 只使用直接 TCP 对端地址作为读者 IP；任意转发请求头和公开可配置的“可信代理”例外都不会被信任。XiaoFeng 内嵌配置只接受上述经过 connector authenticator 验证的私有元数据通道。
 - 删除 `read_receipts.db` 会清除本地数据库；执行前请自行备份。
 
 ## 已知限制
@@ -196,7 +196,7 @@ cargo build --release
 - 没有用户系统、多租户隔离和权限模型。
 - 没有正式的数据库迁移、备份或恢复机制。
 - 管理页面和管理 API 默认对所有能够访问服务的客户端开放。
-- 不保证未来 WeKit 客户端协议变化后的兼容性。
+- 不保证未来 XiaoFeng 客户端协议变化后的兼容性。
 
 ## 维护与贡献
 
@@ -210,4 +210,4 @@ cargo build --release
 
 ## 许可证
 
-本项目随 WeKit 按 [GNU General Public License v3.0](../../LICENSE) 发布。
+本项目随 XiaoFeng 按 [GNU General Public License v3.0](../../LICENSE) 发布。

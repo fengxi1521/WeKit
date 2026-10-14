@@ -1,12 +1,12 @@
-//! WeKit xtask — build automation for the WeKit Android project.
+//! XiaoFeng xtask — build automation for the XiaoFeng Android project.
 //!
 //! Usage: cargo xtask <COMMAND>
 //!
-//!   configure            Regenerate wekit-native/.cargo/config.toml from the local NDK.
+//!   configure            Regenerate xfeng-native/.cargo/config.toml from the local NDK.
 //!   build [OPTIONS]      Build the project (default: full Android debug build via Gradle).
 //!   check [OPTIONS]      Run `cargo check` on the native library.
 //!   clippy [OPTIONS]     Run `cargo clippy` on the native library.
-//!   dex-test [OPTIONS]   Resolve WeKit DexKit targets against desktop APKs.
+//!   dex-test [OPTIONS]   Resolve XiaoFeng DexKit targets against desktop APKs.
 //!   dex-report-diff      Compare member signatures in existing per-APK reports.
 //!   dex-test-ci          Prepare APK sources and mutable Dex-Test Release assets.
 //!   i18n-check           Validate the Android English and Chinese resource catalogs.
@@ -60,13 +60,13 @@ struct AbiSpec {
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 enum ApkNativeBuildStep {
     Configure,
-    WeKitNative,
+    XiaoFengNative,
     ZygiskNative,
 }
 
 const APK_NATIVE_BUILD_STEPS: &[ApkNativeBuildStep] = &[
     ApkNativeBuildStep::Configure,
-    ApkNativeBuildStep::WeKitNative,
+    ApkNativeBuildStep::XiaoFengNative,
     ApkNativeBuildStep::ZygiskNative,
 ];
 
@@ -82,14 +82,14 @@ static ABI_TABLE: &[AbiSpec] = &[AbiSpec {
 /// ABIs included in release APKs (the default build targets).
 static RELEASE_ABIS: &[&str] = &["arm64-v8a"];
 
-const ZYGISK_CARGO_PACKAGE: &str = "wekit-zygisk";
-const ZYGISK_MODULE_ID: &str = "wekit_zygisk";
+const ZYGISK_CARGO_PACKAGE: &str = "xfeng-zygisk";
+const ZYGISK_MODULE_ID: &str = "xfeng_zygisk";
 // ── CLI ────────────────────────────────────────────────────────────────────────
 
 #[derive(Parser)]
 #[command(
     name = "cargo xtask",
-    about = "WeKit build automation",
+    about = "XiaoFeng build automation",
     long_about = None,
     disable_help_subcommand = true,
 )]
@@ -100,7 +100,7 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Cmd {
-    /// Regenerate wekit-native/.cargo/config.toml from the local NDK.
+    /// Regenerate xfeng-native/.cargo/config.toml from the local NDK.
     Configure,
 
     /// Build the project.
@@ -111,8 +111,8 @@ enum Cmd {
 
     /// Build and install the app, or flash the same APK as a Zygisk module.
     ///
-    /// Defaults to installStandardDebug. With --zygisk, assembles the selected
-    /// APK and installs it through the device's root manager instead.
+    /// Defaults to Zygisk module installation. Pass --zygisk false to assemble
+    /// the selected APK and install it as a normal app instead.
     Run(RunArgs),
 
     /// Run `cargo check` on the native library for each target ABI.
@@ -188,7 +188,15 @@ struct RunArgs {
     protect: Option<bool>,
 
     /// Install the APK as a Zygisk module through the device's root manager.
-    #[arg(long)]
+    /// This is the default; pass `--zygisk false` to install as a normal APK instead.
+    #[arg(
+        long,
+        value_name = "BOOL",
+        num_args = 0..=1,
+        default_missing_value = "true",
+        action = clap::ArgAction::Set,
+        default_value_t = true
+    )]
     zygisk: bool,
 
     /// adb device serial (also used for normal APK installation).
@@ -241,7 +249,7 @@ fn print_banner() {
     | |/ |/ /  __/ /| |/ / /_
     |__/|__/\___/_/ |_/_/\__/
 
-[WeKit] WeChat, now with superpowers
+[XiaoFeng] WeChat, now with superpowers
 "#
     );
 }
@@ -279,13 +287,13 @@ pub(crate) fn workspace_root() -> PathBuf {
         }
         dir = dir
             .parent()
-            .unwrap_or_else(|| panic!("workspace root not found; run from inside the WeKit repo"))
+            .unwrap_or_else(|| panic!("workspace root not found; run from inside the XiaoFeng repo"))
             .to_owned();
     }
 }
 
 fn native_crate_dir(root: &Path) -> PathBuf {
-    root.join("app/src/main/rust/wekit-native")
+    root.join("app/src/main/rust/xfeng-native")
 }
 
 fn jni_libs_dir(root: &Path) -> PathBuf {
@@ -317,7 +325,7 @@ fn proot_cache_key(root: &Path, ndk: &Path) -> Result<String> {
     let patch = fs::read(proot_patch_path(root))?;
     let build_script = fs::read(proot_source_dir(root).join("tools/build-static-aarch64.sh"))?;
     let mut hasher = Sha256::new();
-    hasher.update(b"wekit-proot-cache-v1\0");
+    hasher.update(b"xfeng-proot-cache-v1\0");
     hasher.update(PROOT_COMMIT.as_bytes());
     hasher.update(ndk.to_string_lossy().as_bytes());
     hasher.update(MIN_SDK.to_le_bytes());
@@ -355,7 +363,7 @@ fn invoke_tool_artifact_paths(root: &Path, spec: &AbiSpec) -> (PathBuf, PathBuf)
 }
 
 fn zygisk_dir(root: &Path) -> PathBuf {
-    root.join("wekit-zygisk")
+    root.join("xfeng-zygisk")
 }
 
 // ── ABI resolution ─────────────────────────────────────────────────────────────
@@ -509,7 +517,7 @@ fn task_configure() -> Result<()> {
 
     let out = out.trim_end_matches('\n').to_owned() + "\n";
 
-    // Write for wekit-native
+    // Write for xfeng-native
     let config_path = native_crate_dir(&root).join(".cargo/config.toml");
     fs::create_dir_all(config_path.parent().unwrap())?;
     fs::write(&config_path, &out)
@@ -519,7 +527,7 @@ fn task_configure() -> Result<()> {
     // The C++ ART bridge uses exactly the same pinned NDK/API as Rust and AGP.
     let ndk_dir = pinned_ndk_dir(&root, None)?;
     let zygisk_out = format!(
-        "{out}WEKIT_ANDROID_NDK = \"{}\"\nWEKIT_ANDROID_API = \"{MIN_SDK}\"\n",
+        "{out}XFENG_ANDROID_NDK = \"{}\"\nXFENG_ANDROID_API = \"{MIN_SDK}\"\n",
         ndk_dir.to_string_lossy().replace('\\', "/")
     );
     let zygisk_config_path = zygisk_dir(&root).join("native/.cargo/config.toml");
@@ -627,7 +635,7 @@ fn task_prepare_apk_native_inputs(abi_args: &[String], save_symbols: bool) -> Re
     for step in apk_native_build_steps() {
         match step {
             ApkNativeBuildStep::Configure => task_configure()?,
-            ApkNativeBuildStep::WeKitNative => task_build_native(abi_args)?,
+            ApkNativeBuildStep::XiaoFengNative => task_build_native(abi_args)?,
             ApkNativeBuildStep::ZygiskNative => {
                 build_zygisk_native(&workspace_root(), abi_args, save_symbols)?
             }
@@ -814,9 +822,9 @@ fn task_build_native(abi_args: &[String]) -> Result<()> {
         let so_src = root
             .join("target")
             .join(spec.cargo_triple)
-            .join("release/libwekit_native.so");
+            .join("release/libxfeng_native.so");
         let so_dst_dir = jni_libs_dir(&root).join(spec.android_name);
-        let so_dst = so_dst_dir.join("libwekit_native.so");
+        let so_dst = so_dst_dir.join("libxfeng_native.so");
 
         fs::create_dir_all(&so_dst_dir)
             .with_context(|| format!("could not create {}", so_dst_dir.display()))?;
@@ -999,7 +1007,7 @@ fn build_zygisk_native(root: &Path, abi_names: &[String], save_symbols: bool) ->
             let stage = symbols.join("files").join(abi.android_name);
             copy_if_changed(&source, &stage.join(&name))?;
             let commit = git_output(root, &["rev-parse", "--short=8", "HEAD"])?;
-            let archive = symbols.join(format!("WeKit-{commit}-{}-symbols.zip", abi.android_name));
+            let archive = symbols.join(format!("XiaoFeng-{commit}-{}-symbols.zip", abi.android_name));
             write_zip_from_directory(&stage, &archive)?;
             println!("build(symbols): {}", archive.display());
         }
@@ -1017,8 +1025,8 @@ fn validate_module_apk(path: &Path) -> Result<()> {
         "customize.sh",
         "META-INF/com/google/android/update-binary",
         "META-INF/com/google/android/updater-script",
-        "lib/arm64-v8a/libwekit_zygisk.so",
-        "lib/arm64-v8a/libwekit_native.so",
+        "lib/arm64-v8a/libxfeng_zygisk.so",
+        "lib/arm64-v8a/libxfeng_native.so",
     ] {
         let mut entry = archive.by_name(name).with_context(|| {
             format!(
@@ -1149,8 +1157,8 @@ fn install_zygisk_apk(
 ) -> Result<()> {
     let manager = validate_root_manager(manager)?;
     // The bytes are the signed APK; only the device-side extension changes.
-    let remote_zip = format!("/data/local/tmp/wekit-module-{}.zip", std::process::id());
-    let remote_script = "/data/local/tmp/install_wekit_zygisk.sh";
+    let remote_zip = format!("/data/local/tmp/xfeng-module-{}.zip", std::process::id());
+    let remote_script = "/data/local/tmp/install_xfeng_zygisk.sh";
     let script = zygisk_dir(root).join("scripts/install_module.sh");
     run_adb(
         root,
@@ -1286,15 +1294,15 @@ mod tests {
     fn test_git_repo() -> TestGitRepo {
         static NEXT_ID: AtomicU64 = AtomicU64::new(0);
         let path = env::temp_dir().join(format!(
-            "wekit-source-pin-test-{}-{}",
+            "xfeng-source-pin-test-{}-{}",
             std::process::id(),
             NEXT_ID.fetch_add(1, Ordering::Relaxed),
         ));
         fs::create_dir(&path).unwrap();
         for args in [
             vec!["init", "-q"],
-            vec!["config", "user.name", "WeKit Test"],
-            vec!["config", "user.email", "wekit-test@example.invalid"],
+            vec!["config", "user.name", "XiaoFeng Test"],
+            vec!["config", "user.email", "xfeng-test@example.invalid"],
         ] {
             assert!(
                 Command::new("git")
@@ -1338,12 +1346,12 @@ mod tests {
     }
 
     #[test]
-    fn apk_native_build_plan_runs_configure_before_wekit_native() {
+    fn apk_native_build_plan_runs_configure_before_xfeng_native() {
         assert_eq!(
             apk_native_build_steps(),
             &[
                 ApkNativeBuildStep::Configure,
-                ApkNativeBuildStep::WeKitNative,
+                ApkNativeBuildStep::XiaoFengNative,
                 ApkNativeBuildStep::ZygiskNative,
             ],
         );
@@ -1400,7 +1408,7 @@ mod tests {
     fn proot_cache_requires_matching_inputs_and_artifacts() {
         static NEXT_CACHE_ID: AtomicU64 = AtomicU64::new(0);
         let root = env::temp_dir().join(format!(
-            "wekit-proot-cache-test-{}-{}",
+            "xfeng-proot-cache-test-{}-{}",
             std::process::id(),
             NEXT_CACHE_ID.fetch_add(1, Ordering::Relaxed),
         ));

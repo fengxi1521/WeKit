@@ -7,7 +7,7 @@ plugins {
     id("org.jetbrains.kotlin.android") version libs.versions.kotlin
 }
 
-group = "dev.ujhhgtg.wekit.python.runtime"
+group = "com.xiao.feng.python.runtime"
 version = "0.1.0"
 
 val nativeLibraries = listOf(
@@ -28,7 +28,7 @@ val runtimeManifestValues = mapOf(
     "python" to libs.versions.pythonRuntimeChaquopyTarget.get(),
     "ndk" to libs.versions.ndk.get(),
     "abi" to "arm64-v8a",
-    "patchRevision" to "${libs.versions.pythonRuntimeChaquopyRevision.get()}+wekit-platform-4",
+    "patchRevision" to "${libs.versions.pythonRuntimeChaquopyRevision.get()}+xfeng-platform-4",
     "syncHookBudgetMs" to "5000",
     "taskDrainTimeoutMs" to "3000",
     "maxManifestBytes" to "262144",
@@ -68,11 +68,11 @@ val generateRuntimeManifest = tasks.register("generateRuntimeManifest") {
 }
 
 configure<ApplicationExtension> {
-    namespace = "dev.ujhhgtg.wekit.python.runtime"
+    namespace = "com.xiao.feng.python.runtime"
     compileSdk = libs.versions.compileSdk.get().toInt()
     ndkVersion = libs.versions.ndk.get()
     defaultConfig {
-        applicationId = "dev.ujhhgtg.wekit.python.runtime.container"
+        applicationId = "com.xiao.feng.python.runtime.container"
         minSdk = libs.versions.minSdk.get().toInt()
         targetSdk = libs.versions.targetSdk.get().toInt()
         versionCode = 1
@@ -107,8 +107,8 @@ val dexKitCodegen = configurations.create("dexKitCodegen") {
 dependencies {
     // Supplied by xtask from a controlled local Maven repository; compile-only
     // prevents API classes from entering the runtime DEX.
-    val apiVersion = providers.gradleProperty("wekitPythonApiVersion").orElse("1.0.0")
-    compileOnly("dev.ujhhgtg.wekit:python-runtime-api:${apiVersion.get()}")
+    val apiVersion = providers.gradleProperty("xfengPythonApiVersion").orElse("1.0.0")
+    compileOnly("com.xiao.feng:python-runtime-api:${apiVersion.get()}")
     chaquopyTarget(
         "com.chaquo.python:target:${libs.versions.pythonRuntimeChaquopyTarget.get()}:arm64-v8a@zip",
     )
@@ -140,12 +140,12 @@ chaquopy {
     defaultConfig {
         version = libs.versions.pythonRuntimePython.get()
         buildPython(
-            providers.gradleProperty("wekitPythonBuildExecutable")
+            providers.gradleProperty("xfengPythonBuildExecutable")
                 .orElse("python${libs.versions.pythonRuntimePython.get()}")
                 .get(),
         )
         pip {
-            providers.gradleProperty("wekitPythonWheelDirectory").orNull?.let { directory ->
+            providers.gradleProperty("xfengPythonWheelDirectory").orNull?.let { directory ->
                 options("--find-links", directory)
             }
             install("-r", "requirements.txt")
@@ -176,12 +176,12 @@ listOf("debug", "release").forEach { variant ->
     val capitalized = variant.replaceFirstChar(Char::uppercaseChar)
     val stagePatchedBridge = tasks.register<Copy>("stage${capitalized}PatchedChaquopyBridge") {
         dependsOn("generate${capitalized}PythonMiscAssets")
-        val bridge = providers.gradleProperty("wekitPatchedChaquopyBridge").map(::file)
+        val bridge = providers.gradleProperty("xfengPatchedChaquopyBridge").map(::file)
         from(bridge)
         into(layout.buildDirectory.dir("python/assets/misc/$variant/chaquopy/bootstrap-native/arm64-v8a/java"))
         doFirst {
             require(bridge.isPresent && bridge.get().isFile) {
-                "wekitPatchedChaquopyBridge must point to the bridge built by xtask"
+                "xfengPatchedChaquopyBridge must point to the bridge built by xtask"
             }
         }
     }
