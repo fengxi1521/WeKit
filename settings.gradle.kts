@@ -6,6 +6,9 @@ enableFeaturePreview("NO_IMPLICIT_LOOKUP_IN_PARENT_PROJECTS")
 enableFeaturePreview("TYPESAFE_PROJECT_ACCESSORS")
 
 pluginManagement {
+    // LSParanoid (dev.ujhhgtg.lsparanoid) is not published to any Maven repository; it is
+    // consumed from source as a composite build.
+    includeBuild("libs/common/lsparanoid")
     repositories {
         mavenLocal { content { includeGroup("dev.ujhhgtg.lsparanoid") } }
         google {
@@ -74,6 +77,9 @@ rootProject.name = "xfeng"
 // Composite build: scripta code editor (not published to Maven Central; keep its own
 // toolchain, plugins and version catalog).
 includeBuild("libs/common/scripta")
+
+// Composite build: substitutes the dev.ujhhgtg.lsparanoid core/runtime modules consumed by :app.
+includeBuild("libs/common/lsparanoid")
 
 include(
     ":app",
