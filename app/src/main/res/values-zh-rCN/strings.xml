@@ -3762,4 +3762,21 @@
     <string name="structured_storage_saving">正在保存…</string>
     <string name="structured_storage_save_failed">保存失败，之前的设置未更改。请检查日志后重试。</string>
     <string name="structured_storage_unavailable">此功能的数据未能加载。请检查迁移日志并重启微信重试。</string>
+    <string name="feature_scheduled_messages_name">定时消息</string>
+    <string name="feature_scheduled_messages_description">在指定时间为指定会话自动发送文本消息</string>
+    <string name="scheduled_messages_title">定时消息</string>
+    <string name="scheduled_messages_description">到达设定时间后自动发送；仅在微信运行过程中才会触发</string>
+    <string name="scheduled_messages_add">添加</string>
+    <string name="scheduled_messages_empty">还没有定时消息</string>
+    <string name="scheduled_messages_add_title">新建定时消息</string>
+    <string name="scheduled_messages_edit_title">编辑定时消息</string>
+    <string name="scheduled_messages_target">发送到</string>
+    <string name="scheduled_messages_select_target">选择会话</string>
+    <string name="scheduled_messages_content">消息内容</string>
+    <string name="scheduled_messages_content_hint">输入要发送的文本</string>
+    <string name="scheduled_messages_repeating_summary">%1$s %2$s · 发送消息</string>
+    <string name="scheduled_messages_once_summary">%1$s · 发送消息（单次）</string>
+    <string name="scheduled_messages_need_target">请选择要发送的会话</string>
+    <string name="scheduled_messages_need_text">请输入消息内容</string>
+    <string name="scheduled_messages_once_deleted">发送后自动删除</string>
 </resources>

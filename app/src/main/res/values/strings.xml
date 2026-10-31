@@ -3730,4 +3730,21 @@
     <string name="structured_storage_saving">Saving…</string>
     <string name="structured_storage_save_failed">Could not save. Your previous settings are unchanged. Check the logs and try again.</string>
     <string name="structured_storage_unavailable">This feature’s data could not be loaded. Check the migration logs and restart WeChat to retry.</string>
+    <string name="feature_scheduled_messages_name">Scheduled messages</string>
+    <string name="feature_scheduled_messages_description">Automatically send a text message to a chat at a fixed time</string>
+    <string name="scheduled_messages_title">Scheduled messages</string>
+    <string name="scheduled_messages_description">The saved text is sent when the alarm fires; alarms only run while WeChat is running</string>
+    <string name="scheduled_messages_add">Add</string>
+    <string name="scheduled_messages_empty">No scheduled messages yet</string>
+    <string name="scheduled_messages_add_title">New scheduled message</string>
+    <string name="scheduled_messages_edit_title">Edit scheduled message</string>
+    <string name="scheduled_messages_target">Chat</string>
+    <string name="scheduled_messages_select_target">Select chat</string>
+    <string name="scheduled_messages_content">Message text</string>
+    <string name="scheduled_messages_content_hint">Enter the text to send</string>
+    <string name="scheduled_messages_repeating_summary">%1$s %2$s · send text</string>
+    <string name="scheduled_messages_once_summary">%1$s · send text (once)</string>
+    <string name="scheduled_messages_need_target">Select a chat to send to</string>
+    <string name="scheduled_messages_need_text">Enter the message text</string>
+    <string name="scheduled_messages_once_deleted">Deleted after sending</string>
 </resources>
