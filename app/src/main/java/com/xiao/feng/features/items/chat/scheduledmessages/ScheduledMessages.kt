@@ -28,26 +28,34 @@ private const val TAG = "ScheduledMessages"
 /** `Calendar.SUNDAY..Calendar.SATURDAY` — the default (and maximal) [ScheduledMessage.daysOfWeek]. */
 val ALL_SCHEDULED_MESSAGE_DAYS: Set<Int> = (Calendar.SUNDAY..Calendar.SATURDAY).toSet()
 
+/** One chat a [ScheduledMessage] is delivered to. */
+@Serializable
+data class ScheduledMessageTarget(
+    val talker: String,
+    /** Display-only snapshot captured when the target was picked. */
+    val displayName: String = "",
+)
+
 /**
- * One user-defined alarm that sends [text] to the chat identified by [talker] when it fires.
+ * One user-defined alarm that sends [text] to every one of [targets] when it fires.
  *
- * [displayName] is a display-only snapshot of the chat's name, captured when the entry was created,
- * so the list stays readable even if the target is renamed or later deleted.
+ * [randomizeLines] treats each non-blank line of [text] as one candidate and sends a randomly
+ * picked line per delivery, so a single entry can rotate several canned messages.
  */
 @Serializable
 data class ScheduledMessage(
     val id: String,
     val enabled: Boolean = true,
-    val talker: String,
-    val displayName: String = "",
+    val targets: List<ScheduledMessageTarget>,
     val text: String,
     val kind: ScheduledMessageKind = ScheduledMessageKind.REPEATING,
-    /** [ScheduledMessageKind.REPEATING] only: 0..1439. */
-    val minuteOfDay: Int = 0,
+    /** [ScheduledMessageKind.REPEATING] only: 0..1439, one alarm per entry. */
+    val minutesOfDay: Set<Int> = emptySet(),
     /** [ScheduledMessageKind.REPEATING] only: `Calendar.SUNDAY`..`Calendar.SATURDAY`. */
     val daysOfWeek: Set<Int> = ALL_SCHEDULED_MESSAGE_DAYS,
     /** [ScheduledMessageKind.ONCE] only: the full date-time. Deleted after it fires. */
     val atEpochMillis: Long = 0L,
+    val randomizeLines: Boolean = false,
 )
 
 @Serializable
@@ -83,9 +91,10 @@ object ScheduledMessages : ClickableFeature() {
  *
  * Same design as `HideContactsSchedule`: `AlarmManager` (not an in-process coroutine) so a fire time
  * survives Doze, with [resync] as the single reconciliation point and [mutate] as the only write
- * path. What differs is the catch-up contract: a missed 显示/隐藏 flip can safely be applied late,
- * but a missed *message* must not be sent late, so [catchUp] only consumes elapsed one-shot entries
- * and never delivers anything.
+ * path. Alarms are keyed by `id#minute`, so one entry with several send times owns several alarms.
+ * What differs from the hide-contacts list is the catch-up contract: a missed 显示/隐藏 flip can
+ * safely be applied late, but a missed *message* must not be sent late, so [catchUp] only consumes
+ * elapsed one-shot entries and never delivers anything.
  *
  * Alarms only fire while WeChat's main process exists (the module cannot add a `<receiver>` to
  * WeChat's manifest, so the receiver is registered at runtime). A fire time missed while the process
@@ -97,6 +106,10 @@ object ScheduledMessageSchedule {
 
     private const val ACTION_FIRE = "com.xiao.feng.action.SCHEDULED_MESSAGE"
     private const val EXTRA_ID = "schedule_id"
+    private const val EXTRA_MINUTE = "schedule_minute"
+
+    /** Alarm key suffix used by one-shot entries, which have no minute-of-day. */
+    private const val NO_MINUTE = -1
 
     /** Distinct from HideContactsSchedule's `xfeng://hidecontacts/...` data URIs. */
     private const val URI_SCHEME = "xfeng"
@@ -106,12 +119,35 @@ object ScheduledMessageSchedule {
 
     private var installed = false
     private var receiverRegistered = false
-    private val armedIds = mutableSetOf<String>()
 
-    /** The schedule list, sanitized. Reads parse from [KvStore] every time. */
+    /**
+     * Alarm key -> the epoch millis it is currently armed at. Keeping the armed time lets [resync]
+     * skip unchanged alarms, so saving an entry only touches Binder for real changes instead of
+     * cancelling and re-arming the whole list.
+     */
+    private val armedTimes = mutableMapOf<String, Long>()
+
+    /**
+     * Parsed copy of [raw], reused until the stored string changes. The list is read by the settings
+     * dialog and by every alarm callback, so decoding once per stored value keeps those paths free
+     * of repeated JSON parsing.
+     */
+    @Volatile
+    private var cachedRaw: String? = null
+
+    @Volatile
+    private var cachedMessages: List<ScheduledMessage> = emptyList()
+
+    /** The schedule list, sanitized. */
     var messages: List<ScheduledMessage>
         get() = decodeRaw()
-            .filter { it.id.isNotBlank() && it.talker.isNotBlank() && it.text.isNotBlank() && isWellFormed(it) }
+            .filter { message ->
+                message.id.isNotBlank() &&
+                        message.text.isNotBlank() &&
+                        message.targets.isNotEmpty() &&
+                        message.targets.all { it.talker.isNotBlank() } &&
+                        isWellFormed(message)
+            }
             .distinctBy { it.id }
         private set(value) {
             runCatching { raw = DefaultJson.encodeToString(value) }
@@ -121,13 +157,25 @@ object ScheduledMessageSchedule {
     private fun decodeRaw(): List<ScheduledMessage> {
         val text = raw
         if (text.isEmpty()) return emptyList()
-        return runCatching { DefaultJson.decodeFromString<List<ScheduledMessage>>(text) }
-            .onFailure { WeLogger.w(TAG, "failed to parse scheduled messages, resetting", it) }
-            .getOrDefault(emptyList())
+        if (text == cachedRaw) return cachedMessages
+        val parsed = runCatching {
+            DefaultJson.decodeFromString<List<ScheduledMessage>>(text)
+        }.recoverCatching {
+            DefaultJson.decodeFromString<List<LegacyScheduledMessage>>(text)
+                .map { it.toScheduledMessage() }
+        }.onFailure {
+            WeLogger.w(TAG, "failed to parse scheduled messages, resetting", it)
+        }.getOrDefault(emptyList())
+        cachedRaw = text
+        cachedMessages = parsed
+        return parsed
     }
 
     private fun isWellFormed(message: ScheduledMessage): Boolean = when (message.kind) {
-        ScheduledMessageKind.REPEATING -> message.minuteOfDay in 0..1439
+        ScheduledMessageKind.REPEATING -> message.daysOfWeek.isNotEmpty() &&
+                message.minutesOfDay.isNotEmpty() &&
+                message.minutesOfDay.all { it in 0..1439 }
+
         ScheduledMessageKind.ONCE -> message.atEpochMillis > 0L
     }
 
@@ -174,6 +222,19 @@ object ScheduledMessageSchedule {
         unregisterReceiver()
     }
 
+    /** Sends [message] right now, bypassing its schedule. Returns how many targets accepted it. */
+    fun sendNow(message: ScheduledMessage): Int {
+        val text = message.textToSend()
+        var sent = 0
+        for (target in message.targets) {
+            if (runCatching { WeMessageApi.sendText(target.talker, text) }.getOrDefault(false)) {
+                sent++
+            }
+        }
+        WeLogger.i(TAG, "manual send of ${message.id} reached $sent/${message.targets.size} chat(s)")
+        return sent
+    }
+
     private fun registerReceiver() {
         if (receiverRegistered) return
         val filter = IntentFilter(ACTION_FIRE).apply { addDataScheme(URI_SCHEME) }
@@ -195,64 +256,88 @@ object ScheduledMessageSchedule {
     private fun resync() {
         if (!installed) return
         val list = messages
-        cancelAll(list.map { it.id })
 
+        val desired = mutableMapOf<String, Long>()
         val now = System.currentTimeMillis()
         for (message in list) {
             if (!message.enabled) continue
-            val next = nextFireAfter(message, now)
-            if (next == null) {
-                WeLogger.d(TAG, "scheduled message ${message.id} has no future fire time; skipped")
-                continue
+            for (minute in minutesToArm(message)) {
+                val next = nextFireAfter(message, minute, now)
+                if (next == null) {
+                    WeLogger.d(TAG, "scheduled message ${message.id}@$minute has no future fire time")
+                    continue
+                }
+                desired[alarmKey(message.id, minute)] = next
             }
-            arm(message.id, next)
         }
-        WeLogger.d(TAG, "resynced ${armedIds.size} scheduled message alarm(s)")
+
+        val stale = armedTimes.keys - desired.keys
+        if (stale.isNotEmpty()) cancel(stale)
+        for ((key, at) in desired) {
+            if (armedTimes[key] == at) continue
+            arm(key, at)
+        }
+        WeLogger.d(TAG, "resynced ${armedTimes.size} scheduled message alarm(s)")
     }
 
-    private fun cancelAll(extraIds: List<String> = emptyList()) {
+    private fun minutesToArm(message: ScheduledMessage): List<Int> = when (message.kind) {
+        ScheduledMessageKind.ONCE -> listOf(NO_MINUTE)
+        ScheduledMessageKind.REPEATING -> message.minutesOfDay.toList()
+    }
+
+    private fun alarmKey(id: String, minute: Int): String = "$id#$minute"
+
+    /** Cancels exactly [keys] and forgets them. */
+    private fun cancel(keys: Collection<String>) {
+        if (keys.isEmpty()) return
         val alarmManager = HostInfo.application.getSystemService<AlarmManager>()
-        for (id in armedIds + extraIds) {
-            val pendingIntent = pendingIntentFor(id)
+        for (key in keys.toList()) {
+            val pendingIntent = pendingIntentFor(key)
             runCatching { alarmManager.cancel(pendingIntent) }
-                .onFailure { WeLogger.w(TAG, "failed to cancel alarm for $id", it) }
+                .onFailure { WeLogger.w(TAG, "failed to cancel alarm for $key", it) }
             pendingIntent.cancel()
+            armedTimes -= key
         }
-        armedIds.clear()
     }
 
-    private fun arm(id: String, atEpochMillis: Long) {
+    private fun cancelAll() = cancel(armedTimes.keys)
+
+    private fun arm(key: String, atEpochMillis: Long) {
         val alarmManager = HostInfo.application.getSystemService<AlarmManager>()
-        val pendingIntent = pendingIntentFor(id)
+        val pendingIntent = pendingIntentFor(key)
 
         val canBeExact = Build.VERSION.SDK_INT < Build.VERSION_CODES.S ||
                 runCatching { alarmManager.canScheduleExactAlarms() }.getOrDefault(false)
 
         val armed = canBeExact && runCatching {
             alarmManager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, atEpochMillis, pendingIntent)
-        }.onFailure { WeLogger.w(TAG, "exact alarm rejected for $id, falling back to inexact", it) }
+        }.onFailure { WeLogger.w(TAG, "exact alarm rejected for $key, falling back to inexact", it) }
             .isSuccess
 
         if (!armed) {
             runCatching {
                 alarmManager.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, atEpochMillis, pendingIntent)
             }.onFailure {
-                WeLogger.w(TAG, "failed to arm alarm for $id", it)
+                WeLogger.w(TAG, "failed to arm alarm for $key", it)
+                armedTimes -= key
                 return
             }
         }
-        armedIds += id
+        armedTimes[key] = atEpochMillis
     }
 
-    private fun pendingIntentFor(id: String): PendingIntent {
+    private fun pendingIntentFor(key: String): PendingIntent {
+        val (id, minuteText) = key.split('#', limit = 2).let { it[0] to it[1] }
+        val minute = minuteText.toInt()
         val intent = Intent(ACTION_FIRE).apply {
             setPackage(HostInfo.packageName)
-            data = "$URI_SCHEME://$URI_AUTHORITY/schedule/$id".toUri()
+            data = "$URI_SCHEME://$URI_AUTHORITY/schedule/$id/$minute".toUri()
             putExtra(EXTRA_ID, id)
+            putExtra(EXTRA_MINUTE, minute)
         }
         return PendingIntent.getBroadcast(
             HostInfo.application,
-            id.hashCode(),
+            key.hashCode(),
             intent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
         )
@@ -262,35 +347,48 @@ object ScheduledMessageSchedule {
         override fun onReceive(context: Context, intent: Intent?) {
             if (intent?.action != ACTION_FIRE) return
             val id = intent.getStringExtra(EXTRA_ID) ?: return
-            onFired(id)
+            val minute = intent.getIntExtra(EXTRA_MINUTE, NO_MINUTE)
+            onFired(id, minute)
         }
     }
 
     @Synchronized
-    private fun onFired(id: String) {
-        val list = messages
-        val message = list.firstOrNull { it.id == id && it.enabled } ?: return
+    private fun onFired(id: String, minute: Int) {
+        val message = messages.firstOrNull { it.id == id && it.enabled } ?: return
 
         if (!deliver(message)) {
-            WeLogger.w(TAG, "scheduled message $id failed to send to ${message.talker}")
+            WeLogger.w(TAG, "scheduled message $id failed to reach every target")
         }
 
         if (message.kind == ScheduledMessageKind.ONCE) {
             removeStored(setOf(id))
-            armedIds -= id
             resync()
             return
         }
 
-        val next = nextFireAfter(message, System.currentTimeMillis())
-        if (next != null) arm(id, next) else armedIds -= id
+        val key = alarmKey(id, minute)
+        val next = nextFireAfter(message, minute, System.currentTimeMillis())
+        if (next != null) arm(key, next) else armedTimes -= key
     }
 
-    private fun deliver(message: ScheduledMessage): Boolean =
-        runCatching { WeMessageApi.sendText(message.talker, message.text) }
-            .onFailure { WeLogger.e(TAG, "failed to send scheduled message ${message.id}", it) }
-            .getOrDefault(false)
-            .also { WeLogger.i(TAG, "scheduled message ${message.id} fired (sent=$it)") }
+    private fun deliver(message: ScheduledMessage): Boolean {
+        val text = message.textToSend()
+        var allSent = true
+        for (target in message.targets) {
+            val sent = runCatching { WeMessageApi.sendText(target.talker, text) }
+                .onFailure { WeLogger.e(TAG, "failed to send ${message.id} to ${target.talker}", it) }
+                .getOrDefault(false)
+            if (!sent) allSent = false
+        }
+        WeLogger.i(TAG, "scheduled message ${message.id} fired (sent=$allSent)")
+        return allSent
+    }
+
+    private fun ScheduledMessage.textToSend(): String {
+        if (!randomizeLines) return text.trim()
+        val lines = text.lines().map { it.trim() }.filter { it.isNotEmpty() }
+        return lines.randomOrNull() ?: text.trim()
+    }
 
     /**
      * Consumes one-shot entries whose time passed while the process was dead, *without* sending them
@@ -308,20 +406,21 @@ object ScheduledMessageSchedule {
         }
     }
 
-    private fun nextFireAfter(message: ScheduledMessage, now: Long): Long? = when (message.kind) {
-        ScheduledMessageKind.ONCE -> message.atEpochMillis.takeIf { it > now }
+    private fun nextFireAfter(message: ScheduledMessage, minute: Int, now: Long): Long? =
+        when (message.kind) {
+            ScheduledMessageKind.ONCE -> message.atEpochMillis.takeIf { it > now }
 
-        ScheduledMessageKind.REPEATING -> {
-            if (message.daysOfWeek.isEmpty()) null else {
-                (0..7).firstNotNullOfOrNull { offset ->
-                    val cal = dayAt(now, message.minuteOfDay, offset)
-                    cal.takeIf {
-                        it.timeInMillis > now && it.get(Calendar.DAY_OF_WEEK) in message.daysOfWeek
-                    }?.timeInMillis
+            ScheduledMessageKind.REPEATING -> {
+                if (message.daysOfWeek.isEmpty() || minute !in 0..1439) null else {
+                    (0..7).firstNotNullOfOrNull { offset ->
+                        val cal = dayAt(now, minute, offset)
+                        cal.takeIf {
+                            it.timeInMillis > now && it.get(Calendar.DAY_OF_WEEK) in message.daysOfWeek
+                        }?.timeInMillis
+                    }
                 }
             }
         }
-    }
 
     private fun dayAt(now: Long, minuteOfDay: Int, dayOffset: Int): Calendar =
         Calendar.getInstance().apply {
@@ -332,4 +431,32 @@ object ScheduledMessageSchedule {
             set(Calendar.MILLISECOND, 0)
             if (dayOffset != 0) add(Calendar.DAY_OF_MONTH, dayOffset)
         }
+}
+
+/**
+ * Persisted shape from the first version of this feature (one chat, one time). Kept only so an
+ * upgrade does not silently drop entries the user already created.
+ */
+@Serializable
+private data class LegacyScheduledMessage(
+    val id: String,
+    val enabled: Boolean = true,
+    val talker: String,
+    val displayName: String = "",
+    val text: String,
+    val kind: ScheduledMessageKind = ScheduledMessageKind.REPEATING,
+    val minuteOfDay: Int = 0,
+    val daysOfWeek: Set<Int> = ALL_SCHEDULED_MESSAGE_DAYS,
+    val atEpochMillis: Long = 0L,
+) {
+    fun toScheduledMessage(): ScheduledMessage = ScheduledMessage(
+        id = id,
+        enabled = enabled,
+        targets = listOf(ScheduledMessageTarget(talker, displayName)),
+        text = text,
+        kind = kind,
+        minutesOfDay = setOf(minuteOfDay),
+        daysOfWeek = daysOfWeek,
+        atEpochMillis = atEpochMillis,
+    )
 }

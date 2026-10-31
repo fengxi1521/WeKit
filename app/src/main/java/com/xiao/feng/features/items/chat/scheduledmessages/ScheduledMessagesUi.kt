@@ -2,6 +2,7 @@ package com.xiao.feng.features.items.chat.scheduledmessages
 
 import android.content.Context
 import androidx.activity.ComponentActivity
+import androidx.annotation.StringRes
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -22,6 +23,7 @@ import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -31,7 +33,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
-import androidx.annotation.StringRes
 import com.composables.icons.materialsymbols.MaterialSymbols
 import com.composables.icons.materialsymbols.outlined.Add
 import com.composables.icons.materialsymbols.outlined.Delete
@@ -41,9 +42,9 @@ import com.xiao.feng.features.api.core.models.WeContact
 import com.xiao.feng.i18n.LocalXiaoFengLocalizedContext
 import com.xiao.feng.ui.content.AlertDialogContent
 import com.xiao.feng.ui.content.Button
+import com.xiao.feng.ui.content.ContactsSelector
 import com.xiao.feng.ui.content.DefaultColumn
 import com.xiao.feng.ui.content.IconButton
-import com.xiao.feng.ui.content.SingleContactSelector
 import com.xiao.feng.ui.content.TextButton
 import com.xiao.feng.ui.content.WeDateTimeField
 import com.xiao.feng.ui.content.WeDateTimeMode
@@ -54,6 +55,9 @@ import com.xiao.feng.ui.content.formatMinuteOfDay
 import com.xiao.feng.ui.content.parseDateTime
 import com.xiao.feng.ui.utils.ListItem
 import com.xiao.feng.ui.utils.showComposeDialog
+import com.xiao.feng.utils.android.showToast
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import java.util.Calendar
 
 private val DAY_LABELS: List<Pair<Int, Int>> = listOf(
@@ -82,39 +86,63 @@ private fun daysLabel(days: Set<Int>): String = when {
 }
 
 @Composable
-private fun ScheduledMessage.summary(): String = when (kind) {
-    ScheduledMessageKind.REPEATING -> stringResource(
-        R.string.scheduled_messages_repeating_summary,
-        daysLabel(daysOfWeek),
-        formatMinuteOfDay(minuteOfDay),
-    )
+private fun targetLabel(targets: List<ScheduledMessageTarget>): String = when {
+    targets.isEmpty() -> stringResource(R.string.scheduled_messages_select_target)
+    targets.size <= 2 -> targets.joinToString(" ") { target ->
+        target.displayName.takeIf { it.isNotBlank() } ?: target.talker
+    }
 
-    ScheduledMessageKind.ONCE -> stringResource(
-        R.string.scheduled_messages_once_summary,
-        formatDateTime(atEpochMillis),
-    )
+    else -> stringResource(R.string.scheduled_messages_target_count, targets.size)
+}
+
+@Composable
+private fun ScheduledMessage.summary(): String {
+    val targets = targetLabel(this.targets)
+    return when (kind) {
+        ScheduledMessageKind.REPEATING -> stringResource(
+            R.string.scheduled_messages_repeating_summary,
+            daysLabel(daysOfWeek),
+            minutesOfDay.sorted().joinToString(" ") { formatMinuteOfDay(it) },
+            targets,
+        )
+
+        ScheduledMessageKind.ONCE -> stringResource(
+            R.string.scheduled_messages_once_summary,
+            formatDateTime(atEpochMillis),
+            targets,
+        )
+    }
 }
 
 private fun newScheduledMessage(contacts: List<WeContact>): ScheduledMessage {
     val first = contacts.firstOrNull()
     return ScheduledMessage(
         id = newScheduledMessageId(),
-        talker = first?.wxId.orEmpty(),
-        displayName = first?.displayName.orEmpty(),
+        targets = first?.let {
+            listOf(ScheduledMessageTarget(it.wxId, it.displayName))
+        }.orEmpty(),
         text = "",
         kind = ScheduledMessageKind.REPEATING,
-        minuteOfDay = currentMinuteOfDay(),
+        minutesOfDay = setOf(currentMinuteOfDay()),
         daysOfWeek = ALL_SCHEDULED_MESSAGE_DAYS,
         atEpochMillis = System.currentTimeMillis() + DEFAULT_ONCE_OFFSET_MILLIS,
     )
 }
 
 fun showScheduledMessagesDialog(context: ComponentActivity) {
-    val contacts = WeDatabaseApi.getContacts()
-
     showComposeDialog(context) {
+        val localizedContext = LocalXiaoFengLocalizedContext.current
         val messages = remember { ScheduledMessageSchedule.messages.toMutableStateList() }
         val addedIds = remember { mutableSetOf<String>() }
+
+        // Loading the contact list reads WeChat's database; keeping it off the main thread avoids a
+        // visible stall when the dialog opens on a large account.
+        var contacts by remember { mutableStateOf<List<WeContact>>(emptyList()) }
+        var contactsLoaded by remember { mutableStateOf(false) }
+        LaunchedEffect(Unit) {
+            contacts = withContext(Dispatchers.IO) { WeDatabaseApi.getContacts() }
+            contactsLoaded = true
+        }
 
         AlertDialogContent(
             modifier = Modifier.fillMaxWidth(),
@@ -134,6 +162,7 @@ fun showScheduledMessagesDialog(context: ComponentActivity) {
                             )
                         }
                         TextButton(
+                            enabled = contactsLoaded,
                             onClick = {
                                 showScheduledMessageEditor(
                                     context = context,
@@ -179,13 +208,29 @@ fun showScheduledMessagesDialog(context: ComponentActivity) {
                                     content = { Text(message.summary()) },
                                     supportingContent = {
                                         Text(
-                                            message.displayName
-                                                .takeIf { it.isNotBlank() }
-                                                ?: message.talker
+                                            message.targets.joinToString(" ") { target ->
+                                                target.displayName.takeIf { it.isNotBlank() }
+                                                    ?: target.talker
+                                            }
                                         )
                                     },
                                     trailingContent = {
                                         Row(verticalAlignment = Alignment.CenterVertically) {
+                                            TextButton(
+                                                onClick = {
+                                                    val sent = ScheduledMessageSchedule.sendNow(message)
+                                                    showToast(
+                                                        context,
+                                                        localizedContext.getString(
+                                                            R.string.scheduled_messages_send_now_result,
+                                                            sent,
+                                                            message.targets.size,
+                                                        ),
+                                                    )
+                                                }
+                                            ) {
+                                                Text(stringResource(R.string.scheduled_messages_send_now))
+                                            }
                                             Switch(
                                                 checked = message.enabled,
                                                 onCheckedChange = { enabled ->
@@ -248,7 +293,6 @@ private fun showScheduledMessageEditor(
     showComposeDialog(context) {
         val localizedContext = LocalXiaoFengLocalizedContext.current
         var draft by remember { mutableStateOf(initial) }
-        var targetDisplayName by remember { mutableStateOf(initial.displayName) }
         var onceText by remember {
             mutableStateOf(
                 formatDateTime(
@@ -267,11 +311,16 @@ private fun showScheduledMessageEditor(
             ScheduledMessageKind.ONCE -> onceMillis?.let { draft.copy(atEpochMillis = it) }
         }
 
+        val textLines = draft.text.lines().count { it.isNotBlank() }
+
         val canSave = candidate != null &&
-                candidate.talker.isNotBlank() &&
+                candidate.targets.isNotEmpty() &&
+                candidate.targets.all { it.talker.isNotBlank() } &&
                 candidate.text.isNotBlank() &&
                 when (draft.kind) {
-                    ScheduledMessageKind.REPEATING -> draft.daysOfWeek.isNotEmpty()
+                    ScheduledMessageKind.REPEATING ->
+                        draft.daysOfWeek.isNotEmpty() && draft.minutesOfDay.isNotEmpty()
+
                     ScheduledMessageKind.ONCE -> !isOncePast
                 }
 
@@ -283,28 +332,30 @@ private fun showScheduledMessageEditor(
                     ListItem(
                         modifier = Modifier.clickable {
                             showComposeDialog(context) {
-                                SingleContactSelector(
+                                ContactsSelector(
                                     title = localizedContext.getString(R.string.scheduled_messages_select_target),
                                     contacts = contacts,
-                                    initialSelectedWxId = draft.talker.takeIf { it.isNotBlank() },
+                                    initialSelectedWxIds = draft.targets.map { it.talker }.toSet(),
                                     onDismiss = this.onDismiss,
-                                    onConfirm = { wxId ->
-                                        draft = draft.copy(talker = wxId)
-                                        targetDisplayName =
-                                            contacts.firstOrNull { it.wxId == wxId }?.displayName.orEmpty()
+                                    onConfirm = { wxIds ->
+                                        draft = draft.copy(
+                                            targets = wxIds.map { wxId ->
+                                                ScheduledMessageTarget(
+                                                    talker = wxId,
+                                                    displayName = contacts
+                                                        .firstOrNull { it.wxId == wxId }
+                                                        ?.displayName
+                                                        .orEmpty(),
+                                                )
+                                            }
+                                        )
                                         this.onDismiss()
                                     },
                                 )
                             }
                         },
                         content = { Text(stringResource(R.string.scheduled_messages_target)) },
-                        supportingContent = {
-                            Text(
-                                targetDisplayName.takeIf { it.isNotBlank() }
-                                    ?: draft.talker.takeIf { it.isNotBlank() }
-                                    ?: stringResource(R.string.scheduled_messages_select_target)
-                            )
-                        },
+                        supportingContent = { Text(targetLabel(draft.targets)) },
                     )
 
                     OutlinedTextField(
@@ -315,6 +366,21 @@ private fun showScheduledMessageEditor(
                         placeholder = { Text(stringResource(R.string.scheduled_messages_content_hint)) },
                         minLines = 2,
                     )
+
+                    if (textLines >= 2) {
+                        ListItem(
+                            content = { Text(stringResource(R.string.scheduled_messages_randomize)) },
+                            supportingContent = {
+                                Text(stringResource(R.string.scheduled_messages_randomize_description))
+                            },
+                            trailingContent = {
+                                Switch(
+                                    checked = draft.randomizeLines,
+                                    onCheckedChange = { draft = draft.copy(randomizeLines = it) },
+                                )
+                            },
+                        )
+                    }
 
                     SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
                         ScheduledMessageKind.entries.forEachIndexed { index, kind ->
@@ -338,12 +404,81 @@ private fun showScheduledMessageEditor(
 
                     when (draft.kind) {
                         ScheduledMessageKind.REPEATING -> {
-                            WeTimeOfDayField(
-                                modifier = Modifier.fillMaxWidth(),
-                                label = stringResource(R.string.contacts_schedule_time),
-                                minuteOfDay = draft.minuteOfDay,
-                                onMinuteChange = { draft = draft.copy(minuteOfDay = it) },
+                            Text(
+                                stringResource(R.string.scheduled_messages_times),
+                                style = MaterialTheme.typography.labelLarge,
                             )
+
+                            FlowRow(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                verticalArrangement = Arrangement.spacedBy(8.dp),
+                            ) {
+                                draft.minutesOfDay.sorted().forEach { minute ->
+                                    FilterChip(
+                                        selected = true,
+                                        onClick = {
+                                            draft = draft.copy(
+                                                minutesOfDay = draft.minutesOfDay - minute
+                                            )
+                                        },
+                                        label = { Text(formatMinuteOfDay(minute)) },
+                                    )
+                                }
+                            }
+
+                            TextButton(
+                                onClick = {
+                                    showComposeDialog(context) {
+                                        var picked by remember { mutableStateOf(currentMinuteOfDay()) }
+                                        AlertDialogContent(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            title = {
+                                                Text(
+                                                    stringResource(
+                                                        R.string.scheduled_messages_time_picker_title
+                                                    )
+                                                )
+                                            },
+                                            text = {
+                                                DefaultColumn {
+                                                    WeTimeOfDayField(
+                                                        modifier = Modifier.fillMaxWidth(),
+                                                        label = stringResource(R.string.contacts_schedule_time),
+                                                        minuteOfDay = picked,
+                                                        onMinuteChange = { picked = it },
+                                                    )
+                                                }
+                                            },
+                                            confirmButton = {
+                                                Button(onClick = {
+                                                    draft = draft.copy(
+                                                        minutesOfDay = draft.minutesOfDay + picked
+                                                    )
+                                                    this.onDismiss()
+                                                }) {
+                                                    Text(stringResource(R.string.dialog_confirm))
+                                                }
+                                            },
+                                            dismissButton = {
+                                                TextButton(onClick = this.onDismiss) {
+                                                    Text(stringResource(R.string.dialog_cancel))
+                                                }
+                                            },
+                                        )
+                                    }
+                                }
+                            ) {
+                                Text(stringResource(R.string.scheduled_messages_add_time))
+                            }
+
+                            if (draft.minutesOfDay.isEmpty()) {
+                                Text(
+                                    stringResource(R.string.scheduled_messages_need_time),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.error,
+                                )
+                            }
 
                             FlowRow(
                                 modifier = Modifier.fillMaxWidth(),
@@ -397,7 +532,7 @@ private fun showScheduledMessageEditor(
                         }
                     }
 
-                    if (draft.talker.isBlank()) {
+                    if (draft.targets.isEmpty()) {
                         Text(
                             stringResource(R.string.scheduled_messages_need_target),
                             style = MaterialTheme.typography.bodySmall,
@@ -418,7 +553,7 @@ private fun showScheduledMessageEditor(
                     enabled = canSave,
                     onClick = {
                         if (candidate != null) {
-                            onSave(candidate.copy(displayName = targetDisplayName))
+                            onSave(candidate)
                             onDismiss()
                         }
                     },
