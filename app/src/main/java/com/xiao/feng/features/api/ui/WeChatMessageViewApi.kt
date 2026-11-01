@@ -3,6 +3,7 @@ package com.xiao.feng.features.api.ui
 import android.view.View
 import android.widget.TextView
 import dev.ujhhgtg.reflekt.reflekt
+import dev.ujhhgtg.reflekt.utils.makeAccessible
 import com.xiao.feng.R
 import com.xiao.feng.dexkit.abc.IResolveDex
 import com.xiao.feng.dexkit.dsl.dexMethod
@@ -12,8 +13,10 @@ import com.xiao.feng.features.core.ApiFeature
 import com.xiao.feng.features.core.FeatureCategoryIds
 import com.xiao.feng.utils.HookParam
 import com.xiao.feng.utils.WeLogger
+import java.lang.reflect.Field
 import java.util.Collections
 import java.util.WeakHashMap
+import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.CopyOnWriteArrayList
 
 object WeChatMessageViewApi : ApiFeature(), IResolveDex {
@@ -109,12 +112,7 @@ object WeChatMessageViewApi : ApiFeature(), IResolveDex {
 
         methodChatItemOnBindView.hookAfter {
             val holder = args[0]!!
-            val view = holder.reflekt()
-                .firstField {
-                    type = View::class
-                    superclass()
-                }
-                .get()!! as View
+            val view = holderView(holder)
             val message = getMsgInfoFromParam(this)
             ensureAttachStateListener(view)
 
@@ -141,12 +139,7 @@ object WeChatMessageViewApi : ApiFeature(), IResolveDex {
 
         methodChatItemOnViewRecycled.hookBefore {
             val holder = args[0]!!
-            val view = holder.reflekt()
-                .firstField {
-                    type = View::class
-                    superclass()
-                }
-                .get()!! as View
+            val view = holderView(holder)
             val message = synchronized(currentBindings) { currentBindings[view] } ?: return@hookBefore
             dispatchLifecycle { it.onMessageViewRecycled(view, message) }
             synchronized(currentBindings) {
@@ -217,17 +210,68 @@ object WeChatMessageViewApi : ApiFeature(), IResolveDex {
         return MessageInfo(msgInfo)
     }
 
-    private fun findMessageInfo(value: Any, depth: Int = 2): MessageInfo? {
-        if (value.javaClass == WeMessageApi.classMsgInfo.clazz) {
+    /**
+     * The adapter item class is stable, so the field chain that reaches the message model only
+     * needs to be resolved once. An empty list caches "no such field here" so repeated binds
+     * fall back to the adapter without another reflective scan.
+     */
+    private val msgInfoPathCache = ConcurrentHashMap<Class<*>, List<Field>>()
+
+    private fun findMessageInfo(value: Any): MessageInfo? {
+        val clazz = value.javaClass
+        if (clazz == WeMessageApi.classMsgInfo.clazz) {
             return MessageInfo(value)
         }
+
+        val cached = msgInfoPathCache[clazz]
+        if (cached != null) {
+            if (cached.isEmpty()) return null
+            followMessageInfoPath(value, cached)?.let { return MessageInfo(it) }
+        }
+
+        val path = searchMessageInfoPath(value, 2) ?: run {
+            msgInfoPathCache[clazz] = emptyList()
+            return null
+        }
+        msgInfoPathCache[clazz] = path
+        return MessageInfo(followMessageInfoPath(value, path)!!)
+    }
+
+    private fun searchMessageInfoPath(value: Any, depth: Int): List<Field>? {
         if (depth == 0) return null
 
-        value.reflekt().fields { superclass() }.forEach { field ->
-            val nested = runCatching { field.get() }.getOrNull() ?: return@forEach
-            val result = findMessageInfo(nested, depth - 1)
-            if (result != null) return result
+        for (field in value.reflekt().fields { superclass() }) {
+            val nested = runCatching { field.get() }.getOrNull() ?: continue
+            if (nested.javaClass == WeMessageApi.classMsgInfo.clazz) {
+                return listOf(field.self.makeAccessible())
+            }
+            searchMessageInfoPath(nested, depth - 1)
+                ?.let { return listOf(field.self.makeAccessible()) + it }
         }
         return null
+    }
+
+    private fun followMessageInfoPath(value: Any, path: List<Field>): Any? {
+        var current: Any = value
+        for (field in path) {
+            current = field.get(current) ?: return null
+        }
+        return current.takeIf { it.javaClass == WeMessageApi.classMsgInfo.clazz }
+    }
+
+    /**
+     * Resolves the holder's content view once per holder class instead of rebuilding the
+     * field spec (and rescanning the hierarchy) on every message bind.
+     */
+    private val holderViewFieldCache = ConcurrentHashMap<Class<*>, Field>()
+
+    private fun holderView(holder: Any): View {
+        val field = holderViewFieldCache.getOrPut(holder.javaClass) {
+            holder.reflekt().firstField {
+                type = View::class
+                superclass()
+            }.self.makeAccessible()
+        }
+        return field.get(holder) as View
     }
 }

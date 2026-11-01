@@ -97,6 +97,7 @@ object ApplyGlobalBackground : ClickableFeature(), IResolveDex {
 
     private const val OVERLAY_TAG = "xfeng_global_bg_overlay"
     private const val APPLIED_URI_TAG_KEY = 0x55020001
+    private const val STATUS_BAR_APPLIED_TAG_KEY = 0x55020002
     private const val APPLY_STATUS_BAR_DELAY_MS = 80L
 
     /**
@@ -170,6 +171,8 @@ object ApplyGlobalBackground : ClickableFeature(), IResolveDex {
         }
 
         methodInitImageView.hookBefore {
+            // Nothing to reveal without a configured background; skip listener allocation entirely.
+            if (backgroundUri == null) return@hookBefore
             val view = thisObject as ImageView
             view.addOnAttachStateChangeListener(object : View.OnAttachStateChangeListener {
                 override fun onViewAttachedToWindow(v: View) {
@@ -186,7 +189,14 @@ object ApplyGlobalBackground : ClickableFeature(), IResolveDex {
                     val empty = synchronized(activityAttachedViews) {
                         val set = activityAttachedViews[activity] ?: return
                         set.remove(v)
-                        set.isEmpty()
+                        if (set.isEmpty()) {
+                            // Drop the entry too: a strong set value would otherwise keep the
+                            // Activity (reachable through each View's context) from ever being GC'd.
+                            activityAttachedViews.remove(activity)
+                            true
+                        } else {
+                            false
+                        }
                     }
                     if (empty) {
                         WeLogger.d(TAG, "all views detached from ${activity.javaClass.simpleName}")
@@ -203,6 +213,10 @@ object ApplyGlobalBackground : ClickableFeature(), IResolveDex {
     // ViewPager page) are harmless: add/remove are idempotent on a Set, so the counter
     // never goes negative regardless of how many listeners fire per attach/detach cycle.
     private val activityAttachedViews = WeakHashMap<Activity, MutableSet<View>>()
+
+    /** `getIdentifier` walks the whole resource table; resolve these once. */
+    private var statusBarBackgroundIdCache = -1
+    private var statusBarHeightCache = -1
 
     private fun activityOf(ctx: Context): Activity? {
         var c = ctx
@@ -360,6 +374,12 @@ object ApplyGlobalBackground : ClickableFeature(), IResolveDex {
             val window = activity.window ?: return
             val decor = window.decorView as? ViewGroup ?: return
 
+            // onCreate/onStart/onResume/onWindowFocusChanged all call this. Re-applying the window
+            // flags forces a decor relayout each time, which shows up as the white flash when
+            // returning from the background or after a dialog takes focus. Window flags persist,
+            // so once per decor is enough.
+            if (decor.getTag(STATUS_BAR_APPLIED_TAG_KEY) == true) return
+
             window.statusBarColor = Color.TRANSPARENT
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                 window.isStatusBarContrastEnforced = false
@@ -377,6 +397,7 @@ object ApplyGlobalBackground : ClickableFeature(), IResolveDex {
             decor.postDelayed(APPLY_STATUS_BAR_DELAY_MS) {
                 clearStatusBarBackground(activity, decor)
             }
+            decor.setTag(STATUS_BAR_APPLIED_TAG_KEY, true)
         }.onFailure {
             WeLogger.w(TAG, "failed to apply transparent status bar", it)
         }
@@ -384,11 +405,14 @@ object ApplyGlobalBackground : ClickableFeature(), IResolveDex {
 
     @SuppressLint("DiscouragedApi")
     private fun clearStatusBarBackground(activity: Activity, decor: ViewGroup) {
-        val statusBarBackgroundId = activity.resources.getIdentifier(
-            "statusBarBackground",
-            "id",
-            "android"
-        )
+        if (statusBarBackgroundIdCache == -1) {
+            statusBarBackgroundIdCache = activity.resources.getIdentifier(
+                "statusBarBackground",
+                "id",
+                "android"
+            )
+        }
+        val statusBarBackgroundId = statusBarBackgroundIdCache
 
         if (statusBarBackgroundId != 0) {
             decor.findViewById<View>(statusBarBackgroundId)?.makeTransparent()
@@ -470,12 +494,15 @@ object ApplyGlobalBackground : ClickableFeature(), IResolveDex {
 
     @SuppressLint("DiscouragedApi", "InternalInsetResource")
     private fun statusBarHeightGuess(view: View): Int {
+        if (statusBarHeightCache >= 0) return statusBarHeightCache
         val resourceId = view.resources.getIdentifier("status_bar_height", "dimen", "android")
-        return if (resourceId > 0) {
+        val height = if (resourceId > 0) {
             view.resources.getDimensionPixelSize(resourceId)
         } else {
             (32f * view.resources.displayMetrics.density).toInt()
         }
+        statusBarHeightCache = height
+        return height
     }
 
     private fun selectBackgroundImage(context: ComponentActivity) {

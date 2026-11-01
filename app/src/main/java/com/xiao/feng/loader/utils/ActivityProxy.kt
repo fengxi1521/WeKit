@@ -28,6 +28,7 @@ import com.xiao.feng.utils.HostInfo
 import com.xiao.feng.utils.WeLogger
 import com.xiao.feng.utils.android.Intent
 import com.xiao.feng.utils.reflection.ClassLoaders
+import java.lang.reflect.Field
 import java.lang.reflect.InvocationHandler
 import java.lang.reflect.InvocationTargetException
 import java.lang.reflect.Method
@@ -220,14 +221,32 @@ object ActivityProxy {
     private class ProxyHandlerCallback(private val next: Handler.Callback?) : Handler.Callback {
         private data class RecoveredIntent(val token: String, val intent: Intent)
 
+        /** Every ActivityThread message goes through here, so resolve reflection per type once. */
+        private val intentFieldCache = ConcurrentHashMap<Class<*>, Field>()
+        private val itemIntentFieldCache = ConcurrentHashMap<Class<*>, Field>()
+        private val callbacksMethodCache = ConcurrentHashMap<Class<*>, Method>()
+
+        private fun intentFieldOf(clazz: Class<*>): Field =
+            intentFieldCache.getOrPut(clazz) {
+                clazz.getDeclaredField("intent").makeAccessible()
+            }
+
+        private fun callbacksMethodOf(clazz: Class<*>): Method =
+            callbacksMethodCache.getOrPut(clazz) {
+                clazz.getDeclaredMethod("getCallbacks").makeAccessible()
+            }
+
         override fun handleMessage(msg: Message): Boolean {
             when (msg.what) {
                 100 -> handleLaunchActivity(msg)     // LAUNCH_ACTIVITY (< Android 9)
                 159 -> handleExecuteTransaction(msg) // EXECUTE_TRANSACTION (>= Android 9)
             }
-            return runCatching { next?.handleMessage(msg) == true }
-                .onFailure { WeLogger.e(TAG, "Next callback failed", it) }
-                .getOrDefault(false)
+            return try {
+                next?.handleMessage(msg) == true
+            } catch (e: Throwable) {
+                WeLogger.e(TAG, "Next callback failed", e)
+                false
+            }
         }
 
         private fun recoverIntent(wrapper: Intent?): RecoveredIntent? {
@@ -249,8 +268,7 @@ object ActivityProxy {
         private fun handleLaunchActivity(msg: Message) {
             runCatching {
                 val record = msg.obj
-                val intentField =
-                    record.javaClass.getDeclaredField("intent").makeAccessible()
+                val intentField = intentFieldOf(record.javaClass)
                 val wrapper = intentField.get(record) as? Intent
                 recoverIntent(wrapper)?.let { recovered ->
                     intentField.set(record, recovered.intent)
@@ -262,14 +280,14 @@ object ActivityProxy {
         private fun handleExecuteTransaction(msg: Message) {
             runCatching {
                 val transaction = msg.obj
-                val callbacks = transaction.javaClass.getDeclaredMethod("getCallbacks")
-                    .makeAccessible()
+                val callbacks = callbacksMethodOf(transaction.javaClass)
                     .invoke(transaction) as? List<*> ?: return
 
                 callbacks.forEach { item ->
                     if (item != null && item.javaClass.name.contains("LaunchActivityItem")) {
-                        val intentField = item.javaClass.getDeclaredField("mIntent")
-                            .makeAccessible()
+                        val intentField = itemIntentFieldCache.getOrPut(item.javaClass) {
+                            item.javaClass.getDeclaredField("mIntent").makeAccessible()
+                        }
                         val wrapper = intentField.get(item) as? Intent
                         recoverIntent(wrapper)?.let { recovered ->
                             intentField.set(item, recovered.intent)

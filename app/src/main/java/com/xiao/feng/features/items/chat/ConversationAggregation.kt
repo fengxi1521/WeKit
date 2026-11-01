@@ -539,6 +539,9 @@ object ConversationAggregation : ClickableFeature(),
 
     private fun hookMainUiRefresh() {
         MainUI::onResume.fastJavaMethod!!.hookAfter {
+            // Nothing to reconcile when no folder exists. Explicit create/delete paths invalidate
+            // the cache first, so they still reconcile normally.
+            if (foldersCache?.isEmpty() == true) return@hookAfter
             syncFoldersToDatabase()
         }
     }
