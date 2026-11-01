@@ -167,7 +167,7 @@ object ThemeSettings {
         private set
 
     /** Seed color (ARGB int) used when wallpaper color is off. */
-    var seedColor by mutableIntStateOf(KvStore.getIntOrDef(Preferences.THEME_SEED_COLOR, DEFAULT_SEED_COLOR))
+    var seedColor by mutableIntStateOf(KvStore.getIntOrDef(Preferences.THEME_SEED_COLOR, BRAND_SEED_COLOR))
         private set
 
     /**
@@ -272,7 +272,13 @@ object ThemeSettings {
         KvStore.putBool(Preferences.THEME_APPLY_TO_WECHAT, value)
     }
 
-    /** Default seed accent (WeChat green 0xFF07C160). */
+    /**
+     * XiaoFeng's own accent, used by the module app and the settings UI when the user has never
+     * picked a color. Deliberately distinct from WeChat green so the module reads as its own brand.
+     */
+    const val BRAND_SEED_COLOR: Int = 0xFF6D5DF6.toInt()
+
+    /** WeChat green; the default seed for UI injected into WeChat. */
     const val DEFAULT_SEED_COLOR: Int = 0xFF07C160.toInt()
 
 }

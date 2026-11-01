@@ -30,7 +30,6 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.rememberTopAppBarState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.staticCompositionLocalOf
@@ -388,14 +387,6 @@ fun FeatureRow(
     val configKey = item.technicalId
     val localizedName = item.localizedName(localizedContext)
     val localizedDescription = item.localizedDescription(localizedContext)
-
-    DisposableEffect(configKey) {
-        (item as SwitchFeature).setToggleCompletionCallback {
-            FeatureCategoryState.notifyToggleChanged()
-            onCheckedChange(item.isEnabled)
-        }
-        onDispose {}
-    }
 
     fun toggle(requested: Boolean) {
         item as SwitchFeature

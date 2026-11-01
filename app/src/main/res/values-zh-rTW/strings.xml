@@ -225,6 +225,7 @@
     <string name="features_category_empty">目前分類沒有可顯示的功能</string>
     <string name="features_new_summary">最近 %1$d 天新增 %2$d 個功能</string>
     <string name="home_module_activated">模塊已激活</string>
+    <string name="home_brand_tagline">微信增強模組</string>
     <string name="home_device_info_title">裝置資訊</string>
     <string name="home_learn_more_title">瞭解更多</string>
     <string name="home_learn_more_item_title">XiaoFeng 文件</string>

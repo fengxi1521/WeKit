@@ -3,6 +3,7 @@
 package com.xiao.feng.ui.content.m3
 
 import androidx.compose.foundation.LocalIndication
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
@@ -183,18 +184,40 @@ fun BaseWidget(
             {
                 Box(
                     modifier = Modifier
-                        .size(24.dp)
+                        .size(40.dp)
                         .alpha(alpha),
                     contentAlignment = Alignment.Center
                 ) {
                     if (icon != null) {
-                        Icon(
-                            imageVector = icon,
-                            contentDescription = null,
-                            tint = resolvedIconColor
-                        )
+                        // XiaoFeng look: every icon sits in a tinted, rounded chip instead of
+                        // floating bare on the row background.
+                        Box(
+                            modifier = Modifier
+                                .size(36.dp)
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(
+                                    if (selected) {
+                                        MaterialTheme.colorScheme.primary
+                                    } else {
+                                        MaterialTheme.colorScheme.primaryContainer
+                                    }
+                                ),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = icon,
+                                contentDescription = null,
+                                modifier = Modifier.size(20.dp),
+                                tint = iconColor
+                                    ?: if (selected) {
+                                        MaterialTheme.colorScheme.onPrimary
+                                    } else {
+                                        MaterialTheme.colorScheme.onPrimaryContainer
+                                    }
+                            )
+                        }
                     } else {
-                        Spacer(modifier = Modifier.size(24.dp))
+                        Spacer(modifier = Modifier.size(36.dp))
                     }
                 }
             }

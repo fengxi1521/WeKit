@@ -104,6 +104,26 @@ object KvStore {
         return result
     }
 
+    /**
+     * All stored boolean preferences in a single query.
+     *
+     * Settings screens with dozens of switches seed every row from this snapshot instead of issuing
+     * one indexed lookup per row on the UI thread. Keys absent from the map were never stored.
+     */
+    fun getBooleanEntries(): Map<String, Boolean> {
+        ensureMigrated()
+        val result = HashMap<String, Boolean>()
+        sql.query(
+            "SELECT `key`, valueLong FROM preference_entries WHERE namespace = ? AND valueType = ?",
+            arrayOf(NAMESPACE, TYPE_BOOL),
+        ).use { cursor ->
+            while (cursor.moveToNext()) {
+                result[cursor.getString(0)] = (cursor.getLongOrNull(1) ?: 0L) != 0L
+            }
+        }
+        return result
+    }
+
     fun getString(key: String): String? = getString(key, null)
 
     fun getStringOrDef(key: String, def: String): String = getString(key, def)!!

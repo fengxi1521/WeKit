@@ -20,6 +20,7 @@ import androidx.compose.foundation.layout.plus
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -40,6 +41,8 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.rememberTopAppBarState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -170,7 +173,7 @@ fun SettingsPager(onOpenLicense: () -> Unit) {
     UpdateAvailableDialog(info = updateInfo, onDismiss = { updateInfo = null }, context = context)
     UpdateErrorDialog(message = updateError, onDismiss = { updateError = null })
 
-    M3ListScaffold(title = stringResource(R.string.settings_title)) {
+    SettingsListScaffold(title = stringResource(R.string.settings_title)) {
         // Account info card.
         item {
             Spacer(Modifier.height(12.dp))
@@ -381,6 +384,23 @@ fun SettingsPager(onOpenLicense: () -> Unit) {
         }
 
         item { Spacer(Modifier.height(CONTENT_BOTTOM_INSET)) }
+    }
+}
+
+/**
+ * Snapshot of every stored boolean preference, loaded once for the settings tab.
+ * Rows seed from this map, so a page of switches costs one SQLite query instead of one per row.
+ */
+private val LocalBooleanPreferences = compositionLocalOf<Map<String, Boolean>> { emptyMap() }
+
+@Composable
+private fun SettingsListScaffold(
+    title: String,
+    content: LazyListScope.() -> Unit,
+) {
+    val snapshot = remember { KvStore.getBooleanEntries() }
+    CompositionLocalProvider(LocalBooleanPreferences provides snapshot) {
+        M3ListScaffold(title = title, content = content)
     }
 }
 
@@ -732,7 +752,7 @@ private fun SeedColorPickerDialog(show: Boolean, onDismiss: () -> Unit) {
                     valueRange = 0f..100f,
                 )
                 TextButton(onClick = {
-                    val reset = FloatArray(3).also { AndroidColor.colorToHSV(ThemeSettings.DEFAULT_SEED_COLOR, it) }
+                    val reset = FloatArray(3).also { AndroidColor.colorToHSV(ThemeSettings.BRAND_SEED_COLOR, it) }
                     hue = reset[0]
                     saturation = reset[1] * 100f
                     value = reset[2] * 100f
@@ -790,7 +810,8 @@ private fun PrefSwitch(
 ) {
     // Must match the default declared on the matching `prefOption`, otherwise the switch shows
     // "off" for a preference that is actually on until the user toggles it once.
-    var checked by remember(key, default) { mutableStateOf(KvStore.getBoolOrDef(key, default)) }
+    val snapshot = LocalBooleanPreferences.current
+    var checked by remember(key, default) { mutableStateOf(snapshot[key] ?: default) }
     SwitchWidget(
         title = title,
         description = summary,
