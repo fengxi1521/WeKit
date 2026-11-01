@@ -611,15 +611,19 @@
     <string name="feature_chat_auto_reply_name">聊天自动回复</string>
     <string name="feature_chat_auto_reply_description">按任务规则匹配收到的文字消息并自动回复</string>
     <string name="feature_group_welcome_message_name">进群欢迎语</string>
-    <string name="feature_group_welcome_message_description">有新成员入群时自动发送欢迎消息，支持 {member} 与 {group} 占位符</string>
+    <string name="feature_group_welcome_message_description">在群聊设置中为每个群单独设置进群欢迎语，支持 {member} 与 {group} 占位符</string>
     <string name="feature_keyword_auto_reply_name">关键词自动回复</string>
     <string name="feature_keyword_auto_reply_description">收到匹配关键词的文字消息时自动回复</string>
     <string name="feature_scheduled_moments_name">定时朋友圈</string>
     <string name="feature_scheduled_moments_description">按设置的时间与星期自动发布文字朋友圈</string>
     <string name="feature_chat_statistics_name">聊天统计</string>
-    <string name="feature_chat_statistics_description">查看联系人与群聊数量，以及最活跃的私聊</string>
+    <string name="feature_chat_statistics_description">在群聊设置中查看每个群的成员数、消息总数与活跃成员排行</string>
 
     <string name="group_welcome_dialog_title">进群欢迎语</string>
+    <string name="group_welcome_dialog_title_group">%1$s · 进群欢迎语</string>
+    <string name="group_welcome_entry_enabled">已开启</string>
+    <string name="group_welcome_entry_disabled">已关闭</string>
+    <string name="group_welcome_entry_unset">点击设置欢迎文案</string>
     <string name="group_welcome_enabled">启用欢迎语</string>
     <string name="group_welcome_enabled_summary">新成员入群后发送；一次入群超过 10 人时忽略</string>
     <string name="group_welcome_template">欢迎文案</string>
@@ -667,9 +671,11 @@
     <string name="scheduled_moments_post_failure">发布失败</string>
 
     <string name="chat_statistics_title">聊天统计</string>
-    <string name="chat_statistics_contacts">联系人</string>
-    <string name="chat_statistics_groups">群聊</string>
-    <string name="chat_statistics_top_friends">最活跃的私聊</string>
+    <string name="chat_statistics_entry_summary">查看本群成员与消息排行</string>
+    <string name="chat_statistics_dialog_title_group">%1$s · 聊天统计</string>
+    <string name="chat_statistics_members">群成员</string>
+    <string name="chat_statistics_total_messages">消息总数</string>
+    <string name="chat_statistics_active_members">活跃成员</string>
     <string name="chat_statistics_empty">暂无聊天数据</string>
     <string name="chat_statistics_rank">%1$d. %2$s</string>
     <string name="chat_statistics_message_count">%1$d 条消息</string>

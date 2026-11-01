@@ -647,15 +647,19 @@
     <string name="feature_chat_auto_reply_name">Chat auto-reply</string>
     <string name="feature_chat_auto_reply_description">Match received text messages according to task rules and automatically reply</string>
     <string name="feature_group_welcome_message_name">Group join welcome</string>
-    <string name="feature_group_welcome_message_description">Automatically send a welcome message when a new member joins a group. Supports {member} and {group} placeholders.</string>
+    <string name="feature_group_welcome_message_description">Configure join welcome messages for each group in the group settings screen. Supports {member} and {group} placeholders.</string>
     <string name="feature_keyword_auto_reply_name">Keyword auto-reply</string>
     <string name="feature_keyword_auto_reply_description">Automatically reply to received text messages that match a keyword rule</string>
     <string name="feature_scheduled_moments_name">Scheduled Moments</string>
     <string name="feature_scheduled_moments_description">Publish a text Moments post automatically at the configured times and weekdays</string>
     <string name="feature_chat_statistics_name">Chat statistics</string>
-    <string name="feature_chat_statistics_description">View contact and group counts plus the most active private chats</string>
+    <string name="feature_chat_statistics_description">View member count, message count and the most active members of each group in the group settings screen</string>
 
     <string name="group_welcome_dialog_title">Group join welcome</string>
+    <string name="group_welcome_dialog_title_group">%1$s · Group join welcome</string>
+    <string name="group_welcome_entry_enabled">Enabled</string>
+    <string name="group_welcome_entry_disabled">Disabled</string>
+    <string name="group_welcome_entry_unset">Tap to set the welcome text</string>
     <string name="group_welcome_enabled">Enable welcome message</string>
     <string name="group_welcome_enabled_summary">Send after a new member joins; bulk joins over 10 members are ignored</string>
     <string name="group_welcome_template">Welcome text</string>
@@ -703,9 +707,11 @@
     <string name="scheduled_moments_post_failure">Failed to submit the post</string>
 
     <string name="chat_statistics_title">Chat statistics</string>
-    <string name="chat_statistics_contacts">Contacts</string>
-    <string name="chat_statistics_groups">Group chats</string>
-    <string name="chat_statistics_top_friends">Most active private chats</string>
+    <string name="chat_statistics_entry_summary">View this group&apos;s member and message ranking</string>
+    <string name="chat_statistics_dialog_title_group">%1$s · Chat statistics</string>
+    <string name="chat_statistics_members">Group members</string>
+    <string name="chat_statistics_total_messages">Total messages</string>
+    <string name="chat_statistics_active_members">Most active members</string>
     <string name="chat_statistics_empty">No chat data yet</string>
     <string name="chat_statistics_rank">%1$d. %2$s</string>
     <string name="chat_statistics_message_count">%1$d messages</string>

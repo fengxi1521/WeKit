@@ -609,15 +609,19 @@
     <string name="feature_chat_auto_reply_name">聊天自動回覆</string>
     <string name="feature_chat_auto_reply_description">按任務規則匹配收到的文字消息並自動回覆</string>
     <string name="feature_group_welcome_message_name">進群歡迎語</string>
-    <string name="feature_group_welcome_message_description">有新成員入羣時自動發送歡迎消息，支援 {member} 與 {group} 佔位符</string>
+    <string name="feature_group_welcome_message_description">在羣聊設定中為每個羣單獨設定進羣歡迎語，支援 {member} 與 {group} 佔位符</string>
     <string name="feature_keyword_auto_reply_name">關鍵詞自動回覆</string>
     <string name="feature_keyword_auto_reply_description">收到匹配關鍵詞的文字消息時自動回覆</string>
     <string name="feature_scheduled_moments_name">定時朋友圈</string>
     <string name="feature_scheduled_moments_description">按設置的時間與星期自動發佈文字朋友圈</string>
     <string name="feature_chat_statistics_name">聊天統計</string>
-    <string name="feature_chat_statistics_description">查看聯繫人與羣聊數量，以及最活躍的私聊</string>
+    <string name="feature_chat_statistics_description">在羣聊設定中查看每個羣的成員數、訊息總數與活躍成員排行</string>
 
     <string name="group_welcome_dialog_title">進群歡迎語</string>
+    <string name="group_welcome_dialog_title_group">%1$s · 進群歡迎語</string>
+    <string name="group_welcome_entry_enabled">已開啓</string>
+    <string name="group_welcome_entry_disabled">已關閉</string>
+    <string name="group_welcome_entry_unset">點擊設定歡迎文案</string>
     <string name="group_welcome_enabled">啓用歡迎語</string>
     <string name="group_welcome_enabled_summary">新成員入羣後發送；一次入羣超過 10 人時忽略</string>
     <string name="group_welcome_template">歡迎文案</string>
@@ -665,9 +669,11 @@
     <string name="scheduled_moments_post_failure">發佈失敗</string>
 
     <string name="chat_statistics_title">聊天統計</string>
-    <string name="chat_statistics_contacts">聯繫人</string>
-    <string name="chat_statistics_groups">羣聊</string>
-    <string name="chat_statistics_top_friends">最活躍的私聊</string>
+    <string name="chat_statistics_entry_summary">查看本羣成員與訊息排行</string>
+    <string name="chat_statistics_dialog_title_group">%1$s · 聊天統計</string>
+    <string name="chat_statistics_members">羣成員</string>
+    <string name="chat_statistics_total_messages">訊息總數</string>
+    <string name="chat_statistics_active_members">活躍成員</string>
     <string name="chat_statistics_empty">暫無聊天數據</string>
     <string name="chat_statistics_rank">%1$d. %2$s</string>
     <string name="chat_statistics_message_count">%1$d 條消息</string>
