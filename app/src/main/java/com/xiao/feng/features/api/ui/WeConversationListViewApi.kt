@@ -662,6 +662,9 @@ object WeConversationListViewApi : ApiFeature(), IResolveDex {
         }
 
         fun apply(row: View, listView: ListView?) {
+            // Called for every bound row while the conversation list scrolls. Without any hidden
+            // divider owner this is a no-op, so skip the view-tree walk entirely.
+            if (hiddenOwners.isEmpty() && rowStates.isEmpty() && listStates.isEmpty()) return
             applyRowDivider(row)
             applyListView(listView)
         }

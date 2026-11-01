@@ -20,6 +20,9 @@ import java.nio.file.Files
 object KvStore {
     private const val TAG = "KvStore"
 
+    /** SQLite limits a statement to a few hundred bound variables on older API levels. */
+    private const val MAX_KEYS_PER_QUERY = 500
+
     /** Room namespace, named after the legacy MMKV instance it migrated. */
     private const val NAMESPACE = "xfeng_prefs"
 
@@ -75,6 +78,31 @@ object KvStore {
     fun getBoolOrFalse(key: String): Boolean = getBoolean(key, false)
 
     fun getBoolOrDef(key: String, def: Boolean): Boolean = getBoolean(key, def)
+
+    /**
+     * Reads many boolean preferences with a single query per [MAX_KEYS_PER_QUERY] keys.
+     *
+     * Settings screens render hundreds of switches; calling [getBoolOrDef] row by row issues one
+     * SQLite query per row on the UI thread. Keys absent from the returned map have no stored value.
+     */
+    fun getBooleans(keys: Collection<String>): Map<String, Boolean> {
+        if (keys.isEmpty()) return emptyMap()
+        ensureMigrated()
+        val result = HashMap<String, Boolean>(keys.size)
+        for (chunk in keys.chunked(MAX_KEYS_PER_QUERY)) {
+            val placeholders = chunk.joinToString(",") { "?" }
+            sql.query(
+                "SELECT `key`, valueLong FROM preference_entries WHERE namespace = ? AND `key` IN ($placeholders)",
+                arrayOf(NAMESPACE) + chunk,
+            ).use { cursor ->
+                while (cursor.moveToNext()) {
+                    val value = cursor.getLongOrNull(1) ?: continue
+                    result[cursor.getString(0)] = value != 0L
+                }
+            }
+        }
+        return result
+    }
 
     fun getString(key: String): String? = getString(key, null)
 

@@ -36,7 +36,6 @@ import com.xiao.feng.features.core.SwitchFeature
 import com.xiao.feng.features.core.featureCategoryComparator
 import com.xiao.feng.i18n.LocalXiaoFengLocalizedContext
 import com.xiao.feng.i18n.XiaoFengLocaleController
-import com.xiao.feng.data.KvStore
 import com.xiao.feng.ui.content.m3.BaseWidget
 import com.xiao.feng.ui.content.m3.ExpressiveBackButton
 import com.xiao.feng.ui.content.m3.SegmentedColumn
@@ -46,16 +45,11 @@ import java.util.Locale
 
 
 /**
- * Current switch state of [item], read straight from MMKV using the feature's own
- * [SwitchFeature.defaultEnabled] — the very default `SwitchFeature.startup()` applies.
+ * Current switch state of [item], served from [FeatureCategoryState]'s per-revision snapshot so the
+ * whole list costs one batched query instead of one SQLite query per row.
  */
 @Composable
-private fun featureChecked(item: BaseFeature): Boolean {
-    val revision = FeatureCategoryState.revision
-    return remember(item.technicalId, revision) {
-        KvStore.getBoolOrDef(item.technicalId, (item as? SwitchFeature)?.defaultEnabled == true)
-    }
-}
+private fun featureChecked(item: BaseFeature): Boolean = FeatureCategoryState.isEnabled(item)
 
 // ---------------------------------------------------------------------------
 //  Page 1 — Features (search bar + category list)
