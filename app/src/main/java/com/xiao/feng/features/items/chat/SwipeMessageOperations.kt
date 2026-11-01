@@ -39,16 +39,19 @@ import com.xiao.feng.features.core.FeatureCategoryIds
 import com.xiao.feng.data.KvStore.prefOption
 import com.xiao.feng.ui.content.AlertDialogContent
 import com.xiao.feng.ui.content.TextButton
+import com.xiao.feng.ui.content.m3.RadioButtonWidget
 import com.xiao.feng.ui.content.m3.SegmentedColumn
 import com.xiao.feng.ui.content.m3.SwitchWidget
 import com.xiao.feng.ui.utils.EditIcon
 import com.xiao.feng.ui.utils.ExposurePlus1Icon
 import com.xiao.feng.ui.utils.ReplyIcon
+import com.xiao.feng.ui.utils.UndoIcon
 import com.xiao.feng.ui.utils.dpToPx
 import com.xiao.feng.ui.utils.showComposeDialog
 import com.xiao.feng.utils.HookParam
 import com.xiao.feng.utils.android.isDarkMode
 import com.xiao.feng.utils.android.showToastSuspend
+import com.xiao.feng.utils.now
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -56,6 +59,8 @@ import org.luckypray.dexkit.DexKitBridge
 import java.util.Collections
 import java.util.WeakHashMap
 import kotlin.math.abs
+import kotlin.time.Duration.Companion.minutes
+import kotlin.time.Instant
 
 object SwipeMessageOperations : ClickableFeature(), IResolveDex,
     WeChatMessageViewApi.ICreateViewListener {
@@ -81,6 +86,10 @@ object SwipeMessageOperations : ClickableFeature(), IResolveDex,
 
     private enum class DragDirection { LEFT, RIGHT }
 
+    // The action bound to the secondary swipe direction. Selection is exclusive: the prefs below
+    // are kept in sync so only one of them is true at any time.
+    private enum class SecondaryAction { REPEAT, EDIT, REVOKE }
+
     // WeakHashMap: entries are removed automatically once the recycled row view is GC'd.
     private val states: MutableMap<View, SwipeState> =
         Collections.synchronizedMap(WeakHashMap())
@@ -92,6 +101,9 @@ object SwipeMessageOperations : ClickableFeature(), IResolveDex,
 
     // When true, the secondary (non-quote) swipe action is "edit" instead of "repeat".
     private var useEditInsteadOfRepeat by prefOption("swipe_secondary_action_edit", false)
+
+    // When true, the secondary swipe action revokes the message instead of repeating / editing.
+    private var useRevokeInsteadOfRepeat by prefOption("swipe_secondary_action_revoke", false)
 
     // com.tencent.mm.ui.chatting.viewitems.ChattingItemContainer (obfuscated: xg / li). This
     // RelativeLayout is the SHARED root of every message item type (each ChattingItem.F() wraps its
@@ -324,7 +336,11 @@ object SwipeMessageOperations : ClickableFeature(), IResolveDex,
                     s.dragDirection = null
                     if (fire) {
                         if (isSecondaryDirection(direction)) {
-                            if (useEditInsteadOfRepeat) onSwipeEdit(v, s) else onSwipeRepeat(v, s)
+                            when (secondaryAction()) {
+                                SecondaryAction.REPEAT -> onSwipeRepeat(v, s)
+                                SecondaryAction.EDIT -> onSwipeEdit(v, s)
+                                SecondaryAction.REVOKE -> onSwipeRevoke(v, s)
+                            }
                         } else {
                             s.chattingContext?.let { onSwipeQuote(v, it) }
                         }
@@ -360,7 +376,7 @@ object SwipeMessageOperations : ClickableFeature(), IResolveDex,
     ) {
         val overlay = s.actionOverlay ?: SwipeActionOverlay(
             row,
-            isUseEdit = { useEditInsteadOfRepeat },
+            secondaryAction = ::secondaryAction,
             isSecondaryDir = ::isSecondaryDirection,
         ).also { s.actionOverlay = it }
         // Keep the icon directly under the finger while dragging. Applying an overshoot
@@ -371,7 +387,7 @@ object SwipeMessageOperations : ClickableFeature(), IResolveDex,
 
     private class SwipeActionOverlay(
         row: View,
-        private val isUseEdit: () -> Boolean,
+        private val secondaryAction: () -> SecondaryAction,
         private val isSecondaryDir: (DragDirection) -> Boolean,
     ) {
         private val root = row.rootView as? ViewGroup
@@ -380,6 +396,12 @@ object SwipeMessageOperations : ClickableFeature(), IResolveDex,
         private val quoteIcon = SwipeActionIconView(row.context, ReplyIcon, SwipeActionColor.GREEN)
         private val repeatIcon = SwipeActionIconView(row.context, ExposurePlus1Icon, SwipeActionColor.BLUE)
         private val editIcon = SwipeActionIconView(row.context, EditIcon, SwipeActionColor.ORANGE)
+        private val revokeIcon = SwipeActionIconView(row.context, UndoIcon, SwipeActionColor.RED)
+        private val secondaryIcons = mapOf(
+            SecondaryAction.REPEAT to repeatIcon,
+            SecondaryAction.EDIT to editIcon,
+            SecondaryAction.REVOKE to revokeIcon,
+        )
         private val rootLocation = IntArray(2)
         private val rowLocation = IntArray(2)
 
@@ -387,12 +409,15 @@ object SwipeMessageOperations : ClickableFeature(), IResolveDex,
             root?.overlay?.add(quoteIcon)
             root?.overlay?.add(repeatIcon)
             root?.overlay?.add(editIcon)
+            root?.overlay?.add(revokeIcon)
             quoteIcon.layout(0, 0, size, size)
             repeatIcon.layout(0, 0, size, size)
             editIcon.layout(0, 0, size, size)
+            revokeIcon.layout(0, 0, size, size)
             quoteIcon.alpha = 0f
             repeatIcon.alpha = 0f
             editIcon.alpha = 0f
+            revokeIcon.alpha = 0f
         }
 
         fun update(row: View, direction: DragDirection, progress: Float) {
@@ -411,19 +436,25 @@ object SwipeMessageOperations : ClickableFeature(), IResolveDex,
 
             // Secondary icon selection: read fresh from pref every frame so a settings change
             // mid-gesture (unlikely but possible) picks up immediately.
-            val secondaryIcon = if (isUseEdit()) editIcon else repeatIcon
-            val hiddenSecondary = if (isUseEdit()) repeatIcon else editIcon
+            val action = secondaryAction()
+            val secondaryIcon = secondaryIcons.getValue(action)
 
             quoteIcon.y = y
             repeatIcon.y = y
             editIcon.y = y
+            revokeIcon.y = y
             quoteIcon.translationX = 0f
             repeatIcon.translationX = 0f
             editIcon.translationX = 0f
+            revokeIcon.translationX = 0f
 
-            // Keep the unused secondary icon parked offscreen and invisible.
-            hiddenSecondary.alpha = 0f
-            hiddenSecondary.x = rightHiddenX
+            // Keep the unused secondary icons parked offscreen and invisible.
+            secondaryIcons.forEach { (it, icon) ->
+                if (it != action) {
+                    icon.alpha = 0f
+                    icon.x = rightHiddenX
+                }
+            }
 
             // Which icon is active depends on the logical action bound to this physical direction,
             // not the direction itself — so both icons move correctly when directions are swapped.
@@ -451,7 +482,7 @@ object SwipeMessageOperations : ClickableFeature(), IResolveDex,
                     return
                 }
 
-                val secondaryIcon = if (isUseEdit()) editIcon else repeatIcon
+                val secondaryIcon = secondaryIcons.getValue(secondaryAction())
                 val targetIcon = if (isSecondaryDir(direction)) secondaryIcon else quoteIcon
                 val offscreenX = when (direction) {
                     DragDirection.LEFT -> root.width + edgeMargin.toFloat()
@@ -472,12 +503,15 @@ object SwipeMessageOperations : ClickableFeature(), IResolveDex,
             quoteIcon.animate().cancel()
             repeatIcon.animate().cancel()
             editIcon.animate().cancel()
+            revokeIcon.animate().cancel()
             quoteIcon.translationX = 0f
             repeatIcon.translationX = 0f
             editIcon.translationX = 0f
+            revokeIcon.translationX = 0f
             root?.overlay?.remove(quoteIcon)
             root?.overlay?.remove(repeatIcon)
             root?.overlay?.remove(editIcon)
+            root?.overlay?.remove(revokeIcon)
         }
 
         private fun lerp(start: Float, end: Float, progress: Float): Float {
@@ -510,6 +544,12 @@ object SwipeMessageOperations : ClickableFeature(), IResolveDex,
             circleLight = "#FFCCBC".toColorInt(),
             iconDark = "#FFAB91".toColorInt(),
             circleDark = "#3E1000".toColorInt(),
+        ),
+        RED(
+            iconLight = "#C62828".toColorInt(),
+            circleLight = "#FFCDD2".toColorInt(),
+            iconDark = "#EF9A9A".toColorInt(),
+            circleDark = "#3E0000".toColorInt(),
         );
 
         fun iconColor(dark: Boolean) = if (dark) iconDark else iconLight
@@ -544,16 +584,32 @@ object SwipeMessageOperations : ClickableFeature(), IResolveDex,
     // secondary direction = RIGHT when not swapped, LEFT when swapped.
     private fun isSecondaryDirection(dir: DragDirection) = (dir == DragDirection.RIGHT) xor swapDirections
 
+    private fun secondaryAction(): SecondaryAction = when {
+        useRevokeInsteadOfRepeat -> SecondaryAction.REVOKE
+        useEditInsteadOfRepeat -> SecondaryAction.EDIT
+        else -> SecondaryAction.REPEAT
+    }
+
+    // WeChat allows revoking a message within two minutes of sending it.
+    private fun isRevokeSupported(msgInfo: MessageInfo): Boolean =
+        msgInfo.isSelfSender &&
+            now() - Instant.fromEpochMilliseconds(msgInfo.createTime) <= 2.minutes
+
     private fun detectDragDirection(dx: Float, dy: Float, s: SwipeState): DragDirection? {
         if (abs(dx) <= s.touchSlop || abs(dx) <= abs(dy)) return null
         val dir = if (dx < 0) DragDirection.LEFT else DragDirection.RIGHT
         return if (isSecondaryDirection(dir)) {
             // Secondary direction: gated by the master toggle, then by per-action type support.
             if (!enableSecondary) null
-            else if (useEditInsteadOfRepeat) {
-                if (s.msgInfo?.type?.isText == true) dir else null
-            } else {
-                if (s.msgInfo?.let(RepeatMessages::isSupported) == true) dir else null
+            else when (secondaryAction()) {
+                SecondaryAction.REPEAT ->
+                    if (s.msgInfo?.let(RepeatMessages::isSupported) == true) dir else null
+
+                SecondaryAction.EDIT ->
+                    if (s.msgInfo?.type?.isText == true) dir else null
+
+                SecondaryAction.REVOKE ->
+                    if (s.msgInfo?.let(::isRevokeSupported) == true) dir else null
             }
         } else {
             dir // Quote side: always active.
@@ -562,10 +618,21 @@ object SwipeMessageOperations : ClickableFeature(), IResolveDex,
 
     override fun onClick(context: ComponentActivity) {
         showComposeDialog(context) {
-            var useEdit by remember { mutableStateOf(useEditInsteadOfRepeat) }
+            var action by remember { mutableStateOf(secondaryAction()) }
             var secondary by remember { mutableStateOf(enableSecondary) }
             var swap by remember { mutableStateOf(swapDirections) }
-            val sec = stringResource(if (useEdit) R.string.chat_swipe_action_edit else R.string.chat_repeat_menu)
+            val sec = stringResource(
+                when (action) {
+                    SecondaryAction.REPEAT -> R.string.chat_repeat_menu
+                    SecondaryAction.EDIT -> R.string.chat_swipe_action_edit
+                    SecondaryAction.REVOKE -> R.string.chat_swipe_action_revoke
+                }
+            )
+            fun selectAction(selected: SecondaryAction) {
+                action = selected
+                useEditInsteadOfRepeat = selected == SecondaryAction.EDIT
+                useRevokeInsteadOfRepeat = selected == SecondaryAction.REVOKE
+            }
 
             AlertDialogContent(
                 title = { Text(stringResource(R.string.feature_swipe_message_operations_name)) },
@@ -584,15 +651,35 @@ object SwipeMessageOperations : ClickableFeature(), IResolveDex,
                             )
                         }
                         item {
-                            SwitchWidget(
+                            RadioButtonWidget(
+                                title = stringResource(R.string.chat_repeat_menu),
+                                description = stringResource(R.string.chat_swipe_repeat_description),
                                 iconPlaceholder = false,
-                                title = stringResource(R.string.chat_swipe_use_edit),
+                                selected = action == SecondaryAction.REPEAT,
+                                enabled = secondary,
+                                trailingDivider = true,
+                                onClick = { selectAction(SecondaryAction.REPEAT) },
+                            )
+                        }
+                        item {
+                            RadioButtonWidget(
+                                title = stringResource(R.string.chat_swipe_action_edit),
                                 description = stringResource(R.string.chat_swipe_edit_description),
-                                checked = useEdit,
-                                onCheckedChange = {
-                                    useEdit = it
-                                    useEditInsteadOfRepeat = it
-                                },
+                                iconPlaceholder = false,
+                                selected = action == SecondaryAction.EDIT,
+                                enabled = secondary,
+                                trailingDivider = true,
+                                onClick = { selectAction(SecondaryAction.EDIT) },
+                            )
+                        }
+                        item {
+                            RadioButtonWidget(
+                                title = stringResource(R.string.chat_swipe_action_revoke),
+                                description = stringResource(R.string.chat_swipe_revoke_description),
+                                iconPlaceholder = false,
+                                selected = action == SecondaryAction.REVOKE,
+                                enabled = secondary,
+                                onClick = { selectAction(SecondaryAction.REVOKE) },
                             )
                         }
                         item {
@@ -662,6 +749,18 @@ object SwipeMessageOperations : ClickableFeature(), IResolveDex,
         val msgInfo = s.msgInfo ?: return
         if (!QuickRevokeAndEdit.isSupported(msgInfo)) return
         QuickRevokeAndEdit.quickRevokeAndEdit(view.context, msgInfo)
+    }
+
+    private fun onSwipeRevoke(view: View, s: SwipeState) {
+        val msgInfo = s.msgInfo ?: return
+        if (!isRevokeSupported(msgInfo)) return
+
+        val context = view.context
+        CoroutineScope(Dispatchers.IO).launch {
+            if (!WeMessageApi.revokeMsg(msgInfo)) {
+                showToastSuspend(context, context.localizedChatString(R.string.chat_swipe_revoke_failed))
+            }
+        }
     }
 
     private val classChattingUiFootComponent by dexClass {

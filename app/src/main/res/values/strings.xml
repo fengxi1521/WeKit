@@ -654,6 +654,8 @@
     <string name="feature_scheduled_moments_description">Publish a text Moments post automatically at the configured times and weekdays</string>
     <string name="feature_chat_statistics_name">Chat statistics</string>
     <string name="feature_chat_statistics_description">View member count, message count and the most active members of each group in the group settings screen</string>
+    <string name="feature_chat_history_export_name">Export chat history</string>
+    <string name="feature_chat_history_export_description">Export the chat history with a friend as a text file from the friend profile screen</string>
 
     <string name="group_welcome_dialog_title">Group join welcome</string>
     <string name="group_welcome_dialog_title_group">%1$s · Group join welcome</string>
@@ -707,7 +709,7 @@
     <string name="scheduled_moments_post_failure">Failed to submit the post</string>
 
     <string name="chat_statistics_title">Chat statistics</string>
-    <string name="chat_statistics_entry_summary">View this group&apos;s member and message ranking</string>
+    <string name="chat_statistics_entry_summary">View this group\'s member and message ranking</string>
     <string name="chat_statistics_dialog_title_group">%1$s · Chat statistics</string>
     <string name="chat_statistics_members">Group members</string>
     <string name="chat_statistics_total_messages">Total messages</string>
@@ -824,7 +826,7 @@
     <string name="feature_swipe_conversation_operations_name">Swipe conversation actions</string>
     <string name="feature_swipe_conversation_operations_description">Swipe left on the homepage conversation list to expand the menu, and you can hide or delete conversations.\nClick Configure to enable the "Pin" and "Do Not Disturb" shortcut buttons</string>
     <string name="feature_swipe_message_operations_name">Swipe message actions</string>
-    <string name="feature_swipe_message_operations_description">Swipe on the message to quote, with the option of repeating or editing as a secondary action</string>
+    <string name="feature_swipe_message_operations_description">Swipe on the message to quote, with repeating, editing or revoking as an optional secondary action</string>
     <string name="feature_view_sticker_as_image_name">View stickers as images</string>
     <string name="feature_view_sticker_as_image_description">Open using WeChat’s native image viewer when clicking on a sticker in the chat</string>
     <string name="feature_voice_message_playback_optimization_name">Voice message playback logic optimization</string>
@@ -2135,6 +2137,29 @@
     <string name="chat_swipe_edit_description">When enabled, the secondary swipe action becomes Edit (text messages only); otherwise it is Repeat</string>
     <string name="chat_swipe_swap">Swap left and right swipes</string>
     <string name="chat_swipe_swap_description">When enabled, swipe left to %1$s and right to quote</string>
+    <string name="chat_swipe_action_revoke">Revoke</string>
+    <string name="chat_swipe_repeat_description">Send this message again to the current conversation</string>
+    <string name="chat_swipe_revoke_description">Revoke a message you sent within the last 2 minutes</string>
+    <string name="chat_swipe_revoke_failed">Failed to revoke the message</string>
+    <string name="chat_history_export_entry_summary">Export the chat history with this friend as a text file</string>
+    <string name="chat_history_export_title">Export chat with %1$s</string>
+    <string name="chat_history_export_range">Time range</string>
+    <string name="chat_history_export_range_all">All messages</string>
+    <string name="chat_history_export_range_30">Last 30 days</string>
+    <string name="chat_history_export_range_7">Last 7 days</string>
+    <string name="chat_history_export_counting">Counting messages…</string>
+    <string name="chat_history_export_message_count">%1$d messages will be exported</string>
+    <string name="chat_history_export_empty">No messages in this time range</string>
+    <string name="chat_history_export_button">Export</string>
+    <string name="chat_history_export_in_progress">Exporting…</string>
+    <string name="chat_history_export_success">Exported %2$d messages to %1$s</string>
+    <string name="chat_history_export_failed">Export failed</string>
+    <string name="chat_history_export_self">Me</string>
+    <string name="chat_history_export_other_message">Other message</string>
+    <string name="chat_history_export_header_title">Chat history</string>
+    <string name="chat_history_export_header_contact">Friend: %1$s (%2$s)</string>
+    <string name="chat_history_export_header_time">Exported at: %1$s</string>
+    <string name="chat_history_export_header_range">Range: %1$s</string>
     <string name="chat_swipe_conversation_config">Swipe menu settings</string>
     <string name="chat_swipe_conversation_pin_description">Show a pin shortcut to the left of Hide</string>
     <string name="chat_swipe_conversation_pin_toggle">Pin / Unpin</string>
