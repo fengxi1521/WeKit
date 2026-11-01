@@ -618,6 +618,8 @@
     <string name="feature_scheduled_moments_description">按设置的时间与星期自动发布文字朋友圈</string>
     <string name="feature_chat_statistics_name">聊天统计</string>
     <string name="feature_chat_statistics_description">在群聊设置中查看每个群的成员数、消息总数与活跃成员排行</string>
+    <string name="feature_chat_history_export_name">聊天记录导出</string>
+    <string name="feature_chat_history_export_description">在好友资料页将该好友的聊天记录导出为文本文件</string>
 
     <string name="group_welcome_dialog_title">进群欢迎语</string>
     <string name="group_welcome_dialog_title_group">%1$s · 进群欢迎语</string>
@@ -829,7 +831,7 @@
     <string name="feature_swipe_conversation_operations_name">左划对话菜单</string>
     <string name="feature_swipe_conversation_operations_description">在主页对话列表向左滑动展开菜单, 可对对话执行隐藏或删除等操作\n点击配置可选择启用「置顶」和「免打扰」快捷按钮</string>
     <string name="feature_swipe_message_operations_name">滑动消息快捷操作</string>
-    <string name="feature_swipe_message_operations_description">在消息上滑动以引用, 并可选复读或编辑为次要操作</string>
+    <string name="feature_swipe_message_operations_description">在消息上滑动以引用，并可选复读、编辑或撤回作为次要操作</string>
     <string name="feature_view_sticker_as_image_name">表情消息以图片打开</string>
     <string name="feature_view_sticker_as_image_description">点击聊天中的贴纸时使用微信原生图片查看器打开</string>
     <string name="feature_voice_message_playback_optimization_name">语音消息播放逻辑优化</string>
@@ -2134,6 +2136,29 @@
     <string name="chat_swipe_edit_description">启用后，次要划动操作变为「编辑」（仅文字消息）；关闭时为「复读」</string>
     <string name="chat_swipe_swap">对调左右划</string>
     <string name="chat_swipe_swap_description">启用后，左划%1$s，右划引用</string>
+    <string name="chat_swipe_action_revoke">撤回</string>
+    <string name="chat_swipe_repeat_description">向当前会话重新发送这条消息</string>
+    <string name="chat_swipe_revoke_description">撤回自己发送的消息（2 分钟内有效）</string>
+    <string name="chat_swipe_revoke_failed">撤回失败</string>
+    <string name="chat_history_export_entry_summary">将该好友的聊天记录导出为文本文件</string>
+    <string name="chat_history_export_title">导出与 %1$s 的聊天记录</string>
+    <string name="chat_history_export_range">时间范围</string>
+    <string name="chat_history_export_range_all">全部消息</string>
+    <string name="chat_history_export_range_30">最近 30 天</string>
+    <string name="chat_history_export_range_7">最近 7 天</string>
+    <string name="chat_history_export_counting">正在统计消息…</string>
+    <string name="chat_history_export_message_count">将导出 %1$d 条消息</string>
+    <string name="chat_history_export_empty">该时间范围内没有聊天记录</string>
+    <string name="chat_history_export_button">导出</string>
+    <string name="chat_history_export_in_progress">正在导出…</string>
+    <string name="chat_history_export_success">已导出到 %1$s，共 %2$d 条消息</string>
+    <string name="chat_history_export_failed">导出失败</string>
+    <string name="chat_history_export_self">我</string>
+    <string name="chat_history_export_other_message">其他消息</string>
+    <string name="chat_history_export_header_title">聊天记录</string>
+    <string name="chat_history_export_header_contact">好友：%1$s（%2$s）</string>
+    <string name="chat_history_export_header_time">导出时间：%1$s</string>
+    <string name="chat_history_export_header_range">范围：%1$s</string>
     <string name="chat_swipe_conversation_config">左划菜单配置</string>
     <string name="chat_swipe_conversation_pin_description">在「隐藏」左侧显示置顶快捷按钮</string>
     <string name="chat_swipe_conversation_pin_toggle">置顶 / 取消置顶</string>
