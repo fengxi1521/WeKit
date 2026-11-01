@@ -6,6 +6,7 @@ import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.util.Locale
+import java.util.concurrent.ConcurrentHashMap
 import kotlin.math.log10
 import kotlin.math.pow
 
@@ -23,11 +24,18 @@ inline fun formatEpoch(epochMs: Long, includeDate: Boolean = false): String {
     return formatEpoch(epochMs, if (includeDate) "yyyy/MM/dd HH:mm:ss" else "HH:mm:ss")
 }
 
+private val formatterZone: ZoneId = ZoneId.of("Asia/Shanghai")
+
+/**
+ * Message-time rendering runs on every list bind, so the compiled formatter is cached per pattern
+ * instead of being rebuilt (and re-parsing the pattern) for every message.
+ */
+private val formatterCache = ConcurrentHashMap<String, DateTimeFormatter>()
+
 fun formatEpoch(epochMs: Long, pattern: String): String {
-    val formatter =
-        DateTimeFormatter.ofPattern(pattern)
-            .withZone(ZoneId.of("Asia/Shanghai"))
-            .withLocale(Locale.CHINA)
+    val formatter = formatterCache.getOrPut(pattern) {
+        DateTimeFormatter.ofPattern(pattern, Locale.CHINA).withZone(formatterZone)
+    }
 
     return formatter.format(Instant.ofEpochMilli(epochMs))
 }

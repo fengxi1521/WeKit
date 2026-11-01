@@ -19,7 +19,6 @@ import androidx.compose.ui.unit.dp
 import androidx.dynamicanimation.animation.DynamicAnimation
 import androidx.dynamicanimation.animation.SpringAnimation
 import androidx.dynamicanimation.animation.SpringForce
-import dev.ujhhgtg.reflekt.reflekt
 import com.xiao.feng.R
 import com.xiao.feng.dexkit.abc.IResolveDex
 import com.xiao.feng.dexkit.dsl.dexMethod
@@ -34,6 +33,7 @@ import com.xiao.feng.ui.content.m3.RadioButtonWidget
 import com.xiao.feng.ui.content.m3.SegmentedColumn
 import com.xiao.feng.ui.content.m3.SwitchWidget
 import com.xiao.feng.ui.utils.showComposeDialog
+import com.xiao.feng.utils.reflection.cachedField
 import java.util.WeakHashMap
 
 /**
@@ -116,6 +116,12 @@ object MessageEntranceAnimation : ClickableFeature(), IResolveDex {
     private val activeFades = WeakHashMap<View, ObjectAnimator>()
     private val animationGenerations = WeakHashMap<View, Int>()
 
+    /**
+     * 行上是否留有本功能改写的 transform。滚动时绝大多数绑定从未播放动画, 此时复位是纯开销;
+     * 只有真正被改写过的行才需要取消动画并复位。
+     */
+    private val dirtyRows = WeakHashMap<View, Boolean>()
+
     /** 侧滑队列 (对应 Geek 的 `ob0.a`), 下一帧按 position 排序错峰播放 */
     private val pendingSlides = ArrayList<SlideEntry>()
     private val mainHandler = Handler(Looper.getMainLooper())
@@ -161,9 +167,7 @@ object MessageEntranceAnimation : ClickableFeature(), IResolveDex {
             val position = args[1] as Int
 
             // RecyclerView.ViewHolder.itemView (公开字段, 位于父类), 跨版本稳定
-            val itemView = holder.reflekt()
-                .firstField { name = "itemView"; superclass() }
-                .get() as View
+            val itemView = holder.cachedField("itemView").get(holder) as View
 
             val item = methodChattingAdapterGetItem.method.invoke(adapter, position)!!
             val msgInfo = MessageInfo(item)
@@ -183,8 +187,8 @@ object MessageEntranceAnimation : ClickableFeature(), IResolveDex {
             val previousMsgId = itemView.getTag(VIEW_TAG_MSG_ID) as Long?
             itemView.setTag(VIEW_TAG_MSG_ID, msgId)
 
-            // 对应 Geek `vh.j` + h40 取消: 每次绑定都先复位行状态
-            resetRow(itemView)
+            // 对应 Geek `vh.j` + h40 取消: 每次绑定都先复位行状态, 但只复位真正被本功能改写过的行
+            if (dirtyRows[itemView] == true) resetRow(itemView)
 
             // 同一行原地刷新 (进度/状态更新等), 不重复播放
             if (previousMsgId == msgId) return@hookAfter
@@ -218,6 +222,7 @@ object MessageEntranceAnimation : ClickableFeature(), IResolveDex {
 
     /** 对应 Geek `vh.j`: 取消动画并复位全部 transform */
     private fun resetRow(view: View) {
+        dirtyRows.remove(view)
         animationGenerations[view] = (animationGenerations[view] ?: 0) + 1
         activeFades.remove(view)?.cancel()
         view.animate().cancel()
@@ -236,6 +241,7 @@ object MessageEntranceAnimation : ClickableFeature(), IResolveDex {
 
     /** 默认弹跳 (对应 Geek m9: scale 0.85 弹簧 + 250ms 淡入, HARDWARE layer) */
     private fun playBounce(view: View) {
+        dirtyRows[view] = true
         view.setLayerType(View.LAYER_TYPE_HARDWARE, null)
         view.alpha = 0f
         view.scaleX = 0.85f
@@ -247,6 +253,7 @@ object MessageEntranceAnimation : ClickableFeature(), IResolveDex {
 
     /** 侧滑/掉落路径 (对应 Geek ob0.a + od 队列 + lb0 弹簧) */
     private fun queueSlideEntrance(view: View, direction: Float, position: Int, msgId: Long) {
+        dirtyRows[view] = true
         val style = entranceStyle
         if (style == STYLE_DROP) {
             // 重力掉落: 初始态为上方 -250dp + scale 0.9

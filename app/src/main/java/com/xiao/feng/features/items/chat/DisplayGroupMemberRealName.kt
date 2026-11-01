@@ -9,12 +9,12 @@ import android.view.View
 import android.widget.TextView
 import androidx.core.graphics.toColorInt
 import androidx.core.view.isGone
-import dev.ujhhgtg.reflekt.reflekt
 import com.xiao.feng.R
 import com.xiao.feng.features.api.ui.WeChatMessageViewApi
 import com.xiao.feng.features.core.ApiFeature
 import com.xiao.feng.features.core.FeatureCategoryIds
 import com.xiao.feng.utils.HookParam
+import com.xiao.feng.utils.reflection.cachedField
 
 /**
  * Sole annotator for real-name characters in group-chat message views.
@@ -57,9 +57,18 @@ object DisplayGroupMemberRealName : ApiFeature(), WeChatMessageViewApi.ICreateVi
 
     private val mainHandler by lazy { Handler(Looper.getMainLooper()) }
 
-    private fun annotationColor(): Int =
-        runCatching { DisplayGroupMemberRealNamesLastChar.annotationFg.toColorInt() }
-            .getOrElse { DEFAULT_FG.toColorInt() }
+    /** 颜色解析在每次绑定都会执行, 配置值不变时直接复用上次结果。 */
+    private var annotationColorRaw: String? = null
+    private var annotationColorValue: Int = DEFAULT_FG.toColorInt()
+
+    private fun annotationColor(): Int {
+        val raw = DisplayGroupMemberRealNamesLastChar.annotationFg
+        if (raw != annotationColorRaw) {
+            annotationColorRaw = raw
+            annotationColorValue = runCatching { raw.toColorInt() }.getOrElse { DEFAULT_FG.toColorInt() }
+        }
+        return annotationColorValue
+    }
 
     // ── Lifecycle ─────────────────────────────────────────────────────────────
 
@@ -79,9 +88,7 @@ object DisplayGroupMemberRealName : ApiFeature(), WeChatMessageViewApi.ICreateVi
         if (msgInfo.isSend != 0) return
         val sender = runCatching { msgInfo.sender }.getOrNull() ?: return
 
-        val textView = view.tag.reflekt()
-            .firstField { name = "userTV"; superclass() }
-            .get() as? TextView? ?: return
+        val textView = view.tag.cachedField("userTV").get(view.tag) as? TextView? ?: return
 
         if (textView.isGone) return
 

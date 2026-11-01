@@ -34,6 +34,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.core.graphics.toColorInt
 import dev.ujhhgtg.reflekt.reflekt
+import dev.ujhhgtg.reflekt.utils.makeAccessible
 import com.xiao.feng.R
 import com.xiao.feng.dexkit.abc.IResolveDex
 import com.xiao.feng.dexkit.dsl.dexMethod
@@ -52,7 +53,10 @@ import com.xiao.feng.ui.content.m3.SegmentedColumn
 import com.xiao.feng.ui.content.m3.SwitchWidget
 import com.xiao.feng.ui.utils.showComposeDialog
 import com.xiao.feng.utils.HookParam
+import com.xiao.feng.utils.reflection.cachedField
 import com.xiao.feng.utils.unreachable
+import java.lang.reflect.Field
+import java.util.concurrent.ConcurrentHashMap
 import kotlin.math.roundToInt
 
 object DisplayGroupMemberRoles : ClickableFeature(), IResolveDex,
@@ -97,6 +101,20 @@ object DisplayGroupMemberRoles : ClickableFeature(), IResolveDex,
     private var showOwner by KvStore.prefOption("group_role_show_owner", true)
     private var showAdmin by KvStore.prefOption("group_role_show_admin", true)
     private var showMember by KvStore.prefOption("group_role_show_member", true)
+
+    /**
+     * 群成员角色的 int 字段按成员数据类缓存。每次绑定都重新扫描类层级会拖慢长列表滚动,
+     * 而该字段在各版本中结构稳定。
+     */
+    private val memberRoleFieldCache = ConcurrentHashMap<Class<*>, Field>()
+
+    private fun memberRoleField(memberData: Any): Field =
+        memberRoleFieldCache.getOrPut(memberData.javaClass) {
+            memberData.reflekt()
+                .firstField { type = Int::class }
+                .self
+                .makeAccessible()
+        }
 
     private fun parseColor(value: String, fallback: String): Int =
         runCatching { value.toColorInt() }.getOrElse { fallback.toColorInt() }
@@ -288,33 +306,20 @@ object DisplayGroupMemberRoles : ClickableFeature(), IResolveDex,
         val groupId = msgInfo.talker
 
         val group = WeConversationApi.getGroup(groupId)
-        val senderIsGroupOwner = group.reflekt()
-            .firstField {
-                name = "field_roomowner"
-                superclass()
-            }
-            .get() as? String? == sender
+        val senderIsGroupOwner = group.cachedField("field_roomowner").get(group) as? String? == sender
 
         val role = if (senderIsGroupOwner) {
             1
         } else {
             val memberData = methodGetChatroomData.method.invoke(group, sender) ?: return
-            val memberRoleFlags = memberData.reflekt()
-                .firstField {
-                    type = Int::class
-                }
-                .get()!! as Int
+            val memberRoleFlags = memberRoleField(memberData).get(memberData) as Int
             if (memberRoleFlags and 2048 != 0) 2 else 3
         }
 
         val tag = view.tag
-        val textView = tag.reflekt()
-            .firstField {
-                name = "userTV"
-                superclass()
-            }
+        val textView = tag.cachedField("userTV")
             // might be null and throw NPE, although it doesn't affect functionality, I don't want it to litter the error logs
-            .get() as? TextView? ?: return
+            .get(tag) as? TextView? ?: return
         // A message view can be rebound more than once without being recreated.  Remove role
         // badges previously injected by this feature before constructing the new value.  Keeping
         // the live Spannable (rather than converting to a String) is important: WeChat uses

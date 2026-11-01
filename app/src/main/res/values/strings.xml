@@ -655,7 +655,7 @@
     <string name="feature_chat_statistics_name">Chat statistics</string>
     <string name="feature_chat_statistics_description">View member count, message count and the most active members of each group in the group settings screen</string>
     <string name="feature_chat_history_export_name">Export chat history</string>
-    <string name="feature_chat_history_export_description">Export the chat history with a friend as a text file from the friend profile screen</string>
+    <string name="feature_chat_history_export_description">Export the chat history with a friend or a group as a text file from the profile screen</string>
 
     <string name="group_welcome_dialog_title">Group join welcome</string>
     <string name="group_welcome_dialog_title_group">%1$s · Group join welcome</string>
@@ -2213,6 +2213,22 @@
     <string name="chat_history_export_header_sender">Sender: %1$s</string>
     <string name="chat_history_export_progress">Exporting %1$d of %2$d messages…</string>
     <string name="chat_history_export_coverage">Covers %1$s – %2$s</string>
+    <string name="chat_history_export_entry_summary_group">Export this group chat history as a text file</string>
+    <string name="chat_history_export_range_custom">Custom range</string>
+    <string name="chat_history_export_start_date">Start date</string>
+    <string name="chat_history_export_end_date">End date</string>
+    <string name="chat_history_export_date_unset">Not set</string>
+    <string name="chat_history_export_invalid_range">The end date must be later than the start date</string>
+    <string name="chat_history_export_keyword">Keyword filter</string>
+    <string name="chat_history_export_keyword_placeholder">Only export messages containing this text</string>
+    <string name="chat_history_export_header_keyword">Keyword: %1$s</string>
+    <string name="chat_history_export_header_group">Group: %1$s (%2$s)</string>
+    <string name="chat_history_export_group_member">Group member</string>
+    <string name="chat_history_export_quote_line">└ %1$s: %2$s</string>
+    <string name="chat_history_export_quote_line_anonymous">└ %1$s</string>
+    <string name="chat_history_export_custom_range">%1$s – %2$s</string>
+    <string name="chat_history_export_range_from">From %1$s</string>
+    <string name="chat_history_export_range_until">Until %1$s</string>
     <string name="chat_swipe_conversation_config">Swipe menu settings</string>
     <string name="chat_swipe_conversation_pin_description">Show a pin shortcut to the left of Hide</string>
     <string name="chat_swipe_conversation_pin_toggle">Pin / Unpin</string>

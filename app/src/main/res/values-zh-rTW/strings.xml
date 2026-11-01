@@ -617,7 +617,7 @@
     <string name="feature_chat_statistics_name">聊天統計</string>
     <string name="feature_chat_statistics_description">在羣聊設定中查看每個羣的成員數、訊息總數與活躍成員排行</string>
     <string name="feature_chat_history_export_name">聊天記錄導出</string>
-    <string name="feature_chat_history_export_description">在好友資料頁將該好友的聊天記錄導出爲文字檔</string>
+    <string name="feature_chat_history_export_description">在好友或群組資料頁將該會話的聊天記錄導出爲文字檔</string>
 
     <string name="group_welcome_dialog_title">進群歡迎語</string>
     <string name="group_welcome_dialog_title_group">%1$s · 進群歡迎語</string>
@@ -2167,6 +2167,22 @@
     <string name="chat_history_export_header_sender">傳送者：%1$s</string>
     <string name="chat_history_export_progress">正在導出 %1$d / %2$d 條訊息…</string>
     <string name="chat_history_export_coverage">涵蓋 %1$s 至 %2$s</string>
+    <string name="chat_history_export_entry_summary_group">將該群組的聊天記錄導出爲文字檔</string>
+    <string name="chat_history_export_range_custom">自訂範圍</string>
+    <string name="chat_history_export_start_date">開始日期</string>
+    <string name="chat_history_export_end_date">結束日期</string>
+    <string name="chat_history_export_date_unset">未設定</string>
+    <string name="chat_history_export_invalid_range">結束日期必須晚於開始日期</string>
+    <string name="chat_history_export_keyword">關鍵字篩選</string>
+    <string name="chat_history_export_keyword_placeholder">僅導出包含該文字的訊息</string>
+    <string name="chat_history_export_header_keyword">關鍵字：%1$s</string>
+    <string name="chat_history_export_header_group">群組：%1$s（%2$s）</string>
+    <string name="chat_history_export_group_member">群組成員</string>
+    <string name="chat_history_export_quote_line">└ %1$s：%2$s</string>
+    <string name="chat_history_export_quote_line_anonymous">└ %1$s</string>
+    <string name="chat_history_export_custom_range">%1$s 至 %2$s</string>
+    <string name="chat_history_export_range_from">%1$s 起</string>
+    <string name="chat_history_export_range_until">截至 %1$s</string>
     <string name="chat_swipe_conversation_config">左劃菜單配置</string>
     <string name="chat_swipe_conversation_pin_description">在「隱藏」左側顯示置頂快捷按鈕</string>
     <string name="chat_swipe_conversation_pin_toggle">置頂 / 取消置頂</string>

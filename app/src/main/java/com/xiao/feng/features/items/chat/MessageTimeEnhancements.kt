@@ -29,7 +29,6 @@ import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
 import androidx.core.graphics.toColorInt
 import androidx.core.view.isVisible
-import dev.ujhhgtg.reflekt.reflekt
 import com.xiao.feng.R
 import com.xiao.feng.i18n.LocalXiaoFengLocalizedContext
 import com.xiao.feng.features.api.core.models.MessageInfo
@@ -50,6 +49,7 @@ import com.xiao.feng.utils.HookParam
 import com.xiao.feng.utils.android.isDarkMode
 import com.xiao.feng.utils.android.showToast
 import com.xiao.feng.utils.formatEpoch
+import com.xiao.feng.utils.reflection.cachedField
 
 
 /** View tags shared with [ReadReceipts] while keeping its bind state on the time view. */
@@ -83,6 +83,21 @@ object MessageTimeEnhancements : ClickableFeature(),
     private var isAlwaysVisible by prefOption("msg_time_always_visible", false)
     private var textColorLight by prefOption("msg_time_color_light", "gray")
     private var textColorDark by prefOption("msg_time_color_dark", "gray")
+
+    /**
+     * Color parsing runs on every message bind while the preference rarely changes, so the last
+     * parsed value is kept instead of re-parsing the same string for every row.
+     */
+    private var parsedColorRaw: String? = null
+    private var parsedColorValue: Int = Color.GRAY
+
+    private fun parseTimeColor(raw: String): Int {
+        if (raw != parsedColorRaw) {
+            parsedColorRaw = raw
+            parsedColorValue = runCatching { raw.toColorInt() }.getOrElse { Color.GRAY }
+        }
+        return parsedColorValue
+    }
 
     private fun getFormattedText(msgInfo: MessageInfo): String {
         var result = displayFormat
@@ -205,8 +220,7 @@ object MessageTimeEnhancements : ClickableFeature(),
 
         // Dynamic text color configuration based on system theme
         val rawColor = if (context.isDarkMode) textColorDark else textColorLight
-        val parsedColor = runCatching { rawColor.toColorInt() }.getOrElse { Color.GRAY }
-        time.setTextColor(parsedColor)
+        time.setTextColor(parseTimeColor(rawColor))
 
         time.setTextSize(TypedValue.COMPLEX_UNIT_SP, textSize.toFloat())
 
@@ -272,12 +286,7 @@ object MessageTimeEnhancements : ClickableFeature(),
         val tag = view.tag ?: return
         val msgInfo = WeChatMessageViewApi.getMsgInfoFromParam(param)
 
-        val time = tag.reflekt()
-            .firstField {
-                name = "timeTV"
-                superclass()
-            }
-            .get() as? TextView? ?: return
+        val time = tag.cachedField("timeTV").get(tag) as? TextView? ?: return
 
         val nextGeneration = ((time.getTag(READ_RECEIPTS_BINDING_GENERATION_TAG) as? Long) ?: 0L) + 1L
         time.setTag(READ_RECEIPTS_BINDING_GENERATION_TAG, nextGeneration)
