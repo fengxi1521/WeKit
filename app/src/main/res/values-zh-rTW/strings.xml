@@ -630,6 +630,22 @@
     <string name="group_welcome_preview_member">小明</string>
     <string name="group_welcome_preview_group">親友羣</string>
 
+    <string name="feature_group_leave_notice_name">退羣提醒</string>
+    <string name="feature_group_leave_notice_description">在羣聊設定中為每個羣單獨設定退羣提醒，成員退羣後自動發送訊息，支援 {member}、{count} 與 {group} 佔位符</string>
+
+    <string name="group_leave_dialog_title">退羣提醒</string>
+    <string name="group_leave_dialog_title_group">%1$s · 退羣提醒</string>
+    <string name="group_leave_entry_enabled">已開啓</string>
+    <string name="group_leave_entry_disabled">已關閉</string>
+    <string name="group_leave_entry_unset">點擊設定退羣文案</string>
+    <string name="group_leave_enabled">啓用退羣提醒</string>
+    <string name="group_leave_enabled_summary">成員退羣後發送；一次退羣超過 10 人時忽略</string>
+    <string name="group_leave_template">退羣文案</string>
+    <string name="group_leave_template_hint">使用 {member} 表示成員暱稱，{count} 表示人數，{group} 表示羣名稱</string>
+    <string name="group_leave_preview">預覽：%1$s</string>
+    <string name="group_leave_preview_member">小明</string>
+    <string name="group_leave_preview_group">親友羣</string>
+
     <string name="keyword_auto_reply_title">關鍵詞自動回覆</string>
     <string name="keyword_auto_reply_description">任一關鍵詞命中收到的文字消息時自動回覆。同一會話 5 秒內最多回復一次</string>
     <string name="keyword_auto_reply_add">添加規則</string>
@@ -669,14 +685,22 @@
     <string name="scheduled_moments_post_failure">發佈失敗</string>
 
     <string name="chat_statistics_title">聊天統計</string>
-    <string name="chat_statistics_entry_summary">查看本羣成員與訊息排行</string>
+    <string name="chat_statistics_entry_summary">查看本羣成員、訊息與活躍詳情</string>
     <string name="chat_statistics_dialog_title_group">%1$s · 聊天統計</string>
     <string name="chat_statistics_members">羣成員</string>
     <string name="chat_statistics_total_messages">訊息總數</string>
+    <string name="chat_statistics_today_messages">今日訊息</string>
+    <string name="chat_statistics_week_messages">近 7 天訊息</string>
+    <string name="chat_statistics_sent_messages">我發送</string>
+    <string name="chat_statistics_received_messages">已接收</string>
+    <string name="chat_statistics_last_message">最近訊息</string>
+    <string name="chat_statistics_no_messages">暫無訊息</string>
+    <string name="chat_statistics_message_types">訊息類型</string>
+    <string name="chat_statistics_type_other">其他</string>
     <string name="chat_statistics_active_members">活躍成員</string>
     <string name="chat_statistics_empty">暫無聊天數據</string>
     <string name="chat_statistics_rank">%1$d. %2$s</string>
-    <string name="chat_statistics_message_count">%1$d 條消息</string>
+    <string name="chat_statistics_message_count">%1$d 條訊息</string>
     <string name="feature_chat_footer_hooks_name">聊天輸入欄鉤子</string>
     <string name="feature_chat_footer_hooks_description">集中提供聊天輸入欄相關鉤子</string>
     <string name="feature_chat_toolbar_name">聊天工具欄</string>

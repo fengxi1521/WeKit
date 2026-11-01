@@ -52,7 +52,7 @@ object GroupWelcomeMessage : SwitchFeature(),
     private const val MAX_DEDUP_KEYS = 256
 
     fun isEnabledForGroup(groupId: String): Boolean =
-        KvStore.getBoolOrDef(KEY_ENABLED_PREFIX + groupId, true)
+        KvStore.getBoolOrDef(KEY_ENABLED_PREFIX + groupId, false)
 
     fun templateForGroup(groupId: String): String =
         KvStore.getStringOrDef(KEY_TEMPLATE_PREFIX + groupId, "")

@@ -668,6 +668,22 @@
     <string name="group_welcome_preview_member">Alice</string>
     <string name="group_welcome_preview_group">Group chat</string>
 
+    <string name="feature_group_leave_notice_name">Leave notice</string>
+    <string name="feature_group_leave_notice_description">Configure leave notices for each group in the group settings screen. Sends a message after members leave; supports {member}, {count} and {group} placeholders.</string>
+
+    <string name="group_leave_dialog_title">Leave notice</string>
+    <string name="group_leave_dialog_title_group">%1$s · Leave notice</string>
+    <string name="group_leave_entry_enabled">Enabled</string>
+    <string name="group_leave_entry_disabled">Disabled</string>
+    <string name="group_leave_entry_unset">Tap to set the leave text</string>
+    <string name="group_leave_enabled">Enable leave notice</string>
+    <string name="group_leave_enabled_summary">Send after members leave; bulk leaves over 10 members are ignored</string>
+    <string name="group_leave_template">Leave text</string>
+    <string name="group_leave_template_hint">Use {member} for the member name, {count} for how many left and {group} for the group name</string>
+    <string name="group_leave_preview">Preview: %1$s</string>
+    <string name="group_leave_preview_member">Alice</string>
+    <string name="group_leave_preview_group">Group chat</string>
+
     <string name="keyword_auto_reply_title">Keyword auto-reply</string>
     <string name="keyword_auto_reply_description">One rule replies when any keyword matches a received text message. Replies to the same chat are limited to one every 5 seconds.</string>
     <string name="keyword_auto_reply_add">Add rule</string>
@@ -707,10 +723,18 @@
     <string name="scheduled_moments_post_failure">Failed to submit the post</string>
 
     <string name="chat_statistics_title">Chat statistics</string>
-    <string name="chat_statistics_entry_summary">View this group\'s member and message ranking</string>
+    <string name="chat_statistics_entry_summary">View this group\'s member, message and activity details</string>
     <string name="chat_statistics_dialog_title_group">%1$s · Chat statistics</string>
     <string name="chat_statistics_members">Group members</string>
     <string name="chat_statistics_total_messages">Total messages</string>
+    <string name="chat_statistics_today_messages">Messages today</string>
+    <string name="chat_statistics_week_messages">Messages in the last 7 days</string>
+    <string name="chat_statistics_sent_messages">Sent by me</string>
+    <string name="chat_statistics_received_messages">Received</string>
+    <string name="chat_statistics_last_message">Latest message</string>
+    <string name="chat_statistics_no_messages">No messages</string>
+    <string name="chat_statistics_message_types">Message types</string>
+    <string name="chat_statistics_type_other">Other</string>
     <string name="chat_statistics_active_members">Most active members</string>
     <string name="chat_statistics_empty">No chat data yet</string>
     <string name="chat_statistics_rank">%1$d. %2$s</string>
