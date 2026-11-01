@@ -493,9 +493,14 @@ object Themes : ClickableFeature(), IResolveDex {
     }
 
     /** cherrywechat S5.a(context, "status_bar_height") */
+    private var statusBarHeightCache = -1
+
     private fun statusBarHeight(context: Context): Int {
+        if (statusBarHeightCache >= 0) return statusBarHeightCache
         val id = context.resources.getIdentifier("status_bar_height", "dimen", "android")
-        return if (id > 0) context.resources.getDimensionPixelSize(id) else withDensity(25)
+        val height = if (id > 0) context.resources.getDimensionPixelSize(id) else withDensity(25)
+        statusBarHeightCache = height
+        return height
     }
 
     @Volatile
@@ -1453,6 +1458,15 @@ object Themes : ClickableFeature(), IResolveDex {
 
     override fun onEnable() {
         loadCurrentTheme()
+        // With the "none" theme selected every hook below is a no-op visually, yet several of them
+        // still walk and rewrite the whole chat/home view tree on each enter/exit (clearing
+        // backgrounds before finding out there is no themed drawable to put back). That is
+        // needlessly expensive and shows up as a white flash. Theme selection already tells the
+        // user that a restart is required, so hooks are installed only when a theme is active.
+        if (currentThemeId == DEFAULT_THEME_ID) {
+            WeLogger.i(TAG, "no theme selected, theme hooks skipped")
+            return
+        }
         WeConversationListViewApi.addListener(recyclerConversationBindListener)
         registerEjImageHooks()
         hookB() // BackgroundBanHook
