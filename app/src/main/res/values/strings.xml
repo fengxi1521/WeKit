@@ -707,7 +707,7 @@
     <string name="scheduled_moments_post_failure">Failed to submit the post</string>
 
     <string name="chat_statistics_title">Chat statistics</string>
-    <string name="chat_statistics_entry_summary">View this group&apos;s member and message ranking</string>
+    <string name="chat_statistics_entry_summary">View this group\'s member and message ranking</string>
     <string name="chat_statistics_dialog_title_group">%1$s · Chat statistics</string>
     <string name="chat_statistics_members">Group members</string>
     <string name="chat_statistics_total_messages">Total messages</string>
