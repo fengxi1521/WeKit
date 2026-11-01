@@ -26,6 +26,7 @@ import androidx.core.graphics.toColorInt
 import com.tencent.mm.pluginsdk.ui.chat.ChatFooter
 import dev.ujhhgtg.reflekt.reflekt
 import com.xiao.feng.R
+import com.xiao.feng.data.KvStore
 import com.xiao.feng.dexkit.abc.IResolveDex
 import com.xiao.feng.dexkit.dsl.data
 import com.xiao.feng.dexkit.dsl.dexClass
@@ -65,6 +66,11 @@ import kotlin.time.Instant
 object SwipeMessageOperations : ClickableFeature(), IResolveDex,
     WeChatMessageViewApi.ICreateViewListener {
 
+    private const val PREF_ENABLE_SECONDARY = "swipe_to_quote_or_repeat_right_repeat"
+    private const val PREF_SWAP_DIRECTIONS = "swipe_to_quote_or_repeat_swap_dir"
+    private const val PREF_USE_EDIT = "swipe_secondary_action_edit"
+    private const val PREF_USE_REVOKE = "swipe_secondary_action_revoke"
+
     override val technicalId = "滑动消息快捷操作"
     override val nameRes = R.string.feature_swipe_message_operations_name
     override val categoryIds = listOf(FeatureCategoryIds.CHAT)
@@ -82,6 +88,11 @@ object SwipeMessageOperations : ClickableFeature(), IResolveDex,
         var dragDirection: DragDirection? = null,
         var triggered: Boolean = false,
         var actionOverlay: SwipeActionOverlay? = null,
+        // Preferences are snapshotted once per gesture: reading them per frame would hit the
+        // preference database on every MOVE event.
+        var secondaryEnabled: Boolean = false,
+        var secondarySwapped: Boolean = false,
+        var secondaryAction: SecondaryAction = SecondaryAction.REPEAT,
     )
 
     private enum class DragDirection { LEFT, RIGHT }
@@ -96,14 +107,24 @@ object SwipeMessageOperations : ClickableFeature(), IResolveDex,
 
     private val springInterpolator = OvershootInterpolator(1.3f)
 
-    private var enableSecondary by prefOption("swipe_to_quote_or_repeat_right_repeat", false)
-    private var swapDirections by prefOption("swipe_to_quote_or_repeat_swap_dir", false)
+    private var enableSecondary by prefOption(PREF_ENABLE_SECONDARY, false)
+    private var swapDirections by prefOption(PREF_SWAP_DIRECTIONS, false)
 
     // When true, the secondary (non-quote) swipe action is "edit" instead of "repeat".
-    private var useEditInsteadOfRepeat by prefOption("swipe_secondary_action_edit", false)
+    private var useEditInsteadOfRepeat by prefOption(PREF_USE_EDIT, false)
 
     // When true, the secondary swipe action revokes the message instead of repeating / editing.
-    private var useRevokeInsteadOfRepeat by prefOption("swipe_secondary_action_revoke", false)
+    private var useRevokeInsteadOfRepeat by prefOption(PREF_USE_REVOKE, false)
+
+    /** Caches the resolved ChatFooter per chatting context so taps stop rebuilding the reflection chain. */
+    private val chatFooterCache = Collections.synchronizedMap(WeakHashMap<Any, ChatFooter>())
+
+    private val gesturePrefKeys = setOf(
+        PREF_ENABLE_SECONDARY,
+        PREF_SWAP_DIRECTIONS,
+        PREF_USE_EDIT,
+        PREF_USE_REVOKE,
+    )
 
     // com.tencent.mm.ui.chatting.viewitems.ChattingItemContainer (obfuscated: xg / li). This
     // RelativeLayout is the SHARED root of every message item type (each ChattingItem.F() wraps its
@@ -174,6 +195,7 @@ object SwipeMessageOperations : ClickableFeature(), IResolveDex,
                         s.triggered = false
                         s.actionOverlay?.dismiss(animated = false)
                         s.actionOverlay = null
+                        snapshotGesturePrefs(s)
                     }
 
                     MotionEvent.ACTION_MOVE -> {
@@ -271,6 +293,7 @@ object SwipeMessageOperations : ClickableFeature(), IResolveDex,
                 s.triggered = false
                 s.actionOverlay?.dismiss(animated = false)
                 s.actionOverlay = null
+                snapshotGesturePrefs(s)
                 // Claim so the non-clickable container keeps receiving the stream (blank-area path).
                 true
             }
@@ -335,8 +358,8 @@ object SwipeMessageOperations : ClickableFeature(), IResolveDex,
                     v.parent?.requestDisallowInterceptTouchEvent(false)
                     s.dragDirection = null
                     if (fire) {
-                        if (isSecondaryDirection(direction)) {
-                            when (secondaryAction()) {
+                        if (isSecondaryDirection(s, direction)) {
+                            when (s.secondaryAction) {
                                 SecondaryAction.REPEAT -> onSwipeRepeat(v, s)
                                 SecondaryAction.EDIT -> onSwipeEdit(v, s)
                                 SecondaryAction.REVOKE -> onSwipeRevoke(v, s)
@@ -376,8 +399,8 @@ object SwipeMessageOperations : ClickableFeature(), IResolveDex,
     ) {
         val overlay = s.actionOverlay ?: SwipeActionOverlay(
             row,
-            secondaryAction = ::secondaryAction,
-            isSecondaryDir = ::isSecondaryDirection,
+            action = s.secondaryAction,
+            secondaryDirection = if (s.secondarySwapped) DragDirection.LEFT else DragDirection.RIGHT,
         ).also { s.actionOverlay = it }
         // Keep the icon directly under the finger while dragging. Applying an overshoot
         // interpolator here makes its distance from the edge nonlinear relative to the row.
@@ -387,8 +410,8 @@ object SwipeMessageOperations : ClickableFeature(), IResolveDex,
 
     private class SwipeActionOverlay(
         row: View,
-        private val secondaryAction: () -> SecondaryAction,
-        private val isSecondaryDir: (DragDirection) -> Boolean,
+        private val action: SecondaryAction,
+        private val secondaryDirection: DragDirection,
     ) {
         private val root = row.rootView as? ViewGroup
         private val size = 44.dpToPx(row.context)
@@ -434,9 +457,8 @@ object SwipeMessageOperations : ClickableFeature(), IResolveDex,
             val rightHiddenX = root.width + edgeMargin.toFloat()
             val rightVisibleX = root.width - size - edgeMargin.toFloat()
 
-            // Secondary icon selection: read fresh from pref every frame so a settings change
-            // mid-gesture (unlikely but possible) picks up immediately.
-            val action = secondaryAction()
+            // The action is fixed for the duration of the gesture, so it is resolved once here
+            // instead of reading preferences on every MOVE event.
             val secondaryIcon = secondaryIcons.getValue(action)
 
             quoteIcon.y = y
@@ -458,7 +480,7 @@ object SwipeMessageOperations : ClickableFeature(), IResolveDex,
 
             // Which icon is active depends on the logical action bound to this physical direction,
             // not the direction itself — so both icons move correctly when directions are swapped.
-            val (activeIcon, idleIcon) = if (isSecondaryDir(direction))
+            val (activeIcon, idleIcon) = if (direction == secondaryDirection)
                 Pair(secondaryIcon, quoteIcon) else Pair(quoteIcon, secondaryIcon)
 
             if (direction == DragDirection.LEFT) {
@@ -482,8 +504,8 @@ object SwipeMessageOperations : ClickableFeature(), IResolveDex,
                     return
                 }
 
-                val secondaryIcon = secondaryIcons.getValue(secondaryAction())
-                val targetIcon = if (isSecondaryDir(direction)) secondaryIcon else quoteIcon
+                val secondaryIcon = secondaryIcons.getValue(action)
+                val targetIcon = if (direction == secondaryDirection) secondaryIcon else quoteIcon
                 val offscreenX = when (direction) {
                     DragDirection.LEFT -> root.width + edgeMargin.toFloat()
                     DragDirection.RIGHT -> -size - edgeMargin.toFloat()
@@ -580,9 +602,22 @@ object SwipeMessageOperations : ClickableFeature(), IResolveDex,
         }
     }
 
-    // Returns whether a physical direction maps to the secondary action (repeat or edit, vs. quote).
-    // secondary direction = RIGHT when not swapped, LEFT when swapped.
-    private fun isSecondaryDirection(dir: DragDirection) = (dir == DragDirection.RIGHT) xor swapDirections
+    // Returns whether a physical direction maps to the secondary action (repeat/edit/revoke vs.
+    // quote). secondary direction = RIGHT when not swapped, LEFT when swapped.
+    private fun isSecondaryDirection(s: SwipeState, dir: DragDirection) =
+        (dir == DragDirection.RIGHT) xor s.secondarySwapped
+
+    /** Reads every gesture preference in one query and stores the result on [s]. */
+    private fun snapshotGesturePrefs(s: SwipeState) {
+        val values = KvStore.getBooleans(gesturePrefKeys)
+        s.secondaryEnabled = values[PREF_ENABLE_SECONDARY] ?: false
+        s.secondarySwapped = values[PREF_SWAP_DIRECTIONS] ?: false
+        s.secondaryAction = when {
+            values[PREF_USE_REVOKE] == true -> SecondaryAction.REVOKE
+            values[PREF_USE_EDIT] == true -> SecondaryAction.EDIT
+            else -> SecondaryAction.REPEAT
+        }
+    }
 
     private fun secondaryAction(): SecondaryAction = when {
         useRevokeInsteadOfRepeat -> SecondaryAction.REVOKE
@@ -598,10 +633,10 @@ object SwipeMessageOperations : ClickableFeature(), IResolveDex,
     private fun detectDragDirection(dx: Float, dy: Float, s: SwipeState): DragDirection? {
         if (abs(dx) <= s.touchSlop || abs(dx) <= abs(dy)) return null
         val dir = if (dx < 0) DragDirection.LEFT else DragDirection.RIGHT
-        return if (isSecondaryDirection(dir)) {
+        return if (isSecondaryDirection(s, dir)) {
             // Secondary direction: gated by the master toggle, then by per-action type support.
-            if (!enableSecondary) null
-            else when (secondaryAction()) {
+            if (!s.secondaryEnabled) null
+            else when (s.secondaryAction) {
                 SecondaryAction.REPEAT ->
                     if (s.msgInfo?.let(RepeatMessages::isSupported) == true) dir else null
 
@@ -706,13 +741,7 @@ object SwipeMessageOperations : ClickableFeature(), IResolveDex,
     // ── swipe actions ──────────────────────────────────────────────────────────
 
     private fun hideChatInput(chattingContext: Any) {
-        val apiMan = chattingContext.reflekt()
-            .firstField { type = WeServiceApi.apiManagerClass }
-            .get()!!
-        val api = WeServiceApi.getApiByClass(apiMan, classChattingUiFootComponent.clazz)
-        val chatFooter = api.reflekt()
-            .firstField { type = "com.tencent.mm.pluginsdk.ui.chat.ChatFooter" }
-            .get()!! as ChatFooter
+        val chatFooter = chatFooter(chattingContext)
         val method = methodHideChatInput.method
         if (method.parameterCount == 1) {
             method.invoke(chatFooter, true)
@@ -721,14 +750,25 @@ object SwipeMessageOperations : ClickableFeature(), IResolveDex,
         }
     }
 
+    /**
+     * The API manager and ChatFooter of a chatting UI never change for the lifetime of that
+     * chatting context, so the reflection chain only needs to run once per chat instead of once
+     * per tap on the blank area of the message list.
+     */
+    private fun chatFooter(chattingContext: Any): ChatFooter = synchronized(chatFooterCache) {
+        chatFooterCache.getOrPut(chattingContext) {
+            val apiMan = chattingContext.reflekt()
+                .firstField { type = WeServiceApi.apiManagerClass }
+                .get()!!
+            val api = WeServiceApi.getApiByClass(apiMan, classChattingUiFootComponent.clazz)
+            api.reflekt()
+                .firstField { type = "com.tencent.mm.pluginsdk.ui.chat.ChatFooter" }
+                .get()!! as ChatFooter
+        }
+    }
+
     private fun onSwipeQuote(originalView: View, chattingContext: Any) {
-        val apiMan = chattingContext.reflekt()
-            .firstField { type = WeServiceApi.apiManagerClass }
-            .get()!!
-        val api = WeServiceApi.getApiByClass(apiMan, classChattingUiFootComponent.clazz)
-        val chatFooter = api.reflekt()
-            .firstField { type = "com.tencent.mm.pluginsdk.ui.chat.ChatFooter" }
-            .get()!! as ChatFooter
+        val chatFooter = chatFooter(chattingContext)
         val chatHolder = originalView.tag.reflekt().getField("chatHolder", true)!!
         val msgInfo = methodGetMsgInfo.method.invoke(null, chatHolder, chattingContext)!!
         WeMessageApi.setReferringMessage(chatFooter, msgInfo)
@@ -736,7 +776,7 @@ object SwipeMessageOperations : ClickableFeature(), IResolveDex,
 
     private fun onSwipeRepeat(view: View, s: SwipeState) {
         val msgInfo = s.msgInfo ?: return
-        if (!enableSecondary || !RepeatMessages.isSupported(msgInfo)) return
+        if (!s.secondaryEnabled || !RepeatMessages.isSupported(msgInfo)) return
 
         val context = view.context
         CoroutineScope(Dispatchers.IO).launch {

@@ -14,6 +14,7 @@ import com.xiao.feng.features.core.FeatureCategoryIds
 import com.xiao.feng.utils.HookParam
 import com.xiao.feng.utils.WeLogger
 import java.lang.reflect.Field
+import java.lang.reflect.Method
 import java.util.Collections
 import java.util.WeakHashMap
 import java.util.concurrent.ConcurrentHashMap
@@ -44,6 +45,16 @@ object WeChatMessageViewApi : ApiFeature(), IResolveDex {
         Collections.synchronizedMap(WeakHashMap<View, MessageInfo>())
     private val attachStateListeners =
         Collections.synchronizedMap(WeakHashMap<View, View.OnAttachStateChangeListener>())
+
+    /**
+     * Message resolved for the current bind, keyed by identity of the adapter item passed to
+     * onBindView. Every feature listener receives the same bind event and would otherwise walk
+     * the model itself, so the work is done once here. A single entry is enough because binds
+     * are sequential and listeners run synchronously right after it.
+     */
+    private val bindLock = Any()
+    private var bindItem: Any? = null
+    private var bindMessage: MessageInfo? = null
 
     fun addListener(listener: ICreateViewListener) {
         if (!listeners.contains(listener)) {
@@ -114,6 +125,12 @@ object WeChatMessageViewApi : ApiFeature(), IResolveDex {
             val holder = args[0]!!
             val view = holderView(holder)
             val message = getMsgInfoFromParam(this)
+            // Listeners below (and other features) ask for the same binding again; keep the result
+            // so a single bind does not repeat the reflection walk per listener.
+            synchronized(bindLock) {
+                bindItem = args[1]
+                bindMessage = message
+            }
             ensureAttachStateListener(view)
 
             val previous = synchronized(currentBindings) { currentBindings[view] }
@@ -178,10 +195,16 @@ object WeChatMessageViewApi : ApiFeature(), IResolveDex {
     }
 
     fun getChattingContextFromParam(param: HookParam): Any {
-        return param.thisObject!!.reflekt()
-            .firstField { type = WeMessageApi.classChattingContext.clazz }
-            .get()!!
+        val holder = param.thisObject!!
+        val field = chattingContextFieldCache.getOrPut(holder.javaClass) {
+            holder.reflekt()
+                .firstField { type = WeMessageApi.classChattingContext.clazz }
+                .self.makeAccessible()
+        }
+        return field.get(holder)!!
     }
+
+    private val chattingContextFieldCache = ConcurrentHashMap<Class<*>, Field>()
 
     /** Returns every (view, message) pair currently bound whose message satisfies [matcher]. */
     fun findBoundViews(matcher: (MessageInfo) -> Boolean): List<Pair<View, MessageInfo>> {
@@ -197,18 +220,33 @@ object WeChatMessageViewApi : ApiFeature(), IResolveDex {
 
     fun getMsgInfoFromParam(param: HookParam): MessageInfo {
         val item = param.args[1]
+        // The bind hook already resolved this item; listeners share that result.
+        synchronized(bindLock) {
+            if (item != null && item === bindItem) bindMessage?.let { return it }
+        }
+
         val current = item?.let { findMessageInfo(it) }
         if (current != null) return current
 
-        val chattingDataAdapter = param.thisObject!!.reflekt()
-            .firstField { type = WeMessageApi.classChattingDataAdapter.clazz }
-            .get()!!
+        val holder = param.thisObject!!
+        val adapterField = adapterFieldCache.getOrPut(holder.javaClass) {
+            holder.reflekt()
+                .firstField { type = WeMessageApi.classChattingDataAdapter.clazz }
+                .self.makeAccessible()
+        }
+        val chattingDataAdapter = adapterField.get(holder)!!
+        val getItem = adapterGetItemCache.getOrPut(chattingDataAdapter.javaClass) {
+            chattingDataAdapter.reflekt()
+                .firstMethod { name = "getItem" }
+                .self.makeAccessible()
+        }
         val msgId = param.args[2] as Int
-        val msgInfo = chattingDataAdapter.reflekt()
-            .firstMethod { name = "getItem" }
-            .invoke(msgId)!!
+        val msgInfo = getItem.invoke(chattingDataAdapter, msgId)!!
         return MessageInfo(msgInfo)
     }
+
+    private val adapterFieldCache = ConcurrentHashMap<Class<*>, Field>()
+    private val adapterGetItemCache = ConcurrentHashMap<Class<*>, Method>()
 
     /**
      * The adapter item class is stable, so the field chain that reaches the message model only

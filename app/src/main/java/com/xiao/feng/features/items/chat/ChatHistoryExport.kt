@@ -24,6 +24,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.tencent.mm.plugin.profile.ui.ContactInfoUI
 import com.xiao.feng.R
+import com.xiao.feng.data.KvStore.prefOption
 import com.xiao.feng.features.api.core.WeDatabaseApi
 import com.xiao.feng.features.api.core.models.MessageType
 import com.xiao.feng.features.api.ui.WeContactPrefsScreenApi
@@ -37,6 +38,7 @@ import com.xiao.feng.ui.content.TextButton
 import com.xiao.feng.ui.content.m3.DropdownOption
 import com.xiao.feng.ui.content.m3.DropDownMenuWidget
 import com.xiao.feng.ui.content.m3.SegmentedColumn
+import com.xiao.feng.ui.content.m3.SwitchWidget
 import com.xiao.feng.ui.utils.showComposeDialog
 import com.xiao.feng.utils.WeLogger
 import com.xiao.feng.utils.android.currentWxId
@@ -55,11 +57,20 @@ import java.util.Locale
 
 private const val TAG = "ChatHistoryExport"
 
+private const val EXPORT_BUFFER_SIZE = 64 * 1024
+
+/** Message types that carry plain text: plain text and quoted text. */
+@Suppress("DEPRECATION")
+private val TEXT_MESSAGE_TYPES = listOf(MessageType.TEXT.code, MessageType.QUOTE.code)
+
 private enum class ExportRange(val days: Long?, @StringRes val labelRes: Int) {
     ALL(null, R.string.chat_history_export_range_all),
     LAST_30(30, R.string.chat_history_export_range_30),
     LAST_7(7, R.string.chat_history_export_range_7),
 }
+
+/** Remembered choice: skip images, voice messages, files and other non-text items. */
+private var exportTextOnly by prefOption("chat_history_export_only_text", false)
 
 /** Per-friend chat history export entry inside the friend profile screen. */
 object ChatHistoryExport : SwitchFeature(), WeContactPrefsScreenApi.IContactInfoProvider {
@@ -102,6 +113,7 @@ object ChatHistoryExport : SwitchFeature(), WeContactPrefsScreenApi.IContactInfo
 fun showChatHistoryExportDialog(context: Context, wxId: String) {
     showComposeDialog(context) {
         var range by remember { mutableStateOf(ExportRange.ALL) }
+        var textOnly by remember { mutableStateOf(exportTextOnly) }
         var displayName by remember(wxId) { mutableStateOf("") }
         var messageCount by remember(wxId) { mutableStateOf<Long?>(null) }
         var exporting by remember { mutableStateOf(false) }
@@ -111,9 +123,9 @@ fun showChatHistoryExportDialog(context: Context, wxId: String) {
         LaunchedEffect(wxId) {
             displayName = withContext(Dispatchers.IO) { WeDatabaseApi.getDisplayName(wxId) }
         }
-        LaunchedEffect(wxId, range) {
+        LaunchedEffect(wxId, range, textOnly) {
             messageCount = null
-            messageCount = withContext(Dispatchers.IO) { countMessages(wxId, range) }
+            messageCount = withContext(Dispatchers.IO) { countMessages(wxId, range, textOnly) }
         }
 
         AlertDialogContent(
@@ -141,6 +153,19 @@ fun showChatHistoryExportDialog(context: Context, wxId: String) {
                                 enabled = !exporting,
                                 onValueChange = {
                                     range = it
+                                    result = null
+                                },
+                            )
+                        }
+                        item {
+                            SwitchWidget(
+                                iconPlaceholder = false,
+                                title = stringResource(R.string.chat_history_export_only_text),
+                                description = stringResource(R.string.chat_history_export_only_text_description),
+                                checked = textOnly,
+                                onCheckedChange = {
+                                    textOnly = it
+                                    exportTextOnly = it
                                     result = null
                                 },
                             )
@@ -175,7 +200,7 @@ fun showChatHistoryExportDialog(context: Context, wxId: String) {
                         result = null
                         scope.launch {
                             val exported = withContext(Dispatchers.IO) {
-                                exportChatHistory(context, wxId, displayName, range)
+                                exportChatHistory(context, wxId, displayName, range, textOnly)
                             }
                             exporting = false
                             val text = if (exported == null) {
@@ -203,14 +228,21 @@ fun showChatHistoryExportDialog(context: Context, wxId: String) {
 }
 
 /** Number of messages within the selected range, for the dialog preview. */
-private fun countMessages(wxId: String, range: ExportRange): Long {
+private fun countMessages(wxId: String, range: ExportRange, textOnly: Boolean): Long {
     val since = range.days?.let { System.currentTimeMillis() / 1000L - it * 86_400L }
     val sql = buildString {
-        append("SELECT COUNT(*) AS msg_count FROM message WHERE talker = ?")
+        append("SELECT COUNT(*) FROM message WHERE talker = ?")
         if (since != null) append(" AND createTime >= ?")
+        if (textOnly) append(" AND type IN (${TEXT_MESSAGE_TYPES.joinToString(",")})")
     }
-    val args = if (since == null) arrayOf<Any>(wxId) else arrayOf<Any>(wxId, since)
-    return WeDatabaseApi.executeQuery(sql, args).firstOrNull()?.let { it["msg_count"] as Long } ?: 0L
+    val args = buildList<Any> {
+        add(wxId)
+        if (since != null) add(since)
+    }.toTypedArray()
+    // Only a single row is read here; going through rawQuery avoids building a result map.
+    return WeDatabaseApi.rawQuery(sql, args).use { cursor ->
+        if (cursor.moveToFirst()) cursor.getLong(0) else 0L
+    }
 }
 
 private class ExportTarget(
@@ -265,14 +297,19 @@ private fun exportChatHistory(
     wxId: String,
     displayName: String,
     range: ExportRange,
+    textOnly: Boolean,
 ): Pair<String, Int>? {
     val since = range.days?.let { System.currentTimeMillis() / 1000L - it * 86_400L }
     val sql = buildString {
         append("SELECT type, content, createTime, isSend FROM message WHERE talker = ?")
         if (since != null) append(" AND createTime >= ?")
+        if (textOnly) append(" AND type IN (${TEXT_MESSAGE_TYPES.joinToString(",")})")
         append(" ORDER BY createTime ASC")
     }
-    val args = if (since == null) arrayOf<Any>(wxId) else arrayOf<Any>(wxId, since)
+    val args = buildList<Any> {
+        add(wxId)
+        if (since != null) add(since)
+    }.toTypedArray()
 
     val timeFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
     val stamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(Date())
@@ -287,7 +324,8 @@ private fun exportChatHistory(
     }
     var count = 0
     try {
-        target.stream.bufferedWriter().use { writer ->
+        // Explicit UTF-8 and a larger buffer: a long history is written in a single pass.
+        target.stream.writer(Charsets.UTF_8).buffered(EXPORT_BUFFER_SIZE).use { writer ->
             writer.write(
                 buildString {
                     appendLine(context.localizedChatString(R.string.chat_history_export_header_title))
@@ -310,16 +348,23 @@ private fun exportChatHistory(
                             context.localizedChatString(range.labelRes),
                         )
                     )
+                    if (textOnly) {
+                        appendLine(
+                            context.localizedChatString(R.string.chat_history_export_header_text_only)
+                        )
+                    }
                     appendLine()
                 }
             )
 
             val selfLabel = context.localizedChatString(R.string.chat_history_export_self)
+            // Non-text rows repeat the same handful of type labels; resolve each one once.
+            val typeLabels = HashMap<Int, String>()
             WeDatabaseApi.rawQuery(sql, args).use { cursor ->
                 while (cursor.moveToNext()) {
                     val time = timeFormat.format(Date(cursor.getLong(2) * 1000L))
                     val sender = if (cursor.getInt(3) == 1) selfLabel else displayName
-                    val body = messageBody(context, cursor)
+                    val body = messageBody(context, cursor, typeLabels)
                     writer.write("[$time] $sender: $body\n")
                     count++
                 }
@@ -336,7 +381,11 @@ private fun exportChatHistory(
     return target.path to count
 }
 
-private fun messageBody(context: Context, cursor: Cursor): String {
+private fun messageBody(
+    context: Context,
+    cursor: Cursor,
+    typeLabels: MutableMap<Int, String>,
+): String {
     val type = cursor.getInt(0)
     val content = cursor.getString(1) ?: ""
     val messageType = MessageType.fromCode(type)
@@ -354,7 +403,9 @@ private fun messageBody(context: Context, cursor: Cursor): String {
         if (title.isNotEmpty()) return title
     }
 
-    val label = messageType?.let { context.localizedChatString(it.displayNameRes) }
-        ?: context.localizedChatString(R.string.chat_history_export_other_message)
-    return "[$label]"
+    return typeLabels.getOrPut(type) {
+        val label = messageType?.let { context.localizedChatString(it.displayNameRes) }
+            ?: context.localizedChatString(R.string.chat_history_export_other_message)
+        "[$label]"
+    }
 }

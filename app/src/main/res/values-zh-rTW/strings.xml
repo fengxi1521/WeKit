@@ -2142,6 +2142,8 @@
     <string name="chat_history_export_range_all">全部訊息</string>
     <string name="chat_history_export_range_30">最近 30 天</string>
     <string name="chat_history_export_range_7">最近 7 天</string>
+    <string name="chat_history_export_only_text">僅導出文字訊息</string>
+    <string name="chat_history_export_only_text_description">略過圖片、語音、檔案等非文字訊息</string>
     <string name="chat_history_export_counting">正在統計訊息…</string>
     <string name="chat_history_export_message_count">將導出 %1$d 條訊息</string>
     <string name="chat_history_export_empty">該時間範圍內沒有聊天記錄</string>
@@ -2155,6 +2157,7 @@
     <string name="chat_history_export_header_contact">好友：%1$s（%2$s）</string>
     <string name="chat_history_export_header_time">導出時間：%1$s</string>
     <string name="chat_history_export_header_range">範圍：%1$s</string>
+    <string name="chat_history_export_header_text_only">內容：僅文字訊息</string>
     <string name="chat_swipe_conversation_config">左劃菜單配置</string>
     <string name="chat_swipe_conversation_pin_description">在「隱藏」左側顯示置頂快捷按鈕</string>
     <string name="chat_swipe_conversation_pin_toggle">置頂 / 取消置頂</string>

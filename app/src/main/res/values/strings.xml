@@ -2188,6 +2188,8 @@
     <string name="chat_history_export_range_all">All messages</string>
     <string name="chat_history_export_range_30">Last 30 days</string>
     <string name="chat_history_export_range_7">Last 7 days</string>
+    <string name="chat_history_export_only_text">Text messages only</string>
+    <string name="chat_history_export_only_text_description">Skip images, voice messages, files and other non-text messages</string>
     <string name="chat_history_export_counting">Counting messages…</string>
     <string name="chat_history_export_message_count">%1$d messages will be exported</string>
     <string name="chat_history_export_empty">No messages in this time range</string>
@@ -2201,6 +2203,7 @@
     <string name="chat_history_export_header_contact">Friend: %1$s (%2$s)</string>
     <string name="chat_history_export_header_time">Exported at: %1$s</string>
     <string name="chat_history_export_header_range">Range: %1$s</string>
+    <string name="chat_history_export_header_text_only">Content: text messages only</string>
     <string name="chat_swipe_conversation_config">Swipe menu settings</string>
     <string name="chat_swipe_conversation_pin_description">Show a pin shortcut to the left of Hide</string>
     <string name="chat_swipe_conversation_pin_toggle">Pin / Unpin</string>
