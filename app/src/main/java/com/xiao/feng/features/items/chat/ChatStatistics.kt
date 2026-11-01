@@ -42,9 +42,9 @@ import com.xiao.feng.ui.utils.showComposeDialog
 import com.xiao.feng.utils.android.currentWxId
 import com.xiao.feng.utils.strings.isGroupChatWxId
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 import java.text.SimpleDateFormat
-import java.util.Calendar
 import java.util.Date
 import java.util.Locale
 
@@ -66,9 +66,8 @@ data class MemberMessage(
 data class GroupChatStatistics(
     val memberCount: Int,
     val messageCount: Long,
-    val todayMessages: Long,
-    val weekMessages: Long,
     val sentMessages: Long,
+    val activeMemberCount: Int,
     val lastMessageTime: Long,
     val typeCounts: Map<Int, Long>,
     val members: List<MemberActivity>,
@@ -81,6 +80,9 @@ private const val MESSAGE_PAGE_SIZE = 100
 private const val TEXT_MESSAGE_TYPE = 1
 private const val LOW_ACTIVITY_DEFAULT_THRESHOLD = 5
 private const val LOW_ACTIVITY_MAX_THRESHOLD = 50
+private const val DEFAULT_RANGE_DAYS = 365
+private const val MIN_RANGE_DAYS = 1
+private const val MAX_RANGE_DAYS = 365
 
 private fun Map<String, Any?>.asLong(key: String): Long =
     (this[key] as? Number)?.toLong() ?: 0L
@@ -88,31 +90,43 @@ private fun Map<String, Any?>.asLong(key: String): Long =
 private fun Map<String, Any?>.asInt(key: String): Int =
     (this[key] as? Number)?.toInt() ?: 0
 
-private fun loadGroupStatistics(groupId: String): GroupChatStatistics {
-    val contacts = WeDatabaseApi.getGroupMembers(groupId)
+private data class GroupMemberBase(val wxid: String, val name: String)
 
-    val todayStart = Calendar.getInstance().apply {
-        set(Calendar.HOUR_OF_DAY, 0)
-        set(Calendar.MINUTE, 0)
-        set(Calendar.SECOND, 0)
-        set(Calendar.MILLISECOND, 0)
-    }.timeInMillis
-    val weekStart = todayStart - 6 * DAY_MILLIS
+private fun loadGroupMembers(groupId: String): List<GroupMemberBase> {
+    val displayNames = WeDatabaseApi.getGroupMemberDisplayNames(groupId)
+    return WeDatabaseApi.getGroupMembers(groupId).map { contact ->
+        GroupMemberBase(
+            wxid = contact.wxId,
+            name = displayNames[contact.wxId].orEmpty()
+                .ifEmpty { contact.remarkName }
+                .ifEmpty { contact.nickname }
+                .ifEmpty { contact.wxId },
+        )
+    }
+}
+
+private fun loadGroupStatistics(
+    groupId: String,
+    days: Int,
+    baseMembers: List<GroupMemberBase>,
+): GroupChatStatistics {
+    val rangeStart = System.currentTimeMillis() - days * DAY_MILLIS
 
     val summary = WeDatabaseApi.executeQuery(
         """SELECT COUNT(*) AS msg_count,
                   SUM(CASE WHEN isSend = 1 THEN 1 ELSE 0 END) AS sent_count,
-                  SUM(CASE WHEN createTime >= ? THEN 1 ELSE 0 END) AS today_count,
-                  SUM(CASE WHEN createTime >= ? THEN 1 ELSE 0 END) AS week_count,
                   MAX(createTime) AS last_time
            FROM message
-           WHERE talker = ?""",
-        arrayOf(todayStart, weekStart, groupId),
+           WHERE talker = ? AND createTime >= ?""",
+        arrayOf(groupId, rangeStart),
     ).firstOrNull()
 
     val typeRows = WeDatabaseApi.executeQuery(
-        "SELECT type, COUNT(*) AS msg_count FROM message WHERE talker = ? GROUP BY type",
-        arrayOf(groupId),
+        """SELECT type, COUNT(*) AS msg_count
+           FROM message
+           WHERE talker = ? AND createTime >= ?
+           GROUP BY type""",
+        arrayOf(groupId, rangeStart),
     )
     val typeCounts = typeRows.associate { row ->
         row.asInt("type") to row.asLong("msg_count")
@@ -121,9 +135,9 @@ private fun loadGroupStatistics(groupId: String): GroupChatStatistics {
     val senderRows = WeDatabaseApi.executeQuery(
         """SELECT substr(content, 1, instr(content, ':') - 1) AS sender, COUNT(*) AS msg_count
            FROM message
-           WHERE talker = ? AND isSend = 0 AND instr(content, ':') > 0
+           WHERE talker = ? AND isSend = 0 AND instr(content, ':') > 0 AND createTime >= ?
            GROUP BY sender""",
-        arrayOf(groupId),
+        arrayOf(groupId, rangeStart),
     )
     val senderCounts = senderRows.associate { row ->
         (row["sender"] as String) to row.asInt("msg_count")
@@ -132,14 +146,10 @@ private fun loadGroupStatistics(groupId: String): GroupChatStatistics {
     val selfWxId = WeApi.selfWxId
     val sentMessages = summary?.asLong("sent_count") ?: 0L
 
-    val members = contacts.map { contact ->
-        val isSelf = contact.wxId == selfWxId
-        val count = if (isSelf) sentMessages.toInt() else senderCounts[contact.wxId] ?: 0
-        val name = WeDatabaseApi.getGroupMemberDisplayName(groupId, contact.wxId)
-            .ifEmpty { contact.remarkName }
-            .ifEmpty { contact.nickname }
-            .ifEmpty { contact.wxId }
-        MemberActivity(contact.wxId, name, count, isSelf)
+    val members = baseMembers.map { member ->
+        val isSelf = member.wxid == selfWxId
+        val count = if (isSelf) sentMessages.toInt() else senderCounts[member.wxid] ?: 0
+        MemberActivity(member.wxid, member.name, count, isSelf)
     }.toMutableList()
 
     // Keep members who already left so their history still shows up in the ranking.
@@ -153,11 +163,10 @@ private fun loadGroupStatistics(groupId: String): GroupChatStatistics {
     }
 
     return GroupChatStatistics(
-        memberCount = contacts.size,
+        memberCount = baseMembers.size,
         messageCount = summary?.asLong("msg_count") ?: 0L,
-        todayMessages = summary?.asLong("today_count") ?: 0L,
-        weekMessages = summary?.asLong("week_count") ?: 0L,
         sentMessages = sentMessages,
+        activeMemberCount = senderCounts.size + if (sentMessages > 0) 1 else 0,
         lastMessageTime = summary?.asLong("last_time") ?: 0L,
         typeCounts = typeCounts,
         members = members,
@@ -241,11 +250,20 @@ fun showChatStatisticsDialog(context: Context, groupId: String) {
         var memberReturnPage by remember(groupId) { mutableStateOf(StatsPage.RANKING) }
         var descending by remember(groupId) { mutableStateOf(true) }
         var lowThreshold by remember(groupId) { mutableStateOf(LOW_ACTIVITY_DEFAULT_THRESHOLD) }
+        var rangeDays by remember(groupId) { mutableStateOf(DEFAULT_RANGE_DAYS) }
+        var baseMembers by remember(groupId) { mutableStateOf<List<GroupMemberBase>?>(null) }
         val timeFormat = remember { SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault()) }
 
         LaunchedEffect(groupId) {
             groupName = withContext(Dispatchers.IO) { WeDatabaseApi.getDisplayName(groupId) }
-            data = withContext(Dispatchers.IO) { loadGroupStatistics(groupId) }
+            baseMembers = withContext(Dispatchers.IO) { loadGroupMembers(groupId) }
+        }
+
+        LaunchedEffect(groupId, rangeDays, baseMembers) {
+            val base = baseMembers ?: return@LaunchedEffect
+            // Debounce so dragging the range slider does not trigger a query per step.
+            if (data != null) delay(250)
+            data = withContext(Dispatchers.IO) { loadGroupStatistics(groupId, rangeDays, base) }
         }
 
         LaunchedEffect(selectedMember) {
@@ -280,6 +298,8 @@ fun showChatStatisticsDialog(context: Context, groupId: String) {
                         when (page) {
                             StatsPage.SUMMARY -> SummaryPage(
                                 statistics = statistics,
+                                rangeDays = rangeDays,
+                                onRangeChange = { rangeDays = it },
                                 lastMessageText = if (statistics.lastMessageTime > 0) {
                                     timeFormat.format(Date(statistics.lastMessageTime))
                                 } else {
@@ -353,6 +373,8 @@ fun showChatStatisticsDialog(context: Context, groupId: String) {
 @Composable
 private fun SummaryPage(
     statistics: GroupChatStatistics,
+    rangeDays: Int,
+    onRangeChange: (Int) -> Unit,
     lastMessageText: String,
     onOpenRanking: () -> Unit,
     onOpenLowActivity: () -> Unit,
@@ -372,6 +394,7 @@ private fun SummaryPage(
         otherLabel to otherCount,
     ).filter { it.second > 0 }
         .joinToString(" · ") { (label, count) -> "$label $count" }
+    val dailyAverage = statistics.messageCount / rangeDays
 
     LazyColumn(
         modifier = Modifier
@@ -379,13 +402,41 @@ private fun SummaryPage(
             .heightIn(max = 420.dp),
         verticalArrangement = Arrangement.spacedBy(2.dp),
     ) {
-        item { StatisticRow(R.string.chat_statistics_members, statistics.memberCount.toString()) }
-        item { StatisticRow(R.string.chat_statistics_total_messages, statistics.messageCount.toString()) }
-        item { StatisticRow(R.string.chat_statistics_today_messages, statistics.todayMessages.toString()) }
-        item { StatisticRow(R.string.chat_statistics_week_messages, statistics.weekMessages.toString()) }
-        item { StatisticRow(R.string.chat_statistics_sent_messages, statistics.sentMessages.toString()) }
-        item { StatisticRow(R.string.chat_statistics_received_messages, statistics.receivedMessages.toString()) }
-        item { StatisticRow(R.string.chat_statistics_last_message, lastMessageText) }
+        item {
+            IntNumberPickerWidget(
+                title = stringResource(R.string.chat_statistics_range),
+                description = stringResource(R.string.chat_statistics_range_summary, rangeDays),
+                value = rangeDays,
+                startInt = MIN_RANGE_DAYS,
+                endInt = MAX_RANGE_DAYS,
+                stepSize = 1,
+                valueSuffix = stringResource(R.string.chat_statistics_range_unit),
+                onValueChange = onRangeChange,
+            )
+        }
+
+        item { StatisticRow(stringResource(R.string.chat_statistics_members), statistics.memberCount.toString()) }
+        item {
+            StatisticRow(
+                stringResource(R.string.chat_statistics_messages_in_range, rangeDays),
+                statistics.messageCount.toString(),
+            )
+        }
+        item { StatisticRow(stringResource(R.string.chat_statistics_sent_messages), statistics.sentMessages.toString()) }
+        item {
+            StatisticRow(
+                stringResource(R.string.chat_statistics_received_messages),
+                statistics.receivedMessages.toString(),
+            )
+        }
+        item {
+            StatisticRow(
+                stringResource(R.string.chat_statistics_active_members),
+                statistics.activeMemberCount.toString(),
+            )
+        }
+        item { StatisticRow(stringResource(R.string.chat_statistics_daily_average), dailyAverage.toString()) }
+        item { StatisticRow(stringResource(R.string.chat_statistics_last_message), lastMessageText) }
 
         item {
             Text(
@@ -602,9 +653,9 @@ private fun messageTypeLabel(type: Int): String = when (type) {
 }
 
 @Composable
-private fun StatisticRow(labelRes: Int, value: String) {
+private fun StatisticRow(label: String, value: String) {
     ListItem(
-        content = { Text(stringResource(labelRes)) },
+        content = { Text(label) },
         trailingContent = { Text(value) },
     )
 }

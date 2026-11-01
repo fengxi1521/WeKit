@@ -624,6 +624,36 @@ object WeDatabaseApi : ApiFeature(), IResolveDex {
     }
 
     /**
+     * 一次性读取群成员的群昵称映射，避免为了每个成员重复查询并解析 roomdata。
+     * @param groupId 群聊 wxId（xxx@chatroom）
+     * @return wxId 到群昵称的映射；没有设置群昵称的成员不会出现在结果中
+     */
+    fun getGroupMemberDisplayNames(groupId: String): Map<String, String> {
+        if (!groupId.isGroupChatWxId) return emptyMap()
+        try {
+            val cursor = db.rawQuery(
+                "SELECT roomdata FROM chatroom WHERE chatroomname = ?",
+                arrayOf(groupId)
+            )
+            cursor.use { cursor ->
+                if (cursor != null && cursor.moveToFirst()) {
+                    val blob = cursor.getBlob(0) ?: return emptyMap()
+                    val data = ProtoBuf.decodeFromByteArray<ChatRoomDataProto>(blob)
+                    return data.members
+                        .mapNotNull { member ->
+                            member.wxId.takeIf { it.isNotEmpty() }?.let { it to member.displayName }
+                        }
+                        .filter { (_, displayName) -> displayName.isNotEmpty() }
+                        .toMap()
+                }
+            }
+        } catch (e: Exception) {
+            WeLogger.e(TAG, "failed to get group member display names; groupId=$groupId", e)
+        }
+        return emptyMap()
+    }
+
+    /**
      * 获取邀请指定群成员进群的邀请者 wxId
      * 数据来自 chatroom.roomdata protobuf，群主或无邀请者信息时返回空字符串
      * @param groupId 群聊 wxId（xxx@chatroom）

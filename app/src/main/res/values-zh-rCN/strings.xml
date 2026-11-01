@@ -715,6 +715,11 @@
     <string name="chat_statistics_member_messages_empty">暂无消息</string>
     <string name="chat_statistics_self">我</string>
     <string name="chat_statistics_back">返回</string>
+    <string name="chat_statistics_range">统计范围</string>
+    <string name="chat_statistics_range_summary">最近 %1$d 天</string>
+    <string name="chat_statistics_range_unit">天</string>
+    <string name="chat_statistics_messages_in_range">消息（最近 %1$d 天）</string>
+    <string name="chat_statistics_daily_average">日均消息</string>
     <string name="feature_chat_footer_hooks_name">聊天输入栏钩子</string>
     <string name="feature_chat_footer_hooks_description">集中提供聊天输入栏相关钩子</string>
     <string name="feature_chat_toolbar_name">聊天工具栏</string>

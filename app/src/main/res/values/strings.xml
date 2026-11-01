@@ -751,6 +751,11 @@
     <string name="chat_statistics_member_messages_empty">No messages</string>
     <string name="chat_statistics_self">Me</string>
     <string name="chat_statistics_back">Back</string>
+    <string name="chat_statistics_range">Statistics range</string>
+    <string name="chat_statistics_range_summary">Last %1$d days</string>
+    <string name="chat_statistics_range_unit">d</string>
+    <string name="chat_statistics_messages_in_range">Messages (last %1$d days)</string>
+    <string name="chat_statistics_daily_average">Daily average</string>
     <string name="feature_chat_footer_hooks_name">Chat input bar hooks</string>
     <string name="feature_chat_footer_hooks_description">Centrally provide hooks related to the chat input field</string>
     <string name="feature_chat_toolbar_name">Chat toolbar</string>
