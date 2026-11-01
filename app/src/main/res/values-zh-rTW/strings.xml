@@ -2158,6 +2158,15 @@
     <string name="chat_history_export_header_time">導出時間：%1$s</string>
     <string name="chat_history_export_header_range">範圍：%1$s</string>
     <string name="chat_history_export_header_text_only">內容：僅文字訊息</string>
+    <string name="chat_history_export_senders">傳送者</string>
+    <string name="chat_history_export_senders_all">雙方訊息</string>
+    <string name="chat_history_export_senders_friend">僅對方</string>
+    <string name="chat_history_export_senders_self">僅我</string>
+    <string name="chat_history_export_group_by_date">依日期分組</string>
+    <string name="chat_history_export_group_by_date_description">每天只顯示一個日期標題，不再逐則重複日期</string>
+    <string name="chat_history_export_header_sender">傳送者：%1$s</string>
+    <string name="chat_history_export_progress">正在導出 %1$d / %2$d 條訊息…</string>
+    <string name="chat_history_export_coverage">涵蓋 %1$s 至 %2$s</string>
     <string name="chat_swipe_conversation_config">左劃菜單配置</string>
     <string name="chat_swipe_conversation_pin_description">在「隱藏」左側顯示置頂快捷按鈕</string>
     <string name="chat_swipe_conversation_pin_toggle">置頂 / 取消置頂</string>

@@ -2204,6 +2204,15 @@
     <string name="chat_history_export_header_time">Exported at: %1$s</string>
     <string name="chat_history_export_header_range">Range: %1$s</string>
     <string name="chat_history_export_header_text_only">Content: text messages only</string>
+    <string name="chat_history_export_senders">Sender</string>
+    <string name="chat_history_export_senders_all">Both sides</string>
+    <string name="chat_history_export_senders_friend">This friend only</string>
+    <string name="chat_history_export_senders_self">Me only</string>
+    <string name="chat_history_export_group_by_date">Group by date</string>
+    <string name="chat_history_export_group_by_date_description">Show one date heading instead of repeating the date on every message</string>
+    <string name="chat_history_export_header_sender">Sender: %1$s</string>
+    <string name="chat_history_export_progress">Exporting %1$d of %2$d messages…</string>
+    <string name="chat_history_export_coverage">Covers %1$s – %2$s</string>
     <string name="chat_swipe_conversation_config">Swipe menu settings</string>
     <string name="chat_swipe_conversation_pin_description">Show a pin shortcut to the left of Hide</string>
     <string name="chat_swipe_conversation_pin_toggle">Pin / Unpin</string>
