@@ -104,8 +104,8 @@ private data class ExportOptions(
     val groupByDate: Boolean,
 )
 
-/** Row count plus the covered period, so the dialog can describe the selection before exporting. */
-private data class ExportPreview(val count: Long, val firstTime: Long, val lastTime: Long)
+/** Row count plus the covered period in epoch milliseconds, for the dialog preview. */
+private data class ExportPreview(val count: Long, val firstMillis: Long, val lastMillis: Long)
 
 /** Per-friend chat history export entry inside the friend profile screen. */
 object ChatHistoryExport : SwitchFeature(), WeContactPrefsScreenApi.IContactInfoProvider {
@@ -278,8 +278,8 @@ fun showChatHistoryExportDialog(context: Context, wxId: String) {
                         Text(
                             text = stringResource(
                                 R.string.chat_history_export_coverage,
-                                coverageDateFormat.format(Date(currentPreview.firstTime * 1000L)),
-                                coverageDateFormat.format(Date(currentPreview.lastTime * 1000L)),
+                                coverageDateFormat.format(Date(currentPreview.firstMillis)),
+                                coverageDateFormat.format(Date(currentPreview.lastMillis)),
                             ),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -340,6 +340,34 @@ fun showChatHistoryExportDialog(context: Context, wxId: String) {
     }
 }
 
+/** Epoch values below this magnitude are seconds; anything above is milliseconds. */
+private const val EPOCH_MILLIS_THRESHOLD = 100_000_000_000L
+
+/**
+ * The `message.createTime` column is seconds on some supported hosts and milliseconds on others.
+ * The scale is a property of the database, so it is detected once and cached for the process.
+ */
+@Volatile
+private var createTimeScale: Long? = null
+
+private fun createTimeScale(wxId: String): Long {
+    createTimeScale?.let { return it }
+    val latest = WeDatabaseApi.rawQuery(
+        "SELECT MAX(createTime) FROM message WHERE talker = ?",
+        arrayOf<Any>(wxId),
+    ).use { cursor ->
+        if (cursor.moveToFirst() && !cursor.isNull(0)) cursor.getLong(0) else 0L
+    }
+    if (latest <= 0L) return 1000L
+    val scale = if (latest < EPOCH_MILLIS_THRESHOLD) 1000L else 1L
+    createTimeScale = scale
+    return scale
+}
+
+/** Lower bound of the selected range in the database's own time unit. */
+private fun rangeSince(range: ExportRange, scale: Long): Long? =
+    range.days?.let { (System.currentTimeMillis() - it * 86_400_000L) / scale }
+
 /** Messages matching the current selection, for the dialog preview. */
 private fun loadPreview(
     wxId: String,
@@ -347,28 +375,38 @@ private fun loadPreview(
     senders: SenderFilter,
     textOnly: Boolean,
 ): ExportPreview {
-    val since = range.days?.let { System.currentTimeMillis() / 1000L - it * 86_400L }
+    val scale = createTimeScale(wxId)
+    val since = rangeSince(range, scale)
     val sql = buildString {
         append("SELECT COUNT(*), MIN(createTime), MAX(createTime) FROM message WHERE talker = ?")
         appendExportConditions(since, senders, textOnly)
     }
     // Only a single row is read here; going through rawQuery avoids building a result map.
-    return WeDatabaseApi.rawQuery(sql, exportArgs(wxId, since)).use { cursor ->
+    return WeDatabaseApi.rawQuery(sql, arrayOf<Any>(wxId)).use { cursor ->
         if (cursor.moveToFirst()) {
-            ExportPreview(cursor.getLong(0), cursor.getLong(1), cursor.getLong(2))
+            // Normalize both bounds to milliseconds so the dialog does not need the scale.
+            ExportPreview(
+                cursor.getLong(0),
+                cursor.getLong(1) * scale,
+                cursor.getLong(2) * scale,
+            )
         } else {
             ExportPreview(0, 0, 0)
         }
     }
 }
 
-/** Conditions shared by the count preview and the export so both always select the same rows. */
+/**
+ * Conditions shared by the count preview and the export so both always select the same rows.
+ * [since] is a computed value in the database's time unit, so it is written directly: a numeric
+ * bind argument was not reliably applied to `message.createTime` comparisons on device.
+ */
 private fun StringBuilder.appendExportConditions(
     since: Long?,
     senders: SenderFilter,
     textOnly: Boolean,
 ) {
-    if (since != null) append(" AND createTime >= ?")
+    if (since != null) append(" AND createTime >= $since")
     when (senders) {
         SenderFilter.ALL -> Unit
         SenderFilter.FRIEND -> append(" AND isSend = 0")
@@ -376,11 +414,6 @@ private fun StringBuilder.appendExportConditions(
     }
     if (textOnly) append(" AND type IN (${TEXT_MESSAGE_TYPES.joinToString(",")})")
 }
-
-private fun exportArgs(wxId: String, since: Long?): Array<Any> = buildList<Any> {
-    add(wxId)
-    if (since != null) add(since)
-}.toTypedArray()
 
 private class ExportTarget(
     val path: String,
@@ -436,13 +469,13 @@ private fun exportChatHistory(
     options: ExportOptions,
     onProgress: (Int) -> Unit,
 ): Pair<String, Int>? {
-    val since = options.range.days?.let { System.currentTimeMillis() / 1000L - it * 86_400L }
+    val scale = createTimeScale(wxId)
+    val since = rangeSince(options.range, scale)
     val sql = buildString {
         append("SELECT type, content, createTime, isSend FROM message WHERE talker = ?")
         appendExportConditions(since, options.senders, options.textOnly)
         append(" ORDER BY createTime ASC")
     }
-    val args = exportArgs(wxId, since)
 
     val fullTimeFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
     val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
@@ -507,9 +540,9 @@ private fun exportChatHistory(
             // every row of a potentially long history.
             val date = Date()
             var currentDay: String? = null
-            WeDatabaseApi.rawQuery(sql, args).use { cursor ->
+            WeDatabaseApi.rawQuery(sql, arrayOf<Any>(wxId)).use { cursor ->
                 while (cursor.moveToNext()) {
-                    date.time = cursor.getLong(2) * 1000L
+                    date.time = cursor.getLong(2) * scale
                     val sender = if (cursor.getInt(3) == 1) selfLabel else displayName
                     val body = messageBody(context, cursor, typeLabels)
                     if (options.groupByDate) {
