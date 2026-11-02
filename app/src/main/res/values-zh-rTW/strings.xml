@@ -2201,7 +2201,8 @@
     <string name="chat_statistics_report_totals">訊息總數：%1$d（發送 %2$d / 接收 %3$d）</string>
     <string name="chat_statistics_report_ranking">發送排行（%1$d 位成員，其中 %2$d 位未發言）：</string>
     <string name="chat_statistics_report_types">訊息類型分佈：</string>
-    <string name="chat_statistics_report_daily_counts">每日訊息數：</string>
+    <string name="chat_statistics_report_activity">活躍度（%1$d 天）：</string>
+    <string name="chat_statistics_report_activity_line">  %1$s：%2$d 則訊息，%3$d 人發言</string>
     <string name="chat_statistics_report_line">  %1$s：%2$d</string>
     <string name="chat_swipe_conversation_config">左劃菜單配置</string>
     <string name="chat_swipe_conversation_pin_description">在「隱藏」左側顯示置頂快捷按鈕</string>
