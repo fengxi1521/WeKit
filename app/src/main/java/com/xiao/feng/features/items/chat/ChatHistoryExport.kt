@@ -1058,17 +1058,21 @@ private fun reportRange(period: ReportPeriod, customStartDay: Long, customEndDay
     }
 }
 
+/** One day of activity: how many messages arrived and how many members sent them. */
+private data class DailyActivity(val day: Long, val messages: Long, val activeMembers: Int)
+
 /**
  * Numbers behind one report. [ranking] already carries display names and includes the user's own
  * messages; [typeCounts] keeps the raw message type codes so the labels stay localized at render
- * time, and [dailyCounts] is filled only for a report spanning more than one day.
+ * time, and [activity] breaks the covered days down into message and sender counts.
  */
 private class StatisticsReport(
     val total: Long,
     val sent: Long,
     val ranking: List<Pair<String, Long>>,
     val typeCounts: List<Pair<Int, Long>>,
-    val dailyCounts: List<Pair<Long, Long>>,
+    val activity: List<DailyActivity>,
+    val isGroupReport: Boolean,
 ) {
     val received: Long get() = total - sent
 }
@@ -1159,21 +1163,45 @@ private fun loadStatisticsReport(
         ranking += selfLabel to 0L
     }
 
-    val dailyCounts = if (range.endDay > range.startDay) {
-        // SQLite has no reliable local-time day bucketing, so group by epoch day in Kotlin.
-        val counts = HashMap<Long, Long>()
-        WeDatabaseApi.rawQuery(
-            "SELECT createTime FROM message WHERE talker = ?$timeCondition",
-            arrayOf<Any>(wxId),
-        ).use { cursor ->
-            while (cursor.moveToNext()) {
-                val day = millisToEpochDay(cursor.getLong(0) * scale)
-                counts[day] = (counts[day] ?: 0L) + 1
+    // A single-day report still benefits from a trend, so it covers the latest week instead.
+    val activityRange = if (range.endDay > range.startDay) {
+        range
+    } else {
+        ReportRange(range.endDay - WEEKLY_REPORT_DAYS + 1, range.endDay)
+    }
+    val (activitySince, activityUntil) = activityRange.window.bounds(scale)
+    val activityCondition = buildString {
+        appendExportConditions(activitySince, activityUntil, SenderFilter.ALL, false, "")
+    }
+    val dayMessages = HashMap<Long, Long>()
+    val daySenders = HashMap<Long, MutableSet<String>>()
+    val activitySql = if (isGroupChat) {
+        "SELECT createTime, isSend, content FROM message WHERE talker = ?$activityCondition"
+    } else {
+        "SELECT createTime FROM message WHERE talker = ?$activityCondition"
+    }
+    WeDatabaseApi.rawQuery(activitySql, arrayOf<Any>(wxId)).use { cursor ->
+        while (cursor.moveToNext()) {
+            // SQLite has no reliable local-time day bucketing, so group by epoch day in Kotlin.
+            val day = millisToEpochDay(cursor.getLong(0) * scale)
+            dayMessages[day] = (dayMessages[day] ?: 0L) + 1
+            if (!isGroupChat) continue
+            val sender = if (cursor.getInt(1) == 1) {
+                WeApi.selfWxId
+            } else {
+                cursor.getString(2).substringBefore(':', "")
+            }
+            if (GROUP_SENDER_PREFIX.matches(sender)) {
+                daySenders.getOrPut(day) { HashSet() } += sender
             }
         }
-        (range.startDay..range.endDay).map { it to (counts[it] ?: 0L) }
-    } else {
-        emptyList()
+    }
+    val activity = (activityRange.startDay..activityRange.endDay).map { day ->
+        DailyActivity(
+            day = day,
+            messages = dayMessages[day] ?: 0L,
+            activeMembers = daySenders[day]?.size ?: 0,
+        )
     }
 
     return StatisticsReport(
@@ -1181,7 +1209,8 @@ private fun loadStatisticsReport(
         sent = sent,
         ranking = ranking.sortedByDescending { it.second },
         typeCounts = typeCounts,
-        dailyCounts = dailyCounts,
+        activity = activity,
+        isGroupReport = isGroupChat,
     )
 }
 
@@ -1249,10 +1278,26 @@ private fun buildStatisticsReportText(
         report.typeCounts.forEach { (code, count) ->
             appendLine(line(statisticsTypeLabel(context, code), count))
         }
-        if (report.dailyCounts.isNotEmpty()) {
-            appendLine()
-            appendLine(context.localizedChatString(R.string.chat_statistics_report_daily_counts))
-            report.dailyCounts.forEach { (day, count) -> appendLine(line(formatEpochDay(day), count)) }
+        appendLine()
+        appendLine(
+            context.localizedChatString(
+                R.string.chat_statistics_report_activity,
+                report.activity.size,
+            )
+        )
+        report.activity.forEach { day ->
+            if (report.isGroupReport) {
+                appendLine(
+                    context.localizedChatString(
+                        R.string.chat_statistics_report_activity_line,
+                        formatEpochDay(day.day),
+                        day.messages,
+                        day.activeMembers,
+                    )
+                )
+            } else {
+                appendLine(line(formatEpochDay(day.day), day.messages))
+            }
         }
     }
 }
