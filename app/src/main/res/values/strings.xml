@@ -2236,6 +2236,9 @@
     <string name="chat_statistics_report_daily">Daily (today)</string>
     <string name="chat_statistics_report_weekly">Weekly (last 7 days)</string>
     <string name="chat_statistics_report_custom">Custom range</string>
+    <string name="chat_statistics_report_ranking_group">Sender ranking</string>
+    <string name="chat_statistics_report_include_left_group">Include left members</string>
+    <string name="chat_statistics_report_include_left_group_description">List members who left the group in the ranking, marked as left.</string>
     <string name="chat_history_export_left_group">%1$s (left group)</string>
     <string name="chat_statistics_report_header">Chat statistics report · %1$s</string>
     <string name="chat_statistics_report_conversation">Conversation: %1$s (%2$s)</string>
