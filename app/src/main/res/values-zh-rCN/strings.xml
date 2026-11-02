@@ -2207,6 +2207,8 @@
     <string name="chat_statistics_report_types">消息类型分布：</string>
     <string name="chat_statistics_report_activity">活跃度（%1$d 天）：</string>
     <string name="chat_statistics_report_activity_line">  %1$s：%2$d 条消息，%3$d 人发言</string>
+    <string name="chat_statistics_report_member_stats">  %1$s：%2$d 条，%3$d 天有发言，日均 %4$s 条</string>
+    <string name="chat_statistics_report_member_silent">  %1$s：0 条（未发言）</string>
     <string name="chat_statistics_report_line">  %1$s：%2$d</string>
     <string name="chat_swipe_conversation_config">左划菜单配置</string>
     <string name="chat_swipe_conversation_pin_description">在「隐藏」左侧显示置顶快捷按钮</string>

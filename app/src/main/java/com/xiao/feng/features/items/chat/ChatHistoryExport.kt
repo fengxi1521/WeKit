@@ -1058,6 +1058,9 @@ private fun reportRange(period: ReportPeriod, customStartDay: Long, customEndDay
     }
 }
 
+/** One member's contribution: their messages in the range and the days they actually spoke. */
+private data class MemberReport(val label: String, val messages: Long, val activeDays: Int)
+
 /** One day of activity: how many messages arrived and how many members sent them. */
 private data class DailyActivity(val day: Long, val messages: Long, val activeMembers: Int)
 
@@ -1069,10 +1072,11 @@ private data class DailyActivity(val day: Long, val messages: Long, val activeMe
 private class StatisticsReport(
     val total: Long,
     val sent: Long,
-    val ranking: List<Pair<String, Long>>,
+    val ranking: List<MemberReport>,
     val typeCounts: List<Pair<Int, Long>>,
     val activity: List<DailyActivity>,
     val isGroupReport: Boolean,
+    val coveredDays: Int,
 ) {
     val received: Long get() = total - sent
 }
@@ -1118,7 +1122,34 @@ private fun loadStatisticsReport(
         .map { (code, rows) -> code to rows.sumOf { it.second } }
         .sortedByDescending { it.second }
 
-    val ranking = mutableListOf<Pair<String, Long>>()
+    // Per-member "active days" need a local-time day bucket, which the sender GROUP BY query
+    // cannot provide, so they come from a second pass over the same range.
+    val activeDaysBySender = HashMap<String, MutableSet<Long>>()
+    val selfActiveDays = HashSet<Long>()
+    val peerActiveDays = HashSet<Long>()
+    WeDatabaseApi.rawQuery(
+        "SELECT createTime, isSend, content FROM message WHERE talker = ?$timeCondition",
+        arrayOf<Any>(wxId),
+    ).use { cursor ->
+        while (cursor.moveToNext()) {
+            val day = millisToEpochDay(cursor.getLong(0) * scale)
+            if (cursor.getInt(1) == 1) {
+                selfActiveDays += day
+                if (isGroupChat) activeDaysBySender.getOrPut(WeApi.selfWxId) { HashSet() } += day
+                continue
+            }
+            if (!isGroupChat) {
+                peerActiveDays += day
+                continue
+            }
+            val sender = cursor.getString(2).substringBefore(':', "")
+            if (GROUP_SENDER_PREFIX.matches(sender)) {
+                activeDaysBySender.getOrPut(sender) { HashSet() } += day
+            }
+        }
+    }
+
+    val ranking = mutableListOf<MemberReport>()
     if (isGroupChat) {
         val names = loadGroupSenderNames(wxId)
         val selfWxId = WeApi.selfWxId
@@ -1144,7 +1175,11 @@ private fun loadStatisticsReport(
                 leftGroupLabel.format(name)
             }
             spokenMembers += sender
-            ranking += label to row.reportLong("msg_count")
+            ranking += MemberReport(
+                label = label,
+                messages = row.reportLong("msg_count"),
+                activeDays = activeDaysBySender[sender]?.size ?: 0,
+            )
         }
 
         // Members who sent nothing in the range still belong in the report, so the ranking also
@@ -1153,14 +1188,14 @@ private fun loadStatisticsReport(
             .filter { (memberWxId, _) -> memberWxId != selfWxId && memberWxId !in spokenMembers }
             .map { it.value }
             .sorted()
-        silentMembers.forEach { ranking += it to 0L }
+        silentMembers.forEach { ranking += MemberReport(it, 0, 0) }
     } else if (total > sent) {
-        ranking += peerDisplayName to (total - sent)
+        ranking += MemberReport(peerDisplayName, total - sent, peerActiveDays.size)
     }
     if (sent > 0) {
-        ranking += selfLabel to sent
+        ranking += MemberReport(selfLabel, sent, selfActiveDays.size)
     } else if (isGroupChat) {
-        ranking += selfLabel to 0L
+        ranking += MemberReport(selfLabel, 0, 0)
     }
 
     // A single-day report still benefits from a trend, so it covers the latest week instead.
@@ -1207,16 +1242,32 @@ private fun loadStatisticsReport(
     return StatisticsReport(
         total = total,
         sent = sent,
-        ranking = ranking.sortedByDescending { it.second },
+        ranking = ranking.sortedByDescending { it.messages },
         typeCounts = typeCounts,
         activity = activity,
         isGroupReport = isGroupChat,
+        coveredDays = (range.endDay - range.startDay + 1).toInt(),
     )
 }
 
 private fun statisticsTypeLabel(context: Context, code: Int): String =
     MessageType.fromCode(code)?.let { context.localizedChatString(it.displayNameRes) }
         ?: context.localizedChatString(R.string.chat_history_export_other_message)
+
+/** Renders one ranking line: total messages, days actually spent speaking, and the daily average. */
+private fun statisticsMemberLine(context: Context, member: MemberReport, coveredDays: Int): String {
+    if (member.messages == 0L) {
+        return context.localizedChatString(R.string.chat_statistics_report_member_silent, member.label)
+    }
+    val dailyAverage = "%.1f".format(member.messages.toDouble() / coveredDays)
+    return context.localizedChatString(
+        R.string.chat_statistics_report_member_stats,
+        member.label,
+        member.messages,
+        member.activeDays,
+        dailyAverage,
+    )
+}
 
 private fun buildStatisticsReportText(
     context: Context,
@@ -1269,10 +1320,12 @@ private fun buildStatisticsReportText(
             context.localizedChatString(
                 R.string.chat_statistics_report_ranking,
                 report.ranking.size,
-                report.ranking.count { it.second == 0L },
+                report.ranking.count { it.messages == 0L },
             )
         )
-        report.ranking.forEach { (name, count) -> appendLine(line(name, count)) }
+        report.ranking.forEach { member ->
+            appendLine(statisticsMemberLine(context, member, report.coveredDays))
+        }
         appendLine()
         appendLine(context.localizedChatString(R.string.chat_statistics_report_types))
         report.typeCounts.forEach { (code, count) ->
