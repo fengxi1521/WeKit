@@ -123,6 +123,24 @@ object AntiMessageRecall : ClickableFeature(), IResolveDex, WeXmlParserApi.IAfte
 
     private fun encodeKey(talker: String, serverId: Long) = "$talker$RECORD_SEPARATOR$serverId"
 
+    /**
+     * A locally sent message keeps msgSvrId == 0 until the server acknowledges it. Those rows are
+     * indistinguishable from each other, so recording or matching one would paint the recall badge
+     * on every not-yet-acknowledged message of that chat (and it would vanish once the ack arrives).
+     */
+    private fun recallKeyOf(msgInfo: MessageInfo): String? =
+        if (msgInfo.serverId > 0L) encodeKey(msgInfo.talker, msgInfo.serverId) else null
+
+    private fun pruneUnkeyedRecords() {
+        val valid = recalledRecords.filter { record ->
+            record.substringAfterLast(RECORD_SEPARATOR).toLongOrNull()?.let { it > 0L } == true
+        }
+        if (valid.size == recalledRecords.size) return
+        WeLogger.i(TAG, "pruned ${recalledRecords.size - valid.size} recall records without server id")
+        recalledKeyCache = valid.toSet()
+        recalledRecords = recalledKeyCache
+    }
+
     // NetSceneRevokeMsg (scene 594, /cgi-bin/micromsg-bin/revokemsg): recalling a message sent from
     // this device never parses a revoke sysmsg — the scene rewrites the message row in place at
     // scene end (notice converter, isSend reset, row update), so the XML parser hook never sees it.
@@ -148,6 +166,7 @@ object AntiMessageRecall : ClickableFeature(), IResolveDex, WeXmlParserApi.IAfte
 
     override fun onEnable() {
         recalledKeyCache = recalledRecords
+        pruneUnkeyedRecords()
         WeXmlParserApi.addListener(this)
         WeChatMessageViewApi.addListener(this)
 
@@ -178,6 +197,13 @@ object AntiMessageRecall : ClickableFeature(), IResolveDex, WeXmlParserApi.IAfte
                 WeLogger.i(TAG, "revoke scene end skipped: not self sender")
                 return@hookBefore
             }
+            // No server id yet means the row cannot be identified on rebind; let WeChat handle the
+            // recall normally instead of recording a key that would match every pending message.
+            val key = recallKeyOf(msgInfo)
+            if (key == null) {
+                WeLogger.i(TAG, "revoke scene end skipped: message has no server id")
+                return@hookBefore
+            }
 
             // Resolve the scene queue wrapper first: if that fails we bail out without recording,
             // so the original body keeps running and the recall just behaves unblocked.
@@ -194,7 +220,6 @@ object AntiMessageRecall : ClickableFeature(), IResolveDex, WeXmlParserApi.IAfte
             // the chat UI (progress dialog dismissal, refresh) finish the scene normally.
             sceneEnd.invoke(sceneWrapper, errType, errCode, args[3], thisObject)
 
-            val key = encodeKey(msgInfo.talker, msgInfo.serverId)
             recalledKeyCache = recalledKeyCache + key
             recalledRecords = recalledKeyCache
             WeLogger.i(TAG, "kept recalled self message: $key")
@@ -232,9 +257,16 @@ object AntiMessageRecall : ClickableFeature(), IResolveDex, WeXmlParserApi.IAfte
                         return
                     }
 
+                    // A not-yet-acknowledged message has msgSvrId == 0, so a malformed or zero
+                    // newmsgid would match it; never record or suppress a revoke for that row.
+                    val key = recallKeyOf(msgInfo)
+                    if (key == null) {
+                        WeLogger.i(TAG, "ignored revoke for message without server id")
+                        return
+                    }
+
                     result[TYPE_KEY] = null
 
-                    val key = encodeKey(msgInfo.talker, msgInfo.serverId)
                     recalledKeyCache = recalledKeyCache + key
                     recalledRecords = recalledKeyCache
 
@@ -270,8 +302,10 @@ object AntiMessageRecall : ClickableFeature(), IResolveDex, WeXmlParserApi.IAfte
         }
     }
 
-    private fun isRecalled(msgInfo: MessageInfo): Boolean =
-        encodeKey(msgInfo.talker, msgInfo.serverId) in recalledKeyCache
+    private fun isRecalled(msgInfo: MessageInfo): Boolean {
+        val key = recallKeyOf(msgInfo) ?: return false
+        return key in recalledKeyCache
+    }
 
     // ── recalled-message styling ──────────────────────────────────────────────
 
