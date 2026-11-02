@@ -53,6 +53,7 @@ import com.xiao.feng.ui.content.m3.BaseSupportingWidget
 import com.xiao.feng.ui.content.m3.BaseWidget
 import com.xiao.feng.ui.content.m3.DropdownOption
 import com.xiao.feng.ui.content.m3.DropDownMenuWidget
+import com.xiao.feng.ui.content.m3.RadioButtonWidget
 import com.xiao.feng.ui.content.m3.SegmentedColumn
 import com.xiao.feng.ui.content.m3.SwitchWidget
 import com.xiao.feng.ui.utils.showComposeDialog
@@ -109,6 +110,12 @@ private enum class SenderFilter(@StringRes val labelRes: Int) {
     SELF(R.string.chat_history_export_senders_self),
 }
 
+/** Reporting window: the whole of today, or the last seven days including today. */
+private enum class ReportPeriod(@StringRes val labelRes: Int) {
+    DAILY(R.string.chat_statistics_report_daily),
+    WEEKLY(R.string.chat_statistics_report_weekly),
+}
+
 /** Remembered choice: skip images, voice messages, files and other non-text items. */
 private var exportTextOnly by prefOption("chat_history_export_only_text", false)
 
@@ -117,6 +124,12 @@ private var exportSenders by prefOption("chat_history_export_senders", SenderFil
 
 /** Remembered choice: emit one heading per day instead of a full timestamp on every line. */
 private var exportGroupByDate by prefOption("chat_history_export_group_by_date", true)
+
+/** Remembered report period, persisted as the enum ordinal. */
+private var reportPeriod by prefOption("chat_statistics_report_period", ReportPeriod.DAILY.ordinal)
+
+private fun rememberedReportPeriod(): ReportPeriod =
+    ReportPeriod.entries.getOrElse(reportPeriod) { ReportPeriod.DAILY }
 
 /** Remembered range preset and the custom day bounds, persisted as epoch days. */
 private var exportRangePreset by prefOption("chat_history_export_range_preset", RangePreset.ALL.ordinal)
@@ -975,4 +988,391 @@ private class MessageBodyFormatter(
         .replace("&apos;", "'")
         .replace("&#39;", "'")
         .replace("&amp;", "&")
+}
+
+// ── statistics report ────────────────────────────────────────────────────────
+
+/** Number of days covered by a weekly report, including today. */
+private const val WEEKLY_REPORT_DAYS = 7L
+
+private fun reportFirstDay(period: ReportPeriod): Long {
+    val today = todayEpochDay()
+    return if (period == ReportPeriod.DAILY) today else today - WEEKLY_REPORT_DAYS + 1
+}
+
+/** Whole days of the report: today alone, or the last seven days up to the end of today. */
+private fun reportWindow(period: ReportPeriod): ExportWindow =
+    ExportWindow(dayStartMillis(reportFirstDay(period)), dayStartMillis(todayEpochDay() + 1))
+
+/**
+ * Numbers behind one report. [ranking] already carries display names and includes the user's own
+ * messages; [typeCounts] keeps the raw message type codes so the labels stay localized at render
+ * time, and [dailyCounts] is filled only for a weekly report.
+ */
+private class StatisticsReport(
+    val total: Long,
+    val sent: Long,
+    val ranking: List<Pair<String, Long>>,
+    val typeCounts: List<Pair<Int, Long>>,
+    val dailyCounts: List<Pair<Long, Long>>,
+) {
+    val received: Long get() = total - sent
+}
+
+private fun Map<String, Any?>?.reportLong(key: String): Long =
+    (this?.get(key) as? Number)?.toLong() ?: 0L
+
+private fun loadStatisticsReport(
+    wxId: String,
+    period: ReportPeriod,
+    isGroupChat: Boolean,
+    peerDisplayName: String,
+    selfLabel: String,
+): StatisticsReport {
+    val scale = createTimeScale(wxId)
+    val (since, until) = reportWindow(period).bounds(scale)
+    val timeCondition = buildString {
+        appendExportConditions(since, until, SenderFilter.ALL, false, "")
+    }
+
+    val summary = WeDatabaseApi.executeQuery(
+        """SELECT COUNT(*) AS msg_count,
+                  SUM(CASE WHEN isSend = 1 THEN 1 ELSE 0 END) AS sent_count
+           FROM message WHERE talker = ?$timeCondition""",
+        arrayOf<Any>(wxId),
+    ).firstOrNull()
+    val total = summary.reportLong("msg_count")
+    val sent = summary.reportLong("sent_count")
+
+    val typeCounts = WeDatabaseApi.executeQuery(
+        """SELECT type, COUNT(*) AS msg_count FROM message
+           WHERE talker = ?$timeCondition
+           GROUP BY type ORDER BY msg_count DESC""",
+        arrayOf<Any>(wxId),
+    ).map { row -> (row["type"] as Number).toInt() to row.reportLong("msg_count") }
+
+    val ranking = mutableListOf<Pair<String, Long>>()
+    if (isGroupChat) {
+        val names = loadGroupSenderNames(wxId)
+        WeDatabaseApi.executeQuery(
+            """SELECT substr(content, 1, instr(content, ':') - 1) AS sender, COUNT(*) AS msg_count
+               FROM message
+               WHERE talker = ? AND isSend = 0 AND instr(content, ':') > 0$timeCondition
+               GROUP BY sender""",
+            arrayOf<Any>(wxId),
+        ).forEach { row ->
+            val sender = row["sender"] as String
+            ranking += (names[sender] ?: sender) to row.reportLong("msg_count")
+        }
+    } else if (total > sent) {
+        ranking += peerDisplayName to (total - sent)
+    }
+    if (sent > 0) ranking += selfLabel to sent
+
+    val dailyCounts = if (period == ReportPeriod.WEEKLY) {
+        // SQLite has no reliable local-time day bucketing, so group by epoch day in Kotlin.
+        val counts = HashMap<Long, Long>()
+        WeDatabaseApi.rawQuery(
+            "SELECT createTime FROM message WHERE talker = ?$timeCondition",
+            arrayOf<Any>(wxId),
+        ).use { cursor ->
+            while (cursor.moveToNext()) {
+                val day = millisToEpochDay(cursor.getLong(0) * scale)
+                counts[day] = (counts[day] ?: 0L) + 1
+            }
+        }
+        val today = todayEpochDay()
+        (reportFirstDay(period)..today).map { it to (counts[it] ?: 0L) }
+    } else {
+        emptyList()
+    }
+
+    return StatisticsReport(
+        total = total,
+        sent = sent,
+        ranking = ranking.sortedByDescending { it.second },
+        typeCounts = typeCounts,
+        dailyCounts = dailyCounts,
+    )
+}
+
+private fun statisticsTypeLabel(context: Context, code: Int): String =
+    MessageType.fromCode(code)?.let { context.localizedChatString(it.displayNameRes) }
+        ?: context.localizedChatString(R.string.chat_history_export_other_message)
+
+private fun buildStatisticsReportText(
+    context: Context,
+    wxId: String,
+    displayName: String,
+    period: ReportPeriod,
+    report: StatisticsReport,
+): String {
+    val timeFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
+    val firstDay = reportFirstDay(period)
+    val range = if (period == ReportPeriod.DAILY) {
+        formatEpochDay(firstDay)
+    } else {
+        context.localizedChatString(
+            R.string.chat_history_export_custom_range,
+            formatEpochDay(firstDay),
+            formatEpochDay(todayEpochDay()),
+        )
+    }
+    fun line(label: String, count: Long) =
+        context.localizedChatString(R.string.chat_statistics_report_line, label, count)
+
+    return buildString {
+        appendLine(
+            context.localizedChatString(
+                R.string.chat_statistics_report_header,
+                context.localizedChatString(period.labelRes),
+            )
+        )
+        appendLine(
+            context.localizedChatString(R.string.chat_statistics_report_conversation, displayName, wxId)
+        )
+        appendLine(context.localizedChatString(R.string.chat_statistics_report_range, range))
+        appendLine(
+            context.localizedChatString(
+                R.string.chat_statistics_report_generated,
+                timeFormat.format(Date()),
+            )
+        )
+        appendLine()
+        appendLine(
+            context.localizedChatString(
+                R.string.chat_statistics_report_totals,
+                report.total,
+                report.sent,
+                report.received,
+            )
+        )
+        appendLine(
+            context.localizedChatString(R.string.chat_statistics_report_ranking, report.ranking.size)
+        )
+        report.ranking.forEach { (name, count) -> appendLine(line(name, count)) }
+        appendLine()
+        appendLine(context.localizedChatString(R.string.chat_statistics_report_types))
+        report.typeCounts.forEach { (code, count) ->
+            appendLine(line(statisticsTypeLabel(context, code), count))
+        }
+        if (report.dailyCounts.isNotEmpty()) {
+            appendLine()
+            appendLine(context.localizedChatString(R.string.chat_statistics_report_daily_counts))
+            report.dailyCounts.forEach { (day, count) -> appendLine(line(formatEpochDay(day), count)) }
+        }
+    }
+}
+
+/** Writes the report and returns the visible path and message count, or null. */
+private fun exportStatisticsReport(
+    context: Context,
+    wxId: String,
+    displayName: String,
+    period: ReportPeriod,
+    report: StatisticsReport,
+): Pair<String, Int>? {
+    val stamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(Date())
+    val safeName = displayName.replace(Regex("[\\\\/:*?\"<>|\\s]"), "_").take(40)
+    val kind = if (period == ReportPeriod.DAILY) "daily" else "weekly"
+    val fileName = "${safeName}_${kind}_$stamp.txt"
+
+    val target = try {
+        openExportTarget(context, fileName)
+    } catch (ex: Exception) {
+        WeLogger.e(TAG, "failed to create statistics report target; wxid=$wxId", ex)
+        return null
+    }
+    try {
+        target.stream.writer(Charsets.UTF_8).buffered(EXPORT_BUFFER_SIZE).use { writer ->
+            writer.write(buildStatisticsReportText(context, wxId, displayName, period, report))
+        }
+        target.onSuccess()
+    } catch (ex: Exception) {
+        WeLogger.e(TAG, "failed to export statistics report; wxid=$wxId", ex)
+        runCatching { target.stream.close() }
+        runCatching { target.onFailure() }
+        return null
+    }
+
+    return target.path to report.total.toInt()
+}
+
+/** Per-conversation daily/weekly statistics report entry on the profile screen. */
+object ChatStatisticsReport : SwitchFeature(), WeContactPrefsScreenApi.IContactInfoProvider {
+
+    override val technicalId = "统计报表导出"
+    override val nameRes = R.string.feature_chat_statistics_report_name
+    override val categoryIds = listOf(FeatureCategoryIds.CONTACTS_GROUPS, FeatureCategoryIds.CONTACT_DETAILS)
+    override val descriptionRes = R.string.feature_chat_statistics_report_description
+
+    override val defaultEnabled = true
+
+    override fun onEnable() {
+        WeContactPrefsScreenApi.addProvider(this)
+    }
+
+    override fun onDisable() {
+        WeContactPrefsScreenApi.removeProvider(this)
+    }
+
+    override fun getContactInfoItem(activity: Activity): List<WeContactPrefsScreenApi.PreferenceItem> {
+        if (!WeDatabaseApi.isReady) return emptyList()
+        val wxId = activity.currentWxId ?: return emptyList()
+
+        val isGroupChat = wxId.isGroupChatWxId
+        if (isGroupChat) {
+            if (activity.javaClass.name != ChatroomInfoUI::class.java.name) return emptyList()
+        } else {
+            if (activity.javaClass.name != ContactInfoUI::class.java.name) return emptyList()
+            // Official accounts cannot be reported on from this screen.
+            if (wxId.startsWith("gh_")) return emptyList()
+            if (WeDatabaseApi.getFriend(wxId) == null) return emptyList()
+        }
+
+        return listOf(
+            WeContactPrefsScreenApi.PreferenceItem(
+                title = activity.localizedContactsString(R.string.feature_chat_statistics_report_name),
+                summary = activity.localizedContactsString(R.string.feature_chat_statistics_report_description),
+                position = if (isGroupChat) 5 else 2,
+                onClick = onClick@{ itemActivity ->
+                    showChatStatisticsReportDialog(itemActivity, wxId)
+                },
+            )
+        )
+    }
+}
+
+fun showChatStatisticsReportDialog(context: Context, wxId: String) {
+    showComposeDialog(context) {
+        val hostDialog = dialog
+        val isGroupChat = wxId.isGroupChatWxId
+        var period by remember { mutableStateOf(rememberedReportPeriod()) }
+        var displayName by remember(wxId) { mutableStateOf("") }
+        var report by remember(wxId, period) { mutableStateOf<StatisticsReport?>(null) }
+        var exporting by remember { mutableStateOf(false) }
+        var result by remember { mutableStateOf<String?>(null) }
+        val scope = rememberCoroutineScope()
+
+        LaunchedEffect(wxId, period) {
+            report = null
+            result = null
+            val name = withContext(Dispatchers.IO) { WeDatabaseApi.getDisplayName(wxId) }
+            displayName = name
+            val selfLabel = context.localizedChatString(R.string.chat_history_export_self)
+            report = withContext(Dispatchers.IO) {
+                loadStatisticsReport(wxId, period, isGroupChat, name.ifBlank { wxId }, selfLabel)
+            }
+        }
+        // Dismissing mid-export would leave a partially written file behind.
+        LaunchedEffect(exporting) { hostDialog.setCancelable(!exporting) }
+
+        AlertDialogContent(
+            modifier = Modifier.fillMaxWidth(),
+            title = { Text(stringResource(R.string.chat_statistics_report_title)) },
+            text = {
+                Column(Modifier.verticalScroll(rememberScrollState())) {
+                    SegmentedColumn(
+                        title = stringResource(R.string.chat_statistics_report_period),
+                        contentPadding = PaddingValues(0.dp),
+                    ) {
+                        item {
+                            RadioButtonWidget(
+                                title = stringResource(R.string.chat_statistics_report_daily),
+                                iconPlaceholder = false,
+                                selected = period == ReportPeriod.DAILY,
+                                enabled = !exporting,
+                                trailingDivider = true,
+                                onClick = {
+                                    period = ReportPeriod.DAILY
+                                    reportPeriod = ReportPeriod.DAILY.ordinal
+                                },
+                            )
+                        }
+                        item {
+                            RadioButtonWidget(
+                                title = stringResource(R.string.chat_statistics_report_weekly),
+                                iconPlaceholder = false,
+                                selected = period == ReportPeriod.WEEKLY,
+                                enabled = !exporting,
+                                onClick = {
+                                    period = ReportPeriod.WEEKLY
+                                    reportPeriod = ReportPeriod.WEEKLY.ordinal
+                                },
+                            )
+                        }
+                    }
+
+                    Column(Modifier.padding(top = 12.dp)) {
+                        val current = report
+                        val statusText = when {
+                            current == null -> stringResource(R.string.chat_history_export_counting)
+                            current.total == 0L -> stringResource(R.string.chat_history_export_empty)
+                            else -> stringResource(
+                                R.string.chat_history_export_message_count,
+                                current.total,
+                            )
+                        }
+                        Text(
+                            text = statusText,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                        result?.let {
+                            Text(
+                                text = it,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.primary,
+                            )
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                Button(
+                    enabled = !exporting && (report?.total ?: 0L) > 0L,
+                    onClick = {
+                        val current = report ?: return@Button
+                        exporting = true
+                        result = null
+                        scope.launch {
+                            val exported = withContext(Dispatchers.IO) {
+                                exportStatisticsReport(
+                                    context = context,
+                                    wxId = wxId,
+                                    displayName = displayName.ifBlank { wxId },
+                                    period = period,
+                                    report = current,
+                                )
+                            }
+                            exporting = false
+                            val text = if (exported == null) {
+                                context.localizedChatString(R.string.chat_history_export_failed)
+                            } else {
+                                context.localizedChatString(
+                                    R.string.chat_history_export_success,
+                                    exported.first,
+                                    exported.second,
+                                )
+                            }
+                            result = text
+                            showToastSuspend(context, text)
+                        }
+                    },
+                ) {
+                    Text(
+                        stringResource(
+                            if (exporting) R.string.chat_history_export_in_progress
+                            else R.string.chat_history_export_button
+                        )
+                    )
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = onDismiss, enabled = !exporting) {
+                    Text(stringResource(R.string.dialog_close))
+                }
+            },
+        )
+    }
 }
