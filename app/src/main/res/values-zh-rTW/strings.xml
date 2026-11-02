@@ -3954,7 +3954,12 @@
     <string name="scheduled_messages_send_now">傳送</string>
     <string name="scheduled_messages_send_now_result">已傳送到 %1$d/%2$d 個會話</string>
     <string name="scheduled_messages_once_deleted">傳送後自動刪除</string>
-    <string name="feature_open_author_moments_name">查看作者全部朋友圈</string>
-    <string name="feature_open_author_moments_description">長按朋友圈可打開作者的個人相冊，查看其全部朋友圈（包括置頂）。</string>
-    <string name="moments_open_author_menu">查看他的全部朋友圈</string>
+    <string name="feature_like_all_author_moments_name">一鍵點讚作者全部朋友圈</string>
+    <string name="feature_like_all_author_moments_description">長按朋友圈可一鍵給该作者的全部已快取朋友圈點讚，包括置頂；已點過讚、已刪除或廣告會被跳過。</string>
+    <string name="moments_like_all_author_menu">一鍵點讚他的全部朋友圈</string>
+    <string name="moments_like_all_author_started">正在給他的全部朋友圈點讚…</string>
+    <string name="moments_like_all_author_running">正在點讚中，請稍候</string>
+    <string name="moments_like_all_author_done">已點讚 %1$d 條，跳過 %2$d 條，失敗 %3$d 條</string>
+    <string name="moments_like_all_author_empty">沒有找到该作者已快取的朋友圈</string>
+    <string name="moments_like_all_author_failed">點讚失敗</string>
 </resources>
