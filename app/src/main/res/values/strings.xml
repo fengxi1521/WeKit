@@ -2177,7 +2177,7 @@
     <string name="chat_swipe_secondary">Enable secondary action</string>
     <string name="chat_swipe_secondary_description">Enable the %1$s secondary action on supported messages</string>
     <string name="chat_swipe_use_edit">Use “Edit” instead of “Repeat” as the secondary action</string>
-    <string name="chat_swipe_edit_description">When enabled, the secondary swipe action becomes Edit (text messages only); otherwise it is Repeat</string>
+    <string name="chat_swipe_edit_description">When enabled, the secondary swipe action becomes Revoke &amp; Edit: text messages are revoked and restored to the input box, other messages are revoked directly</string>
     <string name="chat_swipe_swap">Swap left and right swipes</string>
     <string name="chat_swipe_swap_description">When enabled, swipe left to %1$s and right to quote</string>
     <string name="chat_swipe_action_revoke">Revoke</string>
