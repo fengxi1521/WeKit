@@ -110,10 +110,11 @@ private enum class SenderFilter(@StringRes val labelRes: Int) {
     SELF(R.string.chat_history_export_senders_self),
 }
 
-/** Reporting window: the whole of today, or the last seven days including today. */
+/** Reporting window: today, the last seven days, or two days picked by the user. */
 private enum class ReportPeriod(@StringRes val labelRes: Int) {
     DAILY(R.string.chat_statistics_report_daily),
     WEEKLY(R.string.chat_statistics_report_weekly),
+    CUSTOM(R.string.chat_statistics_report_custom),
 }
 
 /** Remembered choice: skip images, voice messages, files and other non-text items. */
@@ -127,6 +128,10 @@ private var exportGroupByDate by prefOption("chat_history_export_group_by_date",
 
 /** Remembered report period, persisted as the enum ordinal. */
 private var reportPeriod by prefOption("chat_statistics_report_period", ReportPeriod.DAILY.ordinal)
+
+/** Remembered custom report bounds, persisted as epoch days. */
+private var reportCustomStartDay by prefOption("chat_statistics_report_custom_start_day", -1L)
+private var reportCustomEndDay by prefOption("chat_statistics_report_custom_end_day", -1L)
 
 private fun rememberedReportPeriod(): ReportPeriod =
     ReportPeriod.entries.getOrElse(reportPeriod) { ReportPeriod.DAILY }
@@ -883,21 +888,37 @@ private class MessageBodyFormatter(
     private val selfLabel = context.localizedChatString(R.string.chat_history_export_self)
     private val memberLabel = context.localizedChatString(R.string.chat_history_export_group_member)
     private val otherLabel = context.localizedChatString(R.string.chat_history_export_other_message)
+    private val leftGroupLabel = context.localizedChatText(R.string.chat_history_export_left_group)
     private val quoteWithAuthor = context.localizedChatText(R.string.chat_history_export_quote_line)
     private val quoteAnonymous = context.localizedChatText(R.string.chat_history_export_quote_line_anonymous)
 
     /** Non-text message types repeat the same handful of labels; resolve each one once. */
     private val typeLabels = HashMap<Int, String>()
 
+    /** Names of senders who already left the group, resolved lazily and cached per wxId. */
+    private val leftSenderNames = HashMap<String, String>()
+
     fun format(type: Int, rawContent: String, isSend: Int): RenderedMessage {
         val (prefixedSender, content) = splitSenderPrefix(rawContent, isSend)
         val sender = when {
             isSend == 1 -> selfLabel
-            isGroupChat -> prefixedSender?.let { senderNames[it] ?: it } ?: memberLabel
+            isGroupChat -> prefixedSender?.let(::groupSenderLabel) ?: memberLabel
             else -> peerDisplayName
         }
 
         return RenderedMessage(sender, body(type, content))
+    }
+
+    /**
+     * Current members already come with a display name; anyone missing has left the group, so fall
+     * back to the contact profile and mark them instead of printing a bare wxId.
+     */
+    private fun groupSenderLabel(wxid: String): String {
+        senderNames[wxid]?.let { return it }
+        return leftSenderNames.getOrPut(wxid) {
+            val name = WeDatabaseApi.getDisplayName(wxid).takeIf { it != wxid } ?: wxid
+            leftGroupLabel.format(name)
+        }
     }
 
     private fun splitSenderPrefix(raw: String, isSend: Int): Pair<String?, String> {
@@ -911,14 +932,7 @@ private class MessageBodyFormatter(
 
     private fun body(type: Int, content: String): String {
         if (type == MessageType.QUOTE.code) return quoteBody(content)
-
-        if (type == MessageType.TEXT.code) {
-            return if (content.startsWith("<msg")) {
-                XmlUtils.extractXmlTag(content, "title").ifEmpty { content }
-            } else {
-                content
-            }
-        }
+        if (type == MessageType.TEXT.code) return textBody(content)
 
         if (type == MessageType.APP.code) {
             val title = XmlUtils.extractXmlTag(content, "title").trim()
@@ -927,7 +941,28 @@ private class MessageBodyFormatter(
             if (description.isNotEmpty()) return description
         }
 
-        return typeLabel(type)
+        // System notices (red packets, group changes and the like) are stored as markup; strip the
+        // tags so the file shows the notice text instead of raw XML.
+        val xml = if (content.startsWith("&lt;")) unescapeXml(content) else content
+        return plainText(xml).ifEmpty { typeLabel(type) }
+    }
+
+    private fun textBody(content: String): String {
+        val xml = if (content.startsWith("&lt;")) unescapeXml(content) else content
+        if (xml.startsWith("<msg")) {
+            val title = XmlUtils.extractXmlTag(xml, "title").trim()
+            if (title.isNotEmpty()) return title
+        }
+        if (!xml.startsWith("<")) return xml
+        return plainText(xml).ifEmpty { typeLabel(MessageType.TEXT.code) }
+    }
+
+    /** Removes every markup tag (including custom links and inline images) and collapses spaces. */
+    private fun plainText(raw: String): String {
+        val xml = if (raw.startsWith("&lt;")) unescapeXml(raw) else raw
+        return unescapeXml(xml.replace(Regex("<[^>]*>"), " "))
+            .replace(Regex("\\s+"), " ")
+            .trim()
     }
 
     private fun quoteBody(content: String): String {
@@ -962,9 +997,13 @@ private class MessageBodyFormatter(
         }
 
         return when (type) {
-            null, MessageType.TEXT.code, MessageType.SYSTEM.code -> text
+            null, MessageType.TEXT.code -> text
+            MessageType.SYSTEM.code, MessageType.SYSTEM_NOTICE.code ->
+                plainText(text).ifEmpty { typeLabel(type) }
             else -> if (text.startsWith("<msg")) {
                 XmlUtils.extractXmlTag(text, "title").trim().ifEmpty { typeLabel(type) }
+            } else if (text.startsWith("<")) {
+                plainText(text).ifEmpty { typeLabel(type) }
             } else {
                 typeLabel(type)
             }
@@ -995,19 +1034,30 @@ private class MessageBodyFormatter(
 /** Number of days covered by a weekly report, including today. */
 private const val WEEKLY_REPORT_DAYS = 7L
 
-private fun reportFirstDay(period: ReportPeriod): Long {
-    val today = todayEpochDay()
-    return if (period == ReportPeriod.DAILY) today else today - WEEKLY_REPORT_DAYS + 1
+/** Inclusive epoch-day bounds of a report. */
+private data class ReportRange(val startDay: Long, val endDay: Long) {
+    val window: ExportWindow
+        get() = ExportWindow(dayStartMillis(startDay), dayStartMillis(endDay + 1))
 }
 
-/** Whole days of the report: today alone, or the last seven days up to the end of today. */
-private fun reportWindow(period: ReportPeriod): ExportWindow =
-    ExportWindow(dayStartMillis(reportFirstDay(period)), dayStartMillis(todayEpochDay() + 1))
+private fun reportRange(period: ReportPeriod, customStartDay: Long, customEndDay: Long): ReportRange {
+    val today = todayEpochDay()
+    return when (period) {
+        ReportPeriod.DAILY -> ReportRange(today, today)
+        ReportPeriod.WEEKLY -> ReportRange(today - WEEKLY_REPORT_DAYS + 1, today)
+        // An unset or reversed custom range falls back to the weekly window.
+        ReportPeriod.CUSTOM -> if (customStartDay >= 0 && customEndDay >= 0) {
+            ReportRange(minOf(customStartDay, customEndDay), maxOf(customStartDay, customEndDay))
+        } else {
+            ReportRange(today - WEEKLY_REPORT_DAYS + 1, today)
+        }
+    }
+}
 
 /**
  * Numbers behind one report. [ranking] already carries display names and includes the user's own
  * messages; [typeCounts] keeps the raw message type codes so the labels stay localized at render
- * time, and [dailyCounts] is filled only for a weekly report.
+ * time, and [dailyCounts] is filled only for a report spanning more than one day.
  */
 private class StatisticsReport(
     val total: Long,
@@ -1024,13 +1074,14 @@ private fun Map<String, Any?>?.reportLong(key: String): Long =
 
 private fun loadStatisticsReport(
     wxId: String,
-    period: ReportPeriod,
+    range: ReportRange,
     isGroupChat: Boolean,
     peerDisplayName: String,
     selfLabel: String,
+    leftGroupLabel: String,
 ): StatisticsReport {
     val scale = createTimeScale(wxId)
-    val (since, until) = reportWindow(period).bounds(scale)
+    val (since, until) = range.window.bounds(scale)
     val timeCondition = buildString {
         appendExportConditions(since, until, SenderFilter.ALL, false, "")
     }
@@ -1062,14 +1113,22 @@ private fun loadStatisticsReport(
             arrayOf<Any>(wxId),
         ).forEach { row ->
             val sender = row["sender"] as String
-            ranking += (names[sender] ?: sender) to row.reportLong("msg_count")
+            val memberName = names[sender]
+            val label = if (memberName != null) {
+                memberName
+            } else {
+                // The sender already left the group: fall back to the contact profile and mark it.
+                val name = WeDatabaseApi.getDisplayName(sender).takeIf { it != sender } ?: sender
+                leftGroupLabel.format(name)
+            }
+            ranking += label to row.reportLong("msg_count")
         }
     } else if (total > sent) {
         ranking += peerDisplayName to (total - sent)
     }
     if (sent > 0) ranking += selfLabel to sent
 
-    val dailyCounts = if (period == ReportPeriod.WEEKLY) {
+    val dailyCounts = if (range.endDay > range.startDay) {
         // SQLite has no reliable local-time day bucketing, so group by epoch day in Kotlin.
         val counts = HashMap<Long, Long>()
         WeDatabaseApi.rawQuery(
@@ -1081,8 +1140,7 @@ private fun loadStatisticsReport(
                 counts[day] = (counts[day] ?: 0L) + 1
             }
         }
-        val today = todayEpochDay()
-        (reportFirstDay(period)..today).map { it to (counts[it] ?: 0L) }
+        (range.startDay..range.endDay).map { it to (counts[it] ?: 0L) }
     } else {
         emptyList()
     }
@@ -1105,17 +1163,17 @@ private fun buildStatisticsReportText(
     wxId: String,
     displayName: String,
     period: ReportPeriod,
+    range: ReportRange,
     report: StatisticsReport,
 ): String {
     val timeFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
-    val firstDay = reportFirstDay(period)
-    val range = if (period == ReportPeriod.DAILY) {
-        formatEpochDay(firstDay)
+    val rangeLabel = if (range.startDay == range.endDay) {
+        formatEpochDay(range.startDay)
     } else {
         context.localizedChatString(
             R.string.chat_history_export_custom_range,
-            formatEpochDay(firstDay),
-            formatEpochDay(todayEpochDay()),
+            formatEpochDay(range.startDay),
+            formatEpochDay(range.endDay),
         )
     }
     fun line(label: String, count: Long) =
@@ -1131,7 +1189,7 @@ private fun buildStatisticsReportText(
         appendLine(
             context.localizedChatString(R.string.chat_statistics_report_conversation, displayName, wxId)
         )
-        appendLine(context.localizedChatString(R.string.chat_statistics_report_range, range))
+        appendLine(context.localizedChatString(R.string.chat_statistics_report_range, rangeLabel))
         appendLine(
             context.localizedChatString(
                 R.string.chat_statistics_report_generated,
@@ -1170,11 +1228,16 @@ private fun exportStatisticsReport(
     wxId: String,
     displayName: String,
     period: ReportPeriod,
+    range: ReportRange,
     report: StatisticsReport,
 ): Pair<String, Int>? {
     val stamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(Date())
     val safeName = displayName.replace(Regex("[\\\\/:*?\"<>|\\s]"), "_").take(40)
-    val kind = if (period == ReportPeriod.DAILY) "daily" else "weekly"
+    val kind = when (period) {
+        ReportPeriod.DAILY -> "daily"
+        ReportPeriod.WEEKLY -> "weekly"
+        ReportPeriod.CUSTOM -> "custom"
+    }
     val fileName = "${safeName}_${kind}_$stamp.txt"
 
     val target = try {
@@ -1185,7 +1248,7 @@ private fun exportStatisticsReport(
     }
     try {
         target.stream.writer(Charsets.UTF_8).buffered(EXPORT_BUFFER_SIZE).use { writer ->
-            writer.write(buildStatisticsReportText(context, wxId, displayName, period, report))
+            writer.write(buildStatisticsReportText(context, wxId, displayName, period, range, report))
         }
         target.onSuccess()
     } catch (ex: Exception) {
@@ -1248,20 +1311,37 @@ fun showChatStatisticsReportDialog(context: Context, wxId: String) {
         val hostDialog = dialog
         val isGroupChat = wxId.isGroupChatWxId
         var period by remember { mutableStateOf(rememberedReportPeriod()) }
+        var customStartDay by remember {
+            mutableStateOf(reportCustomStartDay.takeIf { it >= 0 } ?: (todayEpochDay() - WEEKLY_REPORT_DAYS + 1))
+        }
+        var customEndDay by remember {
+            mutableStateOf(reportCustomEndDay.takeIf { it >= 0 } ?: todayEpochDay())
+        }
+        val range = remember(period, customStartDay, customEndDay) {
+            reportRange(period, customStartDay, customEndDay)
+        }
         var displayName by remember(wxId) { mutableStateOf("") }
-        var report by remember(wxId, period) { mutableStateOf<StatisticsReport?>(null) }
+        var report by remember(wxId, range) { mutableStateOf<StatisticsReport?>(null) }
         var exporting by remember { mutableStateOf(false) }
         var result by remember { mutableStateOf<String?>(null) }
         val scope = rememberCoroutineScope()
 
-        LaunchedEffect(wxId, period) {
+        LaunchedEffect(wxId, range) {
             report = null
             result = null
             val name = withContext(Dispatchers.IO) { WeDatabaseApi.getDisplayName(wxId) }
             displayName = name
             val selfLabel = context.localizedChatString(R.string.chat_history_export_self)
+            val leftGroupLabel = context.localizedChatText(R.string.chat_history_export_left_group)
             report = withContext(Dispatchers.IO) {
-                loadStatisticsReport(wxId, period, isGroupChat, name.ifBlank { wxId }, selfLabel)
+                loadStatisticsReport(
+                    wxId,
+                    range,
+                    isGroupChat,
+                    name.ifBlank { wxId },
+                    selfLabel,
+                    leftGroupLabel,
+                )
             }
         }
         // Dismissing mid-export would leave a partially written file behind.
@@ -1295,11 +1375,48 @@ fun showChatStatisticsReportDialog(context: Context, wxId: String) {
                                 iconPlaceholder = false,
                                 selected = period == ReportPeriod.WEEKLY,
                                 enabled = !exporting,
+                                trailingDivider = true,
                                 onClick = {
                                     period = ReportPeriod.WEEKLY
                                     reportPeriod = ReportPeriod.WEEKLY.ordinal
                                 },
                             )
+                        }
+                        item {
+                            RadioButtonWidget(
+                                title = stringResource(R.string.chat_statistics_report_custom),
+                                iconPlaceholder = false,
+                                selected = period == ReportPeriod.CUSTOM,
+                                enabled = !exporting,
+                                onClick = {
+                                    period = ReportPeriod.CUSTOM
+                                    reportPeriod = ReportPeriod.CUSTOM.ordinal
+                                },
+                            )
+                        }
+                        if (period == ReportPeriod.CUSTOM) {
+                            item {
+                                ExportDateRow(
+                                    title = stringResource(R.string.chat_history_export_start_date),
+                                    epochDay = customStartDay,
+                                    enabled = !exporting,
+                                ) {
+                                    customStartDay = it
+                                    reportCustomStartDay = it
+                                    result = null
+                                }
+                            }
+                            item {
+                                ExportDateRow(
+                                    title = stringResource(R.string.chat_history_export_end_date),
+                                    epochDay = customEndDay,
+                                    enabled = !exporting,
+                                ) {
+                                    customEndDay = it
+                                    reportCustomEndDay = it
+                                    result = null
+                                }
+                            }
                         }
                     }
 
@@ -1342,6 +1459,7 @@ fun showChatStatisticsReportDialog(context: Context, wxId: String) {
                                     wxId = wxId,
                                     displayName = displayName.ifBlank { wxId },
                                     period = period,
+                                    range = range,
                                     report = current,
                                 )
                             }
