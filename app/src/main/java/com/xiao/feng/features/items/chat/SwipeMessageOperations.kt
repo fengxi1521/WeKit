@@ -81,12 +81,16 @@ object SwipeMessageOperations : ClickableFeature(), IResolveDex,
     private class SwipeState(
         val touchSlop: Int,
         val triggerThreshold: Float,
+        // A revoke swipe dragged past this second threshold additionally reopens the message for
+        // editing; the first threshold only revokes.
+        val longTriggerThreshold: Float,
         var chattingContext: Any? = null,
         var msgInfo: MessageInfo? = null,
         var startX: Float = 0f,
         var startY: Float = 0f,
         var dragDirection: DragDirection? = null,
         var triggered: Boolean = false,
+        var longTriggered: Boolean = false,
         var actionOverlay: SwipeActionOverlay? = null,
         // Preferences are snapshotted once per gesture: reading them per frame would hit the
         // preference database on every MOVE event.
@@ -193,6 +197,7 @@ object SwipeMessageOperations : ClickableFeature(), IResolveDex,
                         s.startY = event.rawY
                         s.dragDirection = null
                         s.triggered = false
+                        s.longTriggered = false
                         s.actionOverlay?.dismiss(animated = false)
                         s.actionOverlay = null
                         snapshotGesturePrefs(s)
@@ -228,9 +233,11 @@ object SwipeMessageOperations : ClickableFeature(), IResolveDex,
 
         val state = states.getOrPut(view) {
             val ctx = view.context
+            val threshold = 60.dpToPx(ctx).toFloat()
             SwipeState(
                 touchSlop = ViewConfiguration.get(ctx).scaledTouchSlop,
-                triggerThreshold = 60.dpToPx(ctx).toFloat(),
+                triggerThreshold = threshold,
+                longTriggerThreshold = threshold * 2,
             )
         }
         state.chattingContext = chattingContext
@@ -291,6 +298,7 @@ object SwipeMessageOperations : ClickableFeature(), IResolveDex,
                 s.startY = event.rawY
                 s.dragDirection = null
                 s.triggered = false
+                s.longTriggered = false
                 s.actionOverlay?.dismiss(animated = false)
                 s.actionOverlay = null
                 snapshotGesturePrefs(s)
@@ -310,15 +318,18 @@ object SwipeMessageOperations : ClickableFeature(), IResolveDex,
                 val direction = s.dragDirection
                 if (direction != null) {
                     val dx = event.rawX - s.startX
+                    // A revoke swipe that can also reopen the message for editing keeps following the
+                    // finger up to the longer threshold, so the second commit distance is visible.
+                    val limit = if (longReachable(s, direction)) s.longTriggerThreshold else s.triggerThreshold
                     v.translationX = when (direction) {
-                        DragDirection.LEFT -> dx.coerceIn(-s.triggerThreshold, 0f)
-                        DragDirection.RIGHT -> dx.coerceIn(0f, s.triggerThreshold)
+                        DragDirection.LEFT -> dx.coerceIn(-limit, 0f)
+                        DragDirection.RIGHT -> dx.coerceIn(0f, limit)
                     }
                     val overlayProgress = when (direction) {
                         DragDirection.LEFT -> (-dx / s.triggerThreshold).coerceIn(0f, 1f)
                         DragDirection.RIGHT -> (dx / s.triggerThreshold).coerceIn(0f, 1f)
                     }
-                    updateActionOverlay(v, s, direction, overlayProgress)
+                    updateActionOverlay(v, s, direction, overlayProgress, longActive(s, direction, dx))
                     // Haptic tick tracks the live fireable state: buzz when crossing INTO the fire
                     // zone, and re-arm when sliding back out so a re-cross buzzes again.
                     val past = when (direction) {
@@ -329,6 +340,12 @@ object SwipeMessageOperations : ClickableFeature(), IResolveDex,
                         v.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
                     }
                     s.triggered = past
+                    // A second tick marks the longer revoke-and-edit threshold.
+                    val long = longActive(s, direction, dx)
+                    if (long && !s.longTriggered) {
+                        v.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
+                    }
+                    s.longTriggered = long
                     true
                 } else {
                     // Not (yet) a horizontal drag; don't consume, so a vertical scroll can still be
@@ -347,13 +364,16 @@ object SwipeMessageOperations : ClickableFeature(), IResolveDex,
                     DragDirection.RIGHT -> dx >= s.triggerThreshold
                     null -> false
                 }
+                // The long revoke swipe only applies when the message can also be edited
+                // afterwards; otherwise it degrades to a plain revoke.
+                val fireLong = direction != null && longActive(s, direction, dx)
                 if (direction != null) {
                     v.animate()
                         .translationX(0f)
                         .setDuration(250)
                         .setInterpolator(springInterpolator)
                         .start()
-                    s.actionOverlay?.dismiss(direction, animated = true)
+                    s.actionOverlay?.dismiss(direction, animated = true, long = fireLong)
                     s.actionOverlay = null
                     v.parent?.requestDisallowInterceptTouchEvent(false)
                     s.dragDirection = null
@@ -362,7 +382,8 @@ object SwipeMessageOperations : ClickableFeature(), IResolveDex,
                             when (s.secondaryAction) {
                                 SecondaryAction.REPEAT -> onSwipeRepeat(v, s)
                                 SecondaryAction.EDIT -> onSwipeEdit(v, s)
-                                SecondaryAction.REVOKE -> onSwipeRevoke(v, s)
+                                SecondaryAction.REVOKE ->
+                                    if (fireLong) onSwipeRevokeAndEdit(v, s) else onSwipeRevoke(v, s)
                             }
                         } else {
                             s.chattingContext?.let { onSwipeQuote(v, it) }
@@ -379,7 +400,11 @@ object SwipeMessageOperations : ClickableFeature(), IResolveDex,
                 if (s.dragDirection != null) {
                     val direction = s.dragDirection!!
                     v.animate().translationX(0f).setDuration(150).start()
-                    s.actionOverlay?.dismiss(direction, animated = true)
+                    s.actionOverlay?.dismiss(
+                        direction,
+                        animated = true,
+                        long = longActive(s, direction, event.rawX - s.startX),
+                    )
                     s.actionOverlay = null
                     v.parent?.requestDisallowInterceptTouchEvent(false)
                     s.dragDirection = null
@@ -396,6 +421,7 @@ object SwipeMessageOperations : ClickableFeature(), IResolveDex,
         s: SwipeState,
         direction: DragDirection,
         rawProgress: Float,
+        longActive: Boolean,
     ) {
         val overlay = s.actionOverlay ?: SwipeActionOverlay(
             row,
@@ -405,8 +431,24 @@ object SwipeMessageOperations : ClickableFeature(), IResolveDex,
         // Keep the icon directly under the finger while dragging. Applying an overshoot
         // interpolator here makes its distance from the edge nonlinear relative to the row.
         val progress = rawProgress.coerceIn(0f, 1f)
-        overlay.update(row, direction, progress)
+        overlay.update(row, direction, progress, longActive)
     }
+
+    /**
+     * Whether the revoke swipe has been dragged past the longer threshold, which additionally
+     * reopens the message for editing. Only the configured secondary direction qualifies.
+     */
+    private fun longActive(s: SwipeState, direction: DragDirection, dx: Float): Boolean =
+        longReachable(s, direction) && abs(dx) >= s.longTriggerThreshold
+
+    /**
+     * Whether this swipe can continue into the longer revoke-and-edit gesture. The follow-up edit
+     * requires a text message of the user's own, so other revokes stop at the plain threshold.
+     */
+    private fun longReachable(s: SwipeState, direction: DragDirection): Boolean =
+        s.secondaryAction == SecondaryAction.REVOKE &&
+                isSecondaryDirection(s, direction) &&
+                s.msgInfo?.let(QuickRevokeAndEdit::isSupported) == true
 
     private class SwipeActionOverlay(
         row: View,
@@ -443,7 +485,7 @@ object SwipeMessageOperations : ClickableFeature(), IResolveDex,
             revokeIcon.alpha = 0f
         }
 
-        fun update(row: View, direction: DragDirection, progress: Float) {
+        fun update(row: View, direction: DragDirection, progress: Float, longActive: Boolean) {
             val root = root ?: return
             if (root.width <= 0) return
 
@@ -458,8 +500,10 @@ object SwipeMessageOperations : ClickableFeature(), IResolveDex,
             val rightVisibleX = root.width - size - edgeMargin.toFloat()
 
             // The action is fixed for the duration of the gesture, so it is resolved once here
-            // instead of reading preferences on every MOVE event.
-            val secondaryIcon = secondaryIcons.getValue(action)
+            // instead of reading preferences on every MOVE event. A revoke swipe dragged past the
+            // long threshold previews the follow-up edit action with the edit glyph.
+            val longEdit = action == SecondaryAction.REVOKE && longActive
+            val secondaryIcon = if (longEdit) editIcon else secondaryIcons.getValue(action)
 
             quoteIcon.y = y
             repeatIcon.y = y
@@ -470,9 +514,10 @@ object SwipeMessageOperations : ClickableFeature(), IResolveDex,
             editIcon.translationX = 0f
             revokeIcon.translationX = 0f
 
-            // Keep the unused secondary icons parked offscreen and invisible.
-            secondaryIcons.forEach { (it, icon) ->
-                if (it != action) {
+            // Keep every secondary icon that is not the one currently previewed parked offscreen and
+            // invisible. This also clears the revoke glyph once the long threshold swaps it for edit.
+            secondaryIcons.forEach { (_, icon) ->
+                if (icon != secondaryIcon) {
                     icon.alpha = 0f
                     icon.x = rightHiddenX
                 }
@@ -496,7 +541,11 @@ object SwipeMessageOperations : ClickableFeature(), IResolveDex,
             }
         }
 
-        fun dismiss(direction: DragDirection = DragDirection.LEFT, animated: Boolean) {
+        fun dismiss(
+            direction: DragDirection = DragDirection.LEFT,
+            animated: Boolean,
+            long: Boolean = false,
+        ) {
             if (animated) {
                 val root = root
                 if (root == null || root.width <= 0) {
@@ -504,7 +553,9 @@ object SwipeMessageOperations : ClickableFeature(), IResolveDex,
                     return
                 }
 
-                val secondaryIcon = secondaryIcons.getValue(action)
+                val secondaryIcon =
+                    if (action == SecondaryAction.REVOKE && long) editIcon
+                    else secondaryIcons.getValue(action)
                 val targetIcon = if (direction == secondaryDirection) secondaryIcon else quoteIcon
                 val offscreenX = when (direction) {
                     DragDirection.LEFT -> root.width + edgeMargin.toFloat()
@@ -786,6 +837,16 @@ object SwipeMessageOperations : ClickableFeature(), IResolveDex,
     }
 
     private fun onSwipeEdit(view: View, s: SwipeState) {
+        val msgInfo = s.msgInfo ?: return
+        if (!QuickRevokeAndEdit.isSupported(msgInfo)) return
+        QuickRevokeAndEdit.quickRevokeAndEdit(view.context, msgInfo)
+    }
+
+    /**
+     * Revokes and reopens the message for editing. Reached by dragging a revoke swipe past the
+     * longer threshold, so it deliberately shares the implementation with the edit action.
+     */
+    private fun onSwipeRevokeAndEdit(view: View, s: SwipeState) {
         val msgInfo = s.msgInfo ?: return
         if (!QuickRevokeAndEdit.isSupported(msgInfo)) return
         QuickRevokeAndEdit.quickRevokeAndEdit(view.context, msgInfo)

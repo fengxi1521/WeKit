@@ -620,6 +620,8 @@
     <string name="feature_chat_statistics_description">在群聊设置中查看每个群的成员数、消息总数与活跃成员排行</string>
     <string name="feature_chat_history_export_name">聊天记录导出</string>
     <string name="feature_chat_history_export_description">在好友或群聊资料页将该会话的聊天记录导出为文本文件</string>
+    <string name="feature_chat_statistics_report_name">统计报表导出</string>
+    <string name="feature_chat_statistics_report_description">在好友或群聊资料页生成日报或周报，并导出为文本文件</string>
 
     <string name="group_welcome_dialog_title">进群欢迎语</string>
     <string name="group_welcome_dialog_title_group">%1$s · 进群欢迎语</string>
@@ -2138,7 +2140,7 @@
     <string name="chat_swipe_swap_description">启用后，左划%1$s，右划引用</string>
     <string name="chat_swipe_action_revoke">撤回</string>
     <string name="chat_swipe_repeat_description">向当前会话重新发送这条消息</string>
-    <string name="chat_swipe_revoke_description">撤回自己发送的消息（2 分钟内有效）</string>
+    <string name="chat_swipe_revoke_description">短滑撤回自己发送的消息（2 分钟内有效），继续长滑则撤回并重新编辑</string>
     <string name="chat_swipe_revoke_failed">撤回失败</string>
     <string name="chat_history_export_entry_summary">将该好友的聊天记录导出为文本文件</string>
     <string name="chat_history_export_title">导出与 %1$s 的聊天记录</string>
@@ -2187,6 +2189,19 @@
     <string name="chat_history_export_custom_range">%1$s 至 %2$s</string>
     <string name="chat_history_export_range_from">%1$s 起</string>
     <string name="chat_history_export_range_until">截至 %1$s</string>
+    <string name="chat_statistics_report_title">统计报表</string>
+    <string name="chat_statistics_report_period">报表类型</string>
+    <string name="chat_statistics_report_daily">日报（今天）</string>
+    <string name="chat_statistics_report_weekly">周报（最近 7 天）</string>
+    <string name="chat_statistics_report_header">聊天统计报告 · %1$s</string>
+    <string name="chat_statistics_report_conversation">会话：%1$s（%2$s）</string>
+    <string name="chat_statistics_report_range">统计区间：%1$s</string>
+    <string name="chat_statistics_report_generated">生成时间：%1$s</string>
+    <string name="chat_statistics_report_totals">消息总数：%1$d（发送 %2$d / 接收 %3$d）</string>
+    <string name="chat_statistics_report_ranking">发送排行（%1$d 位活跃发送者）：</string>
+    <string name="chat_statistics_report_types">消息类型分布：</string>
+    <string name="chat_statistics_report_daily_counts">每日消息数：</string>
+    <string name="chat_statistics_report_line">  %1$s：%2$d</string>
     <string name="chat_swipe_conversation_config">左划菜单配置</string>
     <string name="chat_swipe_conversation_pin_description">在「隐藏」左侧显示置顶快捷按钮</string>
     <string name="chat_swipe_conversation_pin_toggle">置顶 / 取消置顶</string>

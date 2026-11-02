@@ -656,6 +656,8 @@
     <string name="feature_chat_statistics_description">View member count, message count and the most active members of each group in the group settings screen</string>
     <string name="feature_chat_history_export_name">Export chat history</string>
     <string name="feature_chat_history_export_description">Export the chat history with a friend or a group as a text file from the profile screen</string>
+    <string name="feature_chat_statistics_report_name">Export statistics report</string>
+    <string name="feature_chat_statistics_report_description">Build a daily or weekly chat statistics report and export it as a text file from the profile screen</string>
 
     <string name="group_welcome_dialog_title">Group join welcome</string>
     <string name="group_welcome_dialog_title_group">%1$s · Group join welcome</string>
@@ -2180,7 +2182,7 @@
     <string name="chat_swipe_swap_description">When enabled, swipe left to %1$s and right to quote</string>
     <string name="chat_swipe_action_revoke">Revoke</string>
     <string name="chat_swipe_repeat_description">Send this message again to the current conversation</string>
-    <string name="chat_swipe_revoke_description">Revoke a message you sent within the last 2 minutes</string>
+    <string name="chat_swipe_revoke_description">Short swipe revokes a message you sent within the last 2 minutes; keep swiping further to revoke and edit</string>
     <string name="chat_swipe_revoke_failed">Failed to revoke the message</string>
     <string name="chat_history_export_entry_summary">Export the chat history with this friend as a text file</string>
     <string name="chat_history_export_title">Export chat with %1$s</string>
@@ -2229,6 +2231,19 @@
     <string name="chat_history_export_custom_range">%1$s – %2$s</string>
     <string name="chat_history_export_range_from">From %1$s</string>
     <string name="chat_history_export_range_until">Until %1$s</string>
+    <string name="chat_statistics_report_title">Statistics report</string>
+    <string name="chat_statistics_report_period">Report type</string>
+    <string name="chat_statistics_report_daily">Daily (today)</string>
+    <string name="chat_statistics_report_weekly">Weekly (last 7 days)</string>
+    <string name="chat_statistics_report_header">Chat statistics report · %1$s</string>
+    <string name="chat_statistics_report_conversation">Conversation: %1$s (%2$s)</string>
+    <string name="chat_statistics_report_range">Period: %1$s</string>
+    <string name="chat_statistics_report_generated">Generated: %1$s</string>
+    <string name="chat_statistics_report_totals">Messages: %1$d (sent %2$d / received %3$d)</string>
+    <string name="chat_statistics_report_ranking">Senders (%1$d active):</string>
+    <string name="chat_statistics_report_types">Message types:</string>
+    <string name="chat_statistics_report_daily_counts">Messages per day:</string>
+    <string name="chat_statistics_report_line">  %1$s: %2$d</string>
     <string name="chat_swipe_conversation_config">Swipe menu settings</string>
     <string name="chat_swipe_conversation_pin_description">Show a pin shortcut to the left of Hide</string>
     <string name="chat_swipe_conversation_pin_toggle">Pin / Unpin</string>
