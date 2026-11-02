@@ -40,6 +40,7 @@ import com.tencent.mm.chatroom.ui.ChatroomInfoUI
 import com.tencent.mm.plugin.profile.ui.ContactInfoUI
 import com.xiao.feng.R
 import com.xiao.feng.data.KvStore.prefOption
+import com.xiao.feng.features.api.core.WeApi
 import com.xiao.feng.features.api.core.WeDatabaseApi
 import com.xiao.feng.features.api.core.models.MessageType
 import com.xiao.feng.features.api.ui.WeContactPrefsScreenApi
@@ -1116,6 +1117,8 @@ private fun loadStatisticsReport(
     val ranking = mutableListOf<Pair<String, Long>>()
     if (isGroupChat) {
         val names = loadGroupSenderNames(wxId)
+        val selfWxId = WeApi.selfWxId
+        val spokenMembers = HashSet<String>()
         WeDatabaseApi.executeQuery(
             """SELECT substr(content, 1, instr(content, ':') - 1) AS sender, COUNT(*) AS msg_count
                FROM message
@@ -1136,12 +1139,25 @@ private fun loadStatisticsReport(
                 val name = WeDatabaseApi.getDisplayName(sender).takeIf { it != sender } ?: sender
                 leftGroupLabel.format(name)
             }
+            spokenMembers += sender
             ranking += label to row.reportLong("msg_count")
         }
+
+        // Members who sent nothing in the range still belong in the report, so the ranking also
+        // lists the silent ones with a count of zero.
+        val silentMembers = names.entries
+            .filter { (memberWxId, _) -> memberWxId != selfWxId && memberWxId !in spokenMembers }
+            .map { it.value }
+            .sorted()
+        silentMembers.forEach { ranking += it to 0L }
     } else if (total > sent) {
         ranking += peerDisplayName to (total - sent)
     }
-    if (sent > 0) ranking += selfLabel to sent
+    if (sent > 0) {
+        ranking += selfLabel to sent
+    } else if (isGroupChat) {
+        ranking += selfLabel to 0L
+    }
 
     val dailyCounts = if (range.endDay > range.startDay) {
         // SQLite has no reliable local-time day bucketing, so group by epoch day in Kotlin.
@@ -1221,7 +1237,11 @@ private fun buildStatisticsReportText(
             )
         )
         appendLine(
-            context.localizedChatString(R.string.chat_statistics_report_ranking, report.ranking.size)
+            context.localizedChatString(
+                R.string.chat_statistics_report_ranking,
+                report.ranking.size,
+                report.ranking.count { it.second == 0L },
+            )
         )
         report.ranking.forEach { (name, count) -> appendLine(line(name, count)) }
         appendLine()

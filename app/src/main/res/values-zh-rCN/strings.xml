@@ -2203,7 +2203,7 @@
     <string name="chat_statistics_report_range">统计区间：%1$s</string>
     <string name="chat_statistics_report_generated">生成时间：%1$s</string>
     <string name="chat_statistics_report_totals">消息总数：%1$d（发送 %2$d / 接收 %3$d）</string>
-    <string name="chat_statistics_report_ranking">发送排行（%1$d 位活跃发送者）：</string>
+    <string name="chat_statistics_report_ranking">发送排行（%1$d 位成员，其中 %2$d 位未发言）：</string>
     <string name="chat_statistics_report_types">消息类型分布：</string>
     <string name="chat_statistics_report_daily_counts">每日消息数：</string>
     <string name="chat_statistics_report_line">  %1$s：%2$d</string>
