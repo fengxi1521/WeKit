@@ -2190,6 +2190,9 @@
     <string name="chat_statistics_report_daily">日報（今天）</string>
     <string name="chat_statistics_report_weekly">週報（最近 7 天）</string>
     <string name="chat_statistics_report_custom">自訂區間</string>
+    <string name="chat_statistics_report_ranking_group">發送排行</string>
+    <string name="chat_statistics_report_include_left_group">包含已退群成員</string>
+    <string name="chat_statistics_report_include_left_group_description">在發送排行中列出已退群的成員，並標註「已退群」。</string>
     <string name="chat_history_export_left_group">%1$s（已退群）</string>
     <string name="chat_statistics_report_header">聊天統計報告 · %1$s</string>
     <string name="chat_statistics_report_conversation">會話：%1$s（%2$s）</string>

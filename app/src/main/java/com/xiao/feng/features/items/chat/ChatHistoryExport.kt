@@ -133,6 +133,9 @@ private var reportPeriod by prefOption("chat_statistics_report_period", ReportPe
 private var reportCustomStartDay by prefOption("chat_statistics_report_custom_start_day", -1L)
 private var reportCustomEndDay by prefOption("chat_statistics_report_custom_end_day", -1L)
 
+/** Remembered choice: list members who already left the group in the report ranking. */
+private var reportIncludeLeftGroup by prefOption("chat_statistics_report_include_left_group", true)
+
 private fun rememberedReportPeriod(): ReportPeriod =
     ReportPeriod.entries.getOrElse(reportPeriod) { ReportPeriod.DAILY }
 
@@ -1072,6 +1075,9 @@ private class StatisticsReport(
 private fun Map<String, Any?>?.reportLong(key: String): Long =
     (this?.get(key) as? Number)?.toLong() ?: 0L
 
+/** Stand-in code that merges every message type this module does not know into one line. */
+private const val UNKNOWN_MESSAGE_TYPE = -1
+
 private fun loadStatisticsReport(
     wxId: String,
     range: ReportRange,
@@ -1079,6 +1085,7 @@ private fun loadStatisticsReport(
     peerDisplayName: String,
     selfLabel: String,
     leftGroupLabel: String,
+    includeLeftGroup: Boolean,
 ): StatisticsReport {
     val scale = createTimeScale(wxId)
     val (since, until) = range.window.bounds(scale)
@@ -1101,6 +1108,10 @@ private fun loadStatisticsReport(
            GROUP BY type ORDER BY msg_count DESC""",
         arrayOf<Any>(wxId),
     ).map { row -> (row["type"] as Number).toInt() to row.reportLong("msg_count") }
+        // Several host-only type codes share the "other message" label; merge them into one line.
+        .groupBy { (code, _) -> if (MessageType.fromCode(code) == null) UNKNOWN_MESSAGE_TYPE else code }
+        .map { (code, rows) -> code to rows.sumOf { it.second } }
+        .sortedByDescending { it.second }
 
     val ranking = mutableListOf<Pair<String, Long>>()
     if (isGroupChat) {
@@ -1113,7 +1124,11 @@ private fun loadStatisticsReport(
             arrayOf<Any>(wxId),
         ).forEach { row ->
             val sender = row["sender"] as String
+            // System notices have no wxId prefix, and their markup contains colons inside URLs, so
+            // the substring before the first colon is garbage rather than a sender.
+            if (!GROUP_SENDER_PREFIX.matches(sender)) return@forEach
             val memberName = names[sender]
+            if (memberName == null && !includeLeftGroup) return@forEach
             val label = if (memberName != null) {
                 memberName
             } else {
@@ -1320,13 +1335,16 @@ fun showChatStatisticsReportDialog(context: Context, wxId: String) {
         val range = remember(period, customStartDay, customEndDay) {
             reportRange(period, customStartDay, customEndDay)
         }
+        var includeLeftGroup by remember { mutableStateOf(reportIncludeLeftGroup) }
         var displayName by remember(wxId) { mutableStateOf("") }
-        var report by remember(wxId, range) { mutableStateOf<StatisticsReport?>(null) }
+        var report by remember(wxId, range, includeLeftGroup) {
+            mutableStateOf<StatisticsReport?>(null)
+        }
         var exporting by remember { mutableStateOf(false) }
         var result by remember { mutableStateOf<String?>(null) }
         val scope = rememberCoroutineScope()
 
-        LaunchedEffect(wxId, range) {
+        LaunchedEffect(wxId, range, includeLeftGroup) {
             report = null
             result = null
             val name = withContext(Dispatchers.IO) { WeDatabaseApi.getDisplayName(wxId) }
@@ -1341,6 +1359,7 @@ fun showChatStatisticsReportDialog(context: Context, wxId: String) {
                     name.ifBlank { wxId },
                     selfLabel,
                     leftGroupLabel,
+                    includeLeftGroup,
                 )
             }
         }
@@ -1416,6 +1435,30 @@ fun showChatStatisticsReportDialog(context: Context, wxId: String) {
                                     reportCustomEndDay = it
                                     result = null
                                 }
+                            }
+                        }
+                    }
+
+                    if (isGroupChat) {
+                        SegmentedColumn(
+                            modifier = Modifier.padding(top = 12.dp),
+                            title = stringResource(R.string.chat_statistics_report_ranking_group),
+                            contentPadding = PaddingValues(0.dp),
+                        ) {
+                            item {
+                                SwitchWidget(
+                                    title = stringResource(R.string.chat_statistics_report_include_left_group),
+                                    description = stringResource(
+                                        R.string.chat_statistics_report_include_left_group_description
+                                    ),
+                                    enabled = !exporting,
+                                    checked = includeLeftGroup,
+                                    onCheckedChange = {
+                                        includeLeftGroup = it
+                                        reportIncludeLeftGroup = it
+                                        result = null
+                                    },
+                                )
                             }
                         }
                     }
