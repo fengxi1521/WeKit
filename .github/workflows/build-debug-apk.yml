@@ -48,6 +48,10 @@ jobs:
           cache-on-failure: true
           workspaces: . -> target
 
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update && sudo apt-get install -y gcc-multilib
+
       - name: Install Android NDK
         run: |
           NDK_VERSION=$(sed -n 's/^ndk = "\(.*\)"/\1/p' gradle/libs.versions.toml)
