@@ -692,7 +692,7 @@ object SwipeMessageOperations : ClickableFeature(), IResolveDex,
                     if (s.msgInfo?.let(RepeatMessages::isSupported) == true) dir else null
 
                 SecondaryAction.EDIT ->
-                    if (s.msgInfo?.type?.isText == true) dir else null
+                    if (s.msgInfo?.let(::isRevokeSupported) == true) dir else null
 
                 SecondaryAction.REVOKE ->
                     if (s.msgInfo?.let(::isRevokeSupported) == true) dir else null
@@ -838,8 +838,13 @@ object SwipeMessageOperations : ClickableFeature(), IResolveDex,
 
     private fun onSwipeEdit(view: View, s: SwipeState) {
         val msgInfo = s.msgInfo ?: return
-        if (!QuickRevokeAndEdit.isSupported(msgInfo)) return
-        QuickRevokeAndEdit.quickRevokeAndEdit(view.context, msgInfo)
+        // Text messages that support re-editing are revoked and restored to the input box; any other
+        // message that can no longer be re-edited is simply revoked.
+        if (QuickRevokeAndEdit.isSupported(msgInfo)) {
+            QuickRevokeAndEdit.quickRevokeAndEdit(view.context, msgInfo)
+        } else {
+            onSwipeRevoke(view, s)
+        }
     }
 
     /**

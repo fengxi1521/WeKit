@@ -2131,7 +2131,7 @@
     <string name="chat_swipe_secondary">啓用次要操作</string>
     <string name="chat_swipe_secondary_description">啓用後，在支持的消息上可調用次要操作以%1$s</string>
     <string name="chat_swipe_use_edit">使用「編輯」而非「復讀」作爲次要操作</string>
-    <string name="chat_swipe_edit_description">啓用後，次要划動操作變爲「編輯」（僅文字消息）；關閉時爲「復讀」</string>
+    <string name="chat_swipe_edit_description">啓用後，次要划動操作變爲「撤回並重新編輯」：文字消息撤回後填回輸入框，其餘消息直接撤回</string>
     <string name="chat_swipe_swap">對調左右劃</string>
     <string name="chat_swipe_swap_description">啓用後，左劃%1$s，右劃引用</string>
     <string name="chat_swipe_action_revoke">撤回</string>
