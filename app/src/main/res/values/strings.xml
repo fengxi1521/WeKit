@@ -2235,6 +2235,8 @@
     <string name="chat_statistics_report_period">Report type</string>
     <string name="chat_statistics_report_daily">Daily (today)</string>
     <string name="chat_statistics_report_weekly">Weekly (last 7 days)</string>
+    <string name="chat_statistics_report_custom">Custom range</string>
+    <string name="chat_history_export_left_group">%1$s (left group)</string>
     <string name="chat_statistics_report_header">Chat statistics report · %1$s</string>
     <string name="chat_statistics_report_conversation">Conversation: %1$s (%2$s)</string>
     <string name="chat_statistics_report_range">Period: %1$s</string>

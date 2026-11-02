@@ -2193,6 +2193,8 @@
     <string name="chat_statistics_report_period">报表类型</string>
     <string name="chat_statistics_report_daily">日报（今天）</string>
     <string name="chat_statistics_report_weekly">周报（最近 7 天）</string>
+    <string name="chat_statistics_report_custom">自定义区间</string>
+    <string name="chat_history_export_left_group">%1$s（已退群）</string>
     <string name="chat_statistics_report_header">聊天统计报告 · %1$s</string>
     <string name="chat_statistics_report_conversation">会话：%1$s（%2$s）</string>
     <string name="chat_statistics_report_range">统计区间：%1$s</string>
