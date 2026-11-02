@@ -3954,4 +3954,7 @@
     <string name="scheduled_messages_send_now">傳送</string>
     <string name="scheduled_messages_send_now_result">已傳送到 %1$d/%2$d 個會話</string>
     <string name="scheduled_messages_once_deleted">傳送後自動刪除</string>
+    <string name="feature_open_author_moments_name">查看作者全部朋友圈</string>
+    <string name="feature_open_author_moments_description">長按朋友圈可打開作者的個人相冊，查看其全部朋友圈（包括置頂）。</string>
+    <string name="moments_open_author_menu">查看他的全部朋友圈</string>
 </resources>

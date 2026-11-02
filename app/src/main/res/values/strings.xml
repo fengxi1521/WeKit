@@ -3940,4 +3940,7 @@
     <string name="scheduled_messages_send_now">Send</string>
     <string name="scheduled_messages_send_now_result">Sent to %1$d of %2$d chats</string>
     <string name="scheduled_messages_once_deleted">Deleted after sending</string>
+    <string name="feature_open_author_moments_name">Open author\'s Moments</string>
+    <string name="feature_open_author_moments_description">Long-press a Moments post to open its author\'s personal album, including pinned posts.</string>
+    <string name="moments_open_author_menu">View all their Moments</string>
 </resources>

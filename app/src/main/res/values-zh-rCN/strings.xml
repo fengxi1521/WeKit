@@ -3972,4 +3972,7 @@
     <string name="scheduled_messages_send_now">发送</string>
     <string name="scheduled_messages_send_now_result">已发送到 %1$d/%2$d 个会话</string>
     <string name="scheduled_messages_once_deleted">发送后自动删除</string>
+    <string name="feature_open_author_moments_name">查看作者全部朋友圈</string>
+    <string name="feature_open_author_moments_description">长按朋友圈可打开作者的个人相册，查看其全部朋友圈（包括置顶）。</string>
+    <string name="moments_open_author_menu">查看他的全部朋友圈</string>
 </resources>
