@@ -52,6 +52,13 @@ jobs:
         run: |
           sudo apt-get update && sudo apt-get install -y gcc-multilib
 
+      - name: Align AGP version for composite builds
+        run: |
+          # A build cannot mix AGP versions. The scripta checkout pins an older AGP than :app
+          # and LSParanoid (both 9.4.1).
+          sed -i 's/^agp = "9.3.3"/agp = "9.4.1"/' libs/common/scripta/gradle/libs.versions.toml
+          grep -n '^agp' libs/common/scripta/gradle/libs.versions.toml
+
       - name: Install Android NDK
         run: |
           NDK_VERSION=$(sed -n 's/^ndk = "\(.*\)"/\1/p' gradle/libs.versions.toml)
