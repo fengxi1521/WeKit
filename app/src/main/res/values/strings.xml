@@ -3940,7 +3940,12 @@
     <string name="scheduled_messages_send_now">Send</string>
     <string name="scheduled_messages_send_now_result">Sent to %1$d of %2$d chats</string>
     <string name="scheduled_messages_once_deleted">Deleted after sending</string>
-    <string name="feature_open_author_moments_name">Open author\'s Moments</string>
-    <string name="feature_open_author_moments_description">Long-press a Moments post to open its author\'s personal album, including pinned posts.</string>
-    <string name="moments_open_author_menu">View all their Moments</string>
+    <string name="feature_like_all_author_moments_name">Like all their Moments</string>
+    <string name="feature_like_all_author_moments_description">Long-press a Moments post to like every cached Moment by its author, including pinned posts. Posts already liked, deleted, or advertised are skipped.</string>
+    <string name="moments_like_all_author_menu">Like all their Moments</string>
+    <string name="moments_like_all_author_started">Liking all their Moments…</string>
+    <string name="moments_like_all_author_running">Already liking their Moments, please wait</string>
+    <string name="moments_like_all_author_done">Liked %1$d Moments, skipped %2$d, failed %3$d</string>
+    <string name="moments_like_all_author_empty">No cached Moments found for this author</string>
+    <string name="moments_like_all_author_failed">Failed to like their Moments</string>
 </resources>
