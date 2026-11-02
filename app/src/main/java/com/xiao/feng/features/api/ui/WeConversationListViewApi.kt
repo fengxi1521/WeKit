@@ -12,6 +12,7 @@ import android.widget.ListView
 import androidx.core.graphics.drawable.toDrawable
 import androidx.core.view.isGone
 import dev.ujhhgtg.reflekt.reflekt
+import dev.ujhhgtg.reflekt.utils.makeAccessible
 import com.xiao.feng.R
 import com.xiao.feng.dexkit.abc.IResolveDex
 import com.xiao.feng.dexkit.dsl.DexMethodDelegate
@@ -26,11 +27,13 @@ import com.xiao.feng.utils.HookParam
 import com.xiao.feng.utils.WeLogger
 import com.xiao.feng.utils.android.runOnUiThread
 import org.luckypray.dexkit.DexKitBridge
+import java.lang.reflect.Field
 import java.lang.reflect.Modifier
 import java.lang.ref.WeakReference
 import java.util.Collections
 import java.util.IdentityHashMap
 import java.util.WeakHashMap
+import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.CopyOnWriteArrayList
 
 object WeConversationListViewApi : ApiFeature(), IResolveDex {
@@ -549,11 +552,20 @@ object WeConversationListViewApi : ApiFeature(), IResolveDex {
         }
     }
 
+    /**
+     * `ViewHolder.itemView` resolved once per holder class. `reflekt().getField(...)` performs a
+     * full field resolution on every call, which the conversation list does on every row bind.
+     */
+    private val recyclerHolderItemViewCache = ConcurrentHashMap<Class<*>, Field>()
+
     private fun hookRecyclerBinding() {
         methodRecyclerConversationBind.hookAfter {
             val holder = args[0]!!
             val adapter = fieldRecyclerHolderAdapter.field.get(holder)!!
-            val row = holder.reflekt().getField("itemView", true) as View
+            val itemViewField = recyclerHolderItemViewCache.getOrPut(holder.javaClass) {
+                holder.reflekt().firstField { name = "itemView"; superclass() }.self.makeAccessible()
+            }
+            val row = itemViewField.get(holder) as View
             val recyclerView = fieldRecyclerHolderView.field.get(holder) as View?
             updateActiveBinding(adapter, recyclerView, Backend.RECYCLER_VIEW)
             dispatchBinding(this, row, adapter, args[2] as Int, Backend.RECYCLER_VIEW)

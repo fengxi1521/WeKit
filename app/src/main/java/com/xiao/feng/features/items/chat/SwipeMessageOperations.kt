@@ -48,6 +48,7 @@ import com.xiao.feng.ui.utils.ExposurePlus1Icon
 import com.xiao.feng.ui.utils.ReplyIcon
 import com.xiao.feng.ui.utils.UndoIcon
 import com.xiao.feng.ui.utils.dpToPx
+import com.xiao.feng.utils.reflection.cachedField
 import com.xiao.feng.ui.utils.showComposeDialog
 import com.xiao.feng.utils.HookParam
 import com.xiao.feng.utils.android.isDarkMode
@@ -57,6 +58,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import org.luckypray.dexkit.DexKitBridge
+import java.lang.ref.WeakReference
 import java.util.Collections
 import java.util.WeakHashMap
 import kotlin.math.abs
@@ -84,7 +86,9 @@ object SwipeMessageOperations : ClickableFeature(), IResolveDex,
         // A revoke swipe dragged past this second threshold additionally reopens the message for
         // editing; the first threshold only revokes.
         val longTriggerThreshold: Float,
-        var chattingContext: Any? = null,
+        // Weak: the map below is keyed by the row view, and the chatting context strongly reaches
+        // the whole activity. Holding it strongly would keep every swiped chat page alive.
+        var chattingContext: WeakReference<Any>? = null,
         var msgInfo: MessageInfo? = null,
         var startX: Float = 0f,
         var startY: Float = 0f,
@@ -120,8 +124,13 @@ object SwipeMessageOperations : ClickableFeature(), IResolveDex,
     // When true, the secondary swipe action revokes the message instead of repeating / editing.
     private var useRevokeInsteadOfRepeat by prefOption(PREF_USE_REVOKE, false)
 
-    /** Caches the resolved ChatFooter per chatting context so taps stop rebuilding the reflection chain. */
-    private val chatFooterCache = Collections.synchronizedMap(WeakHashMap<Any, ChatFooter>())
+    /**
+     * Caches the resolved ChatFooter per chatting context so taps stop rebuilding the reflection
+     * chain. The footer strongly reaches the activity, which in turn reaches this context, so the
+     * entry is held weakly to avoid pinning the whole chat page.
+     */
+    private val chatFooterCache =
+        Collections.synchronizedMap(WeakHashMap<Any, WeakReference<ChatFooter>>())
 
     private val gesturePrefKeys = setOf(
         PREF_ENABLE_SECONDARY,
@@ -240,7 +249,7 @@ object SwipeMessageOperations : ClickableFeature(), IResolveDex,
                 longTriggerThreshold = threshold * 2,
             )
         }
-        state.chattingContext = chattingContext
+        state.chattingContext = WeakReference(chattingContext)
         state.msgInfo = WeChatMessageViewApi.getMsgInfoFromParam(param)
 
         // Re-install our wrapper every bind, delegating to whatever listener is currently attached
@@ -269,13 +278,10 @@ object SwipeMessageOperations : ClickableFeature(), IResolveDex,
     }
 
     // Reads the View's current OnTouchListener out of its ListenerInfo, so we can chain to WeChat's.
+    // This runs on every message bind while scrolling; both fields are resolved once per class.
     private fun getAttachedTouchListener(view: View): View.OnTouchListener? = runCatching {
-        val info = view.reflekt()
-            .firstFieldOrNull { name = "mListenerInfo"; superclass() }
-            ?.get() ?: return null
-        info.reflekt()
-            .firstFieldOrNull { name = "mOnTouchListener" }
-            ?.get() as? View.OnTouchListener
+        val info = view.cachedField("mListenerInfo").get(view) ?: return null
+        info.cachedField("mOnTouchListener").get(info) as? View.OnTouchListener
     }.getOrNull()
 
     // ── gesture ──────────────────────────────────────────────────────────────
@@ -386,12 +392,12 @@ object SwipeMessageOperations : ClickableFeature(), IResolveDex,
                                     if (fireLong) onSwipeRevokeAndEdit(v, s) else onSwipeRevoke(v, s)
                             }
                         } else {
-                            s.chattingContext?.let { onSwipeQuote(v, it) }
+                            s.chattingContext?.get()?.let { onSwipeQuote(v, it) }
                         }
                     }
                     true
                 } else {
-                    hideChatInput(s.chattingContext!!)
+                    s.chattingContext?.get()?.let(::hideChatInput)
                     false
                 }
             }
@@ -807,15 +813,16 @@ object SwipeMessageOperations : ClickableFeature(), IResolveDex,
      * per tap on the blank area of the message list.
      */
     private fun chatFooter(chattingContext: Any): ChatFooter = synchronized(chatFooterCache) {
-        chatFooterCache.getOrPut(chattingContext) {
-            val apiMan = chattingContext.reflekt()
-                .firstField { type = WeServiceApi.apiManagerClass }
-                .get()!!
-            val api = WeServiceApi.getApiByClass(apiMan, classChattingUiFootComponent.clazz)
-            api.reflekt()
-                .firstField { type = "com.tencent.mm.pluginsdk.ui.chat.ChatFooter" }
-                .get()!! as ChatFooter
-        }
+        chatFooterCache[chattingContext]?.get()?.let { return it }
+        val apiMan = chattingContext.reflekt()
+            .firstField { type = WeServiceApi.apiManagerClass }
+            .get()!!
+        val api = WeServiceApi.getApiByClass(apiMan, classChattingUiFootComponent.clazz)
+        val footer = api.reflekt()
+            .firstField { type = "com.tencent.mm.pluginsdk.ui.chat.ChatFooter" }
+            .get()!! as ChatFooter
+        chatFooterCache[chattingContext] = WeakReference(footer)
+        footer
     }
 
     private fun onSwipeQuote(originalView: View, chattingContext: Any) {

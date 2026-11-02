@@ -358,15 +358,21 @@ object MessageEntranceAnimation : ClickableFeature(), IResolveDex {
             this.stiffness = stiffness
             this.dampingRatio = dampingRatio
         }
+        // SpringAnimation strongly references the target view, so leaving a finished spring in the
+        // WeakHashMap value would keep the view (and its activity) alive for the whole session.
+        val springs = activeSprings.getOrPut(view) { mutableListOf() }
+        springs += spring
         spring.addEndListener { _, _, _, _ ->
             view.setLayerType(View.LAYER_TYPE_NONE, null)
+            springs -= spring
+            if (springs.isEmpty() && activeSprings[view] === springs) activeSprings.remove(view)
         }
-        activeSprings.getOrPut(view) { mutableListOf() }.add(spring)
         spring.start()
     }
 
     private fun cancelSprings(view: View) {
-        activeSprings.remove(view)?.forEach { it.cancel() }
+        // Cancel over a snapshot: the end listener removes its spring from the list above.
+        activeSprings.remove(view)?.toList()?.forEach { it.cancel() }
     }
 
     override fun onClick(context: ComponentActivity) {

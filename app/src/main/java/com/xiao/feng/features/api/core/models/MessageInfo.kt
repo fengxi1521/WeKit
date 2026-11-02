@@ -3,9 +3,9 @@
 package com.xiao.feng.features.api.core.models
 
 import android.content.ContentValues
-import dev.ujhhgtg.reflekt.reflekt
 import com.xiao.feng.features.api.core.WeApi
 import com.xiao.feng.features.api.core.WeMessageApi
+import com.xiao.feng.utils.reflection.cachedField
 import com.xiao.feng.utils.serialization.NativeXmlParser
 import com.xiao.feng.utils.serialization.XmlObject
 import com.xiao.feng.utils.serialization.XmlUtils
@@ -284,9 +284,14 @@ class MessageInfo(val instance: Any) {
     }
 
     companion object {
+        /**
+         * Every bind creates a [MessageInfo] and several features read its fields while the message
+         * list scrolls. `reflekt().getField(...)` rescans the class hierarchy on each call, so the
+         * resolved [java.lang.reflect.Field] is cached per message class instead.
+         */
         @Suppress("UNCHECKED_CAST")
         private inline fun <T> getFieldByName(instance: Any, name: String): T {
-            return instance.reflekt().getField(name, true) as T
+            return instance.cachedField(name).get(instance) as T
         }
 
         /**

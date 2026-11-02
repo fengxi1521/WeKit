@@ -3,6 +3,7 @@ package com.xiao.feng.features.items.chat
 import android.util.SparseBooleanArray
 import android.view.View
 import dev.ujhhgtg.reflekt.reflekt
+import dev.ujhhgtg.reflekt.utils.makeAccessible
 import com.xiao.feng.R
 import com.xiao.feng.features.api.core.WeMessageApi
 import com.xiao.feng.features.api.core.models.MessageInfo
@@ -11,7 +12,10 @@ import com.xiao.feng.features.api.ui.WeChatMessageViewApi
 import com.xiao.feng.features.core.FeatureCategoryIds
 import com.xiao.feng.features.core.SwitchFeature
 import com.xiao.feng.utils.HookParam
+import com.xiao.feng.utils.reflection.cachedField
 import java.lang.reflect.Field
+import java.lang.reflect.Method
+import java.util.concurrent.ConcurrentHashMap
 
 object MergeMessagesIntoGroups : SwitchFeature(), WeChatMessageViewApi.ICreateViewListener {
 
@@ -29,25 +33,27 @@ object MergeMessagesIntoGroups : SwitchFeature(), WeChatMessageViewApi.ICreateVi
         timeVisibilityCache.clear()
     }
 
-    // ── field cache ──────────────────────────────────────────────────────────
+    // ── reflection cache ─────────────────────────────────────────────────────
 
-    private lateinit var avatarField: Field
-    private lateinit var displayNameField: Field
-    private lateinit var timeField: Field
+    /** The holder's adapter field and the adapter's `getItem`, resolved once per class. */
+    private val adapterFieldCache = ConcurrentHashMap<Class<*>, Field>()
+    private val adapterGetItemCache = ConcurrentHashMap<Class<*>, Method>()
 
-    private fun ensureFields(tag: Any) {
-        if (!::avatarField.isInitialized) {
-            avatarField = tag.reflekt()
-                .firstField { name = "avatarIV"; superclass() }.self
+    private fun adapterOf(param: HookParam): Any {
+        val holder = param.thisObject!!
+        val field = adapterFieldCache.getOrPut(holder.javaClass) {
+            holder.reflekt()
+                .firstField { type = WeMessageApi.classChattingDataAdapter.clazz }
+                .self.makeAccessible()
         }
-        if (!::displayNameField.isInitialized) {
-            displayNameField = tag.reflekt()
-                .firstField { name = "userTV"; superclass() }.self
+        return field.get(holder)!!
+    }
+
+    private fun itemAt(adapter: Any, position: Int): Any {
+        val getItem = adapterGetItemCache.getOrPut(adapter.javaClass) {
+            adapter.reflekt().firstMethod { name = "getItem" }.self.makeAccessible()
         }
-        if (!::timeField.isInitialized) {
-            timeField = tag.reflekt()
-                .firstField { name = "timeTV"; superclass() }.self
-        }
+        return getItem.invoke(adapter, position)!!
     }
 
     // ── timeTV visibility cache ──────────────────────────────────────────────
@@ -75,14 +81,10 @@ object MergeMessagesIntoGroups : SwitchFeature(), WeChatMessageViewApi.ICreateVi
         val currentSender = msgInfo.sender
         val position = param.args[2] as Int
 
-        val adapter = param.thisObject!!.reflekt()
-            .firstField { type = WeMessageApi.classChattingDataAdapter.clazz }
-            .get() ?: return
-
-        ensureFields(tag)
+        val adapter = adapterOf(param)
 
         val currentHasVisibleTime =
-            (timeField.get(tag) as? View)?.visibility == View.VISIBLE
+            (tag.cachedField("timeTV").get(tag) as? View)?.visibility == View.VISIBLE
         timeVisibilityCache.put(position, currentHasVisibleTime)
 
         val isFirstInGroup = run {
@@ -97,7 +99,7 @@ object MergeMessagesIntoGroups : SwitchFeature(), WeChatMessageViewApi.ICreateVi
         }
 
         // Avatar: INVISIBLE (not GONE) so the text column stays aligned
-        (avatarField.get(tag) as? View)?.let { avatar ->
+        (tag.cachedField("avatarIV").get(tag) as? View)?.let { avatar ->
             val avatarContainer = avatar.parent as? View ?: avatar
             avatarContainer.visibility =
                 if (isLastInGroup) View.VISIBLE else View.INVISIBLE
@@ -105,7 +107,7 @@ object MergeMessagesIntoGroups : SwitchFeature(), WeChatMessageViewApi.ICreateVi
 
         // Display Name: only shown in group chats
         if (isGroupChat) {
-            (displayNameField.get(tag) as? View)?.visibility =
+            (tag.cachedField("userTV").get(tag) as? View)?.visibility =
                 if (isFirstInGroup) View.VISIBLE else View.GONE
         }
     }
@@ -113,9 +115,6 @@ object MergeMessagesIntoGroups : SwitchFeature(), WeChatMessageViewApi.ICreateVi
     // ── helpers ──────────────────────────────────────────────────────────────
 
     private fun senderAt(adapter: Any, position: Int): String? = runCatching {
-        val raw = adapter.reflekt()
-            .firstMethod { name = "getItem" }
-            .invoke(position) ?: return null
-        MessageInfo(raw).sender
+        MessageInfo(itemAt(adapter, position)).sender
     }.getOrNull()
 }

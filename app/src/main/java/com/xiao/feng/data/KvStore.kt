@@ -35,6 +35,52 @@ object KvStore {
     private var migrationFailure: Exception? = null
 
     /**
+     * Synchronous reads sit on host hot paths (message-row binds, conversation-row binds and every
+     * touch event of the home list), where a fresh SQLite query per read visibly stutters scrolling.
+     * Values are therefore kept in memory and invalidated by every write in this process. A short
+     * TTL additionally bounds staleness for the few preferences another WeChat process may write.
+     */
+    private const val CACHE_TTL_NANOS = 1_000_000_000L
+
+    /** Cleared when the cache grows past this size so one-off per-conversation keys cannot pile up. */
+    private const val MAX_CACHE_ENTRIES = 2048
+
+    private class EntryCacheValue(val entity: PreferenceEntryEntity?, val storedAtNanos: Long)
+    private class SetCacheValue(val members: Set<String>?, val storedAtNanos: Long)
+
+    private val cacheLock = Any()
+    private val entryCache = HashMap<String, EntryCacheValue>()
+    private val setCache = HashMap<String, SetCacheValue>()
+
+    private fun invalidate(key: String) {
+        synchronized(cacheLock) {
+            entryCache.remove(key)
+            setCache.remove(key)
+        }
+    }
+
+    private fun invalidateAll() {
+        synchronized(cacheLock) {
+            entryCache.clear()
+            setCache.clear()
+        }
+    }
+
+    private fun writeBack(key: String, value: EntryCacheValue) {
+        synchronized(cacheLock) {
+            if (entryCache.size > MAX_CACHE_ENTRIES) entryCache.clear()
+            entryCache[key] = value
+        }
+    }
+
+    private fun writeBackSet(key: String, value: SetCacheValue) {
+        synchronized(cacheLock) {
+            if (setCache.size > MAX_CACHE_ENTRIES) setCache.clear()
+            setCache[key] = value
+        }
+    }
+
+    /**
      * Defers database opening and the legacy MMKV migration to the first preference access.
      * Feature classes initialize their `prefOption` delegates at class-init time and must stay
      * initializable on the desktop test JVM, where no host environment exists.
@@ -56,6 +102,9 @@ object KvStore {
                 migrationFailure = error
                 WeLogger.e(TAG, "failed to migrate legacy preferences; sources retained", error)
             }
+            // Migration writes run before the transaction commits; drop anything a concurrent read
+            // may have cached from that transaction.
+            invalidateAll()
         }
     }
 
@@ -158,6 +207,7 @@ object KvStore {
 
     fun putString(key: String, value: String) {
         write(key, TYPE_STRING, text = value)
+        invalidate(key)
     }
 
     fun putStringSet(key: String, values: Set<String>) {
@@ -172,17 +222,33 @@ object KvStore {
                 )
             }
         }
+        invalidate(key)
     }
 
-    fun putInt(key: String, value: Int) = write(key, TYPE_INT, long = value.toLong())
+    fun putInt(key: String, value: Int) {
+        write(key, TYPE_INT, long = value.toLong())
+        invalidate(key)
+    }
 
-    fun putLong(key: String, value: Long) = write(key, TYPE_LONG, long = value)
+    fun putLong(key: String, value: Long) {
+        write(key, TYPE_LONG, long = value)
+        invalidate(key)
+    }
 
-    fun putFloat(key: String, value: Float) = write(key, TYPE_FLOAT, double = value.toDouble())
+    fun putFloat(key: String, value: Float) {
+        write(key, TYPE_FLOAT, double = value.toDouble())
+        invalidate(key)
+    }
 
-    fun putBool(key: String, value: Boolean) = write(key, TYPE_BOOL, long = if (value) 1L else 0L)
+    fun putBool(key: String, value: Boolean) {
+        write(key, TYPE_BOOL, long = if (value) 1L else 0L)
+        invalidate(key)
+    }
 
-    fun putBytes(key: String, value: ByteArray) = write(key, TYPE_BYTES, blob = value)
+    fun putBytes(key: String, value: ByteArray) {
+        write(key, TYPE_BYTES, blob = value)
+        invalidate(key)
+    }
 
     fun putObject(key: String, obj: Any) {
         when (obj) {
@@ -203,6 +269,7 @@ object KvStore {
             sql.execSQL("DELETE FROM preference_entries WHERE namespace = ? AND `key` = ?", arrayOf(NAMESPACE, key))
             sql.execSQL("DELETE FROM preference_set_members WHERE namespace = ? AND `key` = ?", arrayOf(NAMESPACE, key))
         }
+        invalidate(key)
     }
 
     fun clear() {
@@ -211,6 +278,7 @@ object KvStore {
             sql.execSQL("DELETE FROM preference_entries WHERE namespace = ?", arrayOf(NAMESPACE))
             sql.execSQL("DELETE FROM preference_set_members WHERE namespace = ?", arrayOf(NAMESPACE))
         }
+        invalidateAll()
     }
 
     // ── Delegate properties ───────────────────────────────────────────────────
@@ -330,6 +398,12 @@ object KvStore {
 
     private fun getStringSet(key: String, defValues: Set<String>?): Set<String>? {
         ensureMigrated()
+        val now = System.nanoTime()
+        synchronized(cacheLock) {
+            setCache[key]?.let {
+                if (now - it.storedAtNanos <= CACHE_TTL_NANOS) return it.members ?: defValues
+            }
+        }
         // Read the type marker and normalized members in one statement.  Separate queries can
         // straddle another process's atomic replacement and return a mixed generation.
         var valueType: String? = null
@@ -346,23 +420,37 @@ object KvStore {
                 if (!cursor.isNull(1)) members += cursor.getString(1)
             }
         }
-        if (valueType != TYPE_STRING_SET) return defValues
-        return members
+        // Cached sets are shared between callers, so expose an immutable copy.
+        val value = if (valueType == TYPE_STRING_SET) {
+            java.util.Collections.unmodifiableSet(members)
+        } else {
+            null
+        }
+        writeBackSet(key, SetCacheValue(value, now))
+        return value ?: defValues
     }
 
     private fun read(key: String): PreferenceEntryEntity? {
         ensureMigrated()
-        sql.query(
+        val now = System.nanoTime()
+        synchronized(cacheLock) {
+            entryCache[key]?.let {
+                if (now - it.storedAtNanos <= CACHE_TTL_NANOS) return it.entity
+            }
+        }
+        val entity = sql.query(
             "SELECT namespace, `key`, valueType, valueText, valueLong, valueDouble, valueBlob, encodingVersion, revision, updatedAt, exportable FROM preference_entries WHERE namespace = ? AND `key` = ?",
             arrayOf(NAMESPACE, key),
         ).use { cursor ->
-            if (!cursor.moveToFirst()) return null
-            return PreferenceEntryEntity(
+            if (!cursor.moveToFirst()) return@use null
+            PreferenceEntryEntity(
                 namespace = cursor.getString(0), key = cursor.getString(1), valueType = cursor.getString(2),
                 valueText = cursor.getStringOrNull(3), valueLong = cursor.getLongOrNull(4), valueDouble = cursor.getDoubleOrNull(5),
                 valueBlob = cursor.getBlobOrNull(6), encodingVersion = cursor.getInt(7), revision = cursor.getLong(8), updatedAt = cursor.getLong(9), exportable = cursor.getInt(10) != 0,
             )
         }
+        writeBack(key, EntryCacheValue(entity, now))
+        return entity
     }
 
     private fun write(key: String, type: String, text: String? = null, long: Long? = null, double: Double? = null, blob: ByteArray? = null) {
