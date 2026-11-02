@@ -870,8 +870,8 @@ private class MessageBodyFormatter(
     private val selfLabel = context.localizedChatString(R.string.chat_history_export_self)
     private val memberLabel = context.localizedChatString(R.string.chat_history_export_group_member)
     private val otherLabel = context.localizedChatString(R.string.chat_history_export_other_message)
-    private val quoteWithAuthor = context.localizedChatString(R.string.chat_history_export_quote_line)
-    private val quoteAnonymous = context.localizedChatString(R.string.chat_history_export_quote_line_anonymous)
+    private val quoteWithAuthor = context.localizedChatText(R.string.chat_history_export_quote_line)
+    private val quoteAnonymous = context.localizedChatText(R.string.chat_history_export_quote_line_anonymous)
 
     /** Non-text message types repeat the same handful of labels; resolve each one once. */
     private val typeLabels = HashMap<Int, String>()

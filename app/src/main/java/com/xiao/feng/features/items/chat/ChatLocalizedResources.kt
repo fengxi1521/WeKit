@@ -14,6 +14,17 @@ fun localizedChatString(@StringRes id: Int, vararg formatArgs: Any): String =
 fun Context.localizedChatString(@StringRes id: Int, vararg formatArgs: Any): String =
     chatLocalizedContext().getString(id, *formatArgs)
 
+/**
+ * Raw string template without format-argument substitution.
+ *
+ * [Context.getString] with no arguments still runs the formatter, so templates that contain
+ * `%1$s`-style specifiers throw when they are resolved before their arguments are known.
+ */
+fun localizedChatText(@StringRes id: Int): String = HostInfo.application.localizedChatText(id)
+
+fun Context.localizedChatText(@StringRes id: Int): String =
+    chatLocalizedContext().resources.getText(id).toString()
+
 fun localizedChatQuantity(
     @PluralsRes id: Int,
     quantity: Int,
