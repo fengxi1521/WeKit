@@ -11,7 +11,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
-import dev.ujhhgtg.reflekt.reflekt
 import com.xiao.feng.R
 import com.xiao.feng.features.api.ui.WeChatMessageViewApi
 import com.xiao.feng.features.core.ClickableFeature
@@ -23,6 +22,7 @@ import com.xiao.feng.ui.content.m3.SegmentedColumn
 import com.xiao.feng.ui.content.m3.SwitchWidget
 import com.xiao.feng.ui.utils.showComposeDialog
 import com.xiao.feng.utils.HookParam
+import com.xiao.feng.utils.reflection.cachedField
 
 object HideMessagesAvatars : ClickableFeature(), WeChatMessageViewApi.ICreateViewListener {
 
@@ -58,11 +58,7 @@ object HideMessagesAvatars : ClickableFeature(), WeChatMessageViewApi.ICreateVie
             !msgInfo.isInGroupChat && hideIncoming
         }
 
-        val avatar = tag.reflekt()
-            .firstField {
-                name = "avatarIV"
-                superclass()
-            }.get() as? View? ?: return
+        val avatar = tag.cachedField("avatarIV").get(tag) as? View? ?: return
 
         val parent = avatar.parent as? ViewGroup ?: return
 

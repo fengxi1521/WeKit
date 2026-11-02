@@ -23,6 +23,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import dev.ujhhgtg.reflekt.reflekt
+import dev.ujhhgtg.reflekt.utils.makeAccessible
 import com.xiao.feng.R
 import com.xiao.feng.dexkit.abc.IResolveDex
 import com.xiao.feng.dexkit.dsl.DexClassDelegate
@@ -43,6 +44,9 @@ import com.xiao.feng.utils.WeLogger
 import com.xiao.feng.utils.android.runOnUiThread
 import com.xiao.feng.utils.android.showToast
 import java.lang.ref.WeakReference
+import java.lang.reflect.Field
+import java.lang.reflect.Method
+import java.util.concurrent.ConcurrentHashMap
 import kotlin.math.abs
 
 object SwipeConversationOperations : ClickableFeature(), IResolveDex {
@@ -294,6 +298,13 @@ object SwipeConversationOperations : ClickableFeature(), IResolveDex {
 
     // ── row binding: attach the swipe listener + keep talker / conversation fresh ─
 
+    /** The adapter's `getItem(int)`: resolved once per adapter class instead of once per row bind. */
+    private val adapterGetItemCache = ConcurrentHashMap<Class<*>, Method>()
+
+    /** The conversation's `field_username`: resolved once per conversation class. */
+    private val conversationUsernameFieldCache = ConcurrentHashMap<Class<*>, Any>()
+    private val NO_USERNAME_FIELD = Any()
+
     private fun hookAdapter(adapter: DexClassDelegate) {
         if (adapter.isPlaceholder) return
         adapter.reflekt().firstMethod { name = "getView"; parameterCount = 3 }
@@ -302,17 +313,27 @@ object SwipeConversationOperations : ClickableFeature(), IResolveDex {
                 val position = args[0] as? Int ?: return@hookAfter
 
                 // getItem(position) -> com.tencent.mm.storage.m3(rconversation model).
-                val conversation = runCatching {
-                    thisObject!!.reflekt()
+                val adapterObject = thisObject!!
+                val getItem = adapterGetItemCache.getOrPut(adapterObject.javaClass) {
+                    adapterObject.reflekt()
                         .firstMethod { name = "getItem"; parameterCount = 1 }
-                        .invoke(position)
-                }.getOrNull() ?: return@hookAfter
+                        .self.makeAccessible()
+                }
+                val conversation = runCatching { getItem.invoke(adapterObject, position) }
+                    .getOrNull() ?: return@hookAfter
 
-                val talker = runCatching {
-                    conversation.reflekt()
-                        .firstFieldOrNull { name = "field_username"; superclass() }
-                        ?.get() as? String
-                }.getOrNull()
+                val usernameField = conversationUsernameFieldCache.getOrPut(conversation.javaClass) {
+                    runCatching {
+                        conversation.reflekt()
+                            .firstField { name = "field_username"; superclass() }
+                            .self.makeAccessible()
+                    }.getOrNull() ?: NO_USERNAME_FIELD
+                }
+                val talker = if (usernameField === NO_USERNAME_FIELD) {
+                    null
+                } else {
+                    runCatching { (usernameField as Field).get(conversation) as? String }.getOrNull()
+                }
 
                 if (talker == FOLD_CONVERSATION_TALKER) {
                     disableSwipeForFoldConversation(view)

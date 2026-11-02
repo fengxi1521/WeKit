@@ -16,7 +16,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.res.stringResource
 import com.xiao.feng.R
-import dev.ujhhgtg.reflekt.reflekt
 import com.xiao.feng.features.api.ui.WeChatMessageViewApi
 import com.xiao.feng.features.core.ClickableFeature
 import com.xiao.feng.features.core.FeatureCategoryIds
@@ -28,6 +27,7 @@ import com.xiao.feng.ui.content.TextButton
 import com.xiao.feng.ui.utils.showComposeDialog
 import com.xiao.feng.utils.HookParam
 import com.xiao.feng.utils.android.showToast
+import com.xiao.feng.utils.reflection.cachedField
 
 object LimitGroupMemberNicknameLength : ClickableFeature(), WeChatMessageViewApi.ICreateViewListener {
 
@@ -86,9 +86,7 @@ object LimitGroupMemberNicknameLength : ClickableFeature(), WeChatMessageViewApi
         if (!msgInfo.isInGroupChat) return
         if (msgInfo.isSend != 0) return
 
-        val textView = view.tag.reflekt()
-            .firstField { name = "userTV"; superclass() }
-            .get() as? TextView? ?: return
+        val textView = view.tag.cachedField("userTV").get(view.tag) as? TextView? ?: return
 
         val currentText = textView.text ?: return
         val maxLen = maxNicknameLength
