@@ -226,6 +226,9 @@
     <string name="features_new_summary">最近 %1$d 天新增 %2$d 个功能</string>
     <string name="home_module_activated">模块已激活</string>
     <string name="home_brand_tagline">微信增强模块</string>
+    <string name="home_stat_enabled">已启用</string>
+    <string name="home_stat_new">新功能</string>
+    <string name="home_stat_categories">分类</string>
     <string name="home_device_info_title">设备信息</string>
     <string name="home_learn_more_title">了解更多</string>
     <string name="home_learn_more_item_title">XiaoFeng 文档</string>

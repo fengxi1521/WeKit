@@ -85,6 +85,9 @@ import com.xiao.feng.ui.content.FloatingBottomBarDefaults
 import com.xiao.feng.ui.content.m3.BaseWidget
 import com.xiao.feng.ui.content.m3.ExpressiveCollapsingTopAppBar
 import com.xiao.feng.ui.content.m3.SwitchWidget
+import com.xiao.feng.ui.content.m3.XfDockItem
+import com.xiao.feng.ui.content.m3.XiaoFengDock
+import com.xiao.feng.ui.content.m3.xfPageBackground
 import com.xiao.feng.ui.content.m3AppBarBlur
 import com.xiao.feng.ui.content.m3AppBarColor
 import com.xiao.feng.ui.content.rememberMaterial3BlurBackdrop
@@ -162,6 +165,10 @@ val FEATURE_CATEGORIES = listOf(
     FeatureCategory(FeatureCategoryIds.HOME_SCREEN_MENU, R.string.feature_category_home_screen_menu_title, MaterialSymbols.Outlined.Add_circle),
     FeatureCategory(FeatureCategoryIds.CONTACT_DETAILS, R.string.feature_category_contact_details_title, MaterialSymbols.Outlined.Contact_page),
 )
+
+// Category icons are looked up for every feature row; build the map once instead of scanning
+// FEATURE_CATEGORIES per composition.
+val FEATURE_ICON_BY_CATEGORY = FEATURE_CATEGORIES.associate { it.id to it.icon }
 
 /**
  * Pseudo-category shown above the real ones. Deliberately kept out of [FEATURE_CATEGORIES] —
@@ -249,69 +256,33 @@ private fun MainPagerScreen(
     onOpenLicense: () -> Unit,
 ) {
     val scope = rememberCoroutineScope()
-    val backdrop = rememberLayerBackdrop()
     val barBottomPadding = 12.dp + WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
+    val dockItems = TAB_ITEMS.map {
+        XfDockItem(label = stringResource(it.labelRes), icon = it.outlined)
+    }
 
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background),
-    ) {
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .layerBackdrop(backdrop),
-        ) {
-            HorizontalPager(
-                state = pagerState,
-                modifier = Modifier.fillMaxSize(),
-                key = { it },
-            ) { page ->
-                when (page) {
-                    0 -> HomePager()
-                    1 -> FeaturesPager(onOpenCategory = onOpenCategory)
-                    2 -> LogsPager()
-                    else -> SettingsPager(onOpenLicense = onOpenLicense)
-                }
+    Box(modifier = Modifier.fillMaxSize()) {
+        HorizontalPager(
+            state = pagerState,
+            modifier = Modifier.fillMaxSize(),
+            key = { it },
+        ) { page ->
+            when (page) {
+                0 -> HomePager()
+                1 -> FeaturesPager(onOpenCategory = onOpenCategory)
+                2 -> LogsPager()
+                else -> SettingsPager(onOpenLicense = onOpenLicense)
             }
         }
 
-        FloatingBottomBar(
-            items = TAB_ITEMS,
+        XiaoFengDock(
+            items = dockItems,
+            selectedIndex = pagerState.targetPage,
+            onSelected = { scope.launch { pagerState.animateScrollToPage(it) } },
             modifier = Modifier
                 .align(Alignment.BottomCenter)
+                .padding(horizontal = 16.dp, vertical = 0.dp)
                 .padding(bottom = barBottomPadding),
-            selectedIndex = { pagerState.targetPage },
-            onSelected = { scope.launch { pagerState.animateScrollToPage(it) } },
-            backdrop = backdrop,
-            colors = FloatingBottomBarDefaults.colors(
-                containerColor = MaterialTheme.colorScheme.surfaceContainer,
-                indicatorColor = MaterialTheme.colorScheme.primary,
-                contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                activeContentColor = MaterialTheme.colorScheme.primary,
-            ),
-            iconContent = { item, index, _ ->
-                Crossfade(
-                    targetState = index == pagerState.targetPage,
-                    animationSpec = tween(200),
-                    label = "navIcon",
-                ) { selected ->
-                    Icon(
-                        imageVector = if (selected) item.filled else item.outlined,
-                        contentDescription = stringResource(item.labelRes),
-                    )
-                }
-            },
-            labelContent = { item, _ ->
-                Text(
-                    text = stringResource(item.labelRes),
-                    fontSize = 11.sp,
-                    lineHeight = 14.sp,
-                    maxLines = 1,
-                    softWrap = false,
-                    overflow = TextOverflow.Visible
-                )
-            },
         )
     }
 }
@@ -343,7 +314,6 @@ fun M3ListScaffold(
     content: LazyListScope.() -> Unit,
 ) {
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior(rememberTopAppBarState())
-    val barBackdrop = rememberMaterial3BlurBackdrop()
     Scaffold(
         modifier = Modifier
             .fillMaxSize()
@@ -351,13 +321,12 @@ fun M3ListScaffold(
         containerColor = MaterialTheme.colorScheme.surfaceContainer,
         topBar = {
             ExpressiveCollapsingTopAppBar(
-                modifier = Modifier.m3AppBarBlur(barBackdrop),
                 title = title,
                 navigationIcon = { navigationIcon?.invoke() },
                 scrollBehavior = scrollBehavior,
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = barBackdrop.m3AppBarColor(),
-                    scrolledContainerColor = barBackdrop.m3AppBarColor(),
+                    containerColor = MaterialTheme.colorScheme.surfaceContainer,
+                    scrolledContainerColor = MaterialTheme.colorScheme.surfaceContainer,
                 ),
             )
         },
@@ -365,7 +334,7 @@ fun M3ListScaffold(
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
-                .then(barBackdrop?.let { Modifier.layerBackdrop(it) } ?: Modifier),
+                .xfPageBackground(),
             contentPadding = innerPadding,
             content = content,
         )
@@ -387,6 +356,7 @@ fun FeatureRow(
     val configKey = item.technicalId
     val localizedName = item.localizedName(localizedContext)
     val localizedDescription = item.localizedDescription(localizedContext)
+    val icon = item.categoryIds.firstNotNullOfOrNull { FEATURE_ICON_BY_CATEGORY[it] }
 
     fun toggle(requested: Boolean) {
         item as SwitchFeature
@@ -408,7 +378,7 @@ fun FeatureRow(
             if (item.noSwitchWidget) {
                 // Pure action row: the whole row triggers the feature's action.
                 BaseWidget(
-                    iconPlaceholder = false,
+                    icon = icon,
                     title = localizedName,
                     description = localizedDescription,
                     onClick = openConfig,
@@ -424,7 +394,7 @@ fun FeatureRow(
                 // Dual click areas: the main area opens the feature's config, the
                 // switch past the divider toggles it (WeAgent "Memory" row pattern).
                 SwitchWidget(
-                    iconPlaceholder = false,
+                    icon = icon,
                     title = localizedName,
                     description = localizedDescription,
                     onClick = openConfig,
@@ -436,7 +406,7 @@ fun FeatureRow(
         }
 
         is SwitchFeature -> SwitchWidget(
-            iconPlaceholder = false,
+            icon = icon,
             title = localizedName,
             description = localizedDescription,
             checked = checked,

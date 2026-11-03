@@ -15,7 +15,7 @@ import top.yukonga.miuix.kmp.blur.textureBlur
 import top.yukonga.miuix.kmp.shader.isRenderEffectSupported
 
 @Composable
-fun rememberMaterial3BlurBackdrop(enabled: Boolean = true): LayerBackdrop? {
+fun rememberMaterial3BlurBackdrop(enabled: Boolean = false): LayerBackdrop? {
     if (!enabled || !isRenderEffectSupported()) return null
     val surfaceColor = MaterialTheme.colorScheme.surfaceContainer
     return rememberLayerBackdrop {

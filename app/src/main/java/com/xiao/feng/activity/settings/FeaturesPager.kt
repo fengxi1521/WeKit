@@ -1,17 +1,21 @@
 package com.xiao.feng.activity.settings
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -38,7 +42,9 @@ import com.xiao.feng.i18n.LocalXiaoFengLocalizedContext
 import com.xiao.feng.i18n.XiaoFengLocaleController
 import com.xiao.feng.ui.content.m3.BaseWidget
 import com.xiao.feng.ui.content.m3.ExpressiveBackButton
+import com.xiao.feng.ui.content.m3.SectionLabel
 import com.xiao.feng.ui.content.m3.SegmentedColumn
+import com.xiao.feng.ui.content.m3.XfStatTile
 import com.xiao.feng.ui.content.m3.lazySegmentedItems
 import java.text.Collator
 import java.util.Locale
@@ -95,6 +101,11 @@ fun FeaturesPager(onOpenCategory: (String) -> Unit) {
                     .fillMaxWidth(),
                 label = { Text(stringResource(R.string.features_search_hint)) },
                 singleLine = true,
+                shape = RoundedCornerShape(24.dp),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedContainerColor = MaterialTheme.colorScheme.surfaceBright,
+                    unfocusedContainerColor = MaterialTheme.colorScheme.surfaceBright,
+                ),
                 leadingIcon = {
                     Icon(
                         imageVector = MaterialSymbols.Outlined.Search,
@@ -145,68 +156,52 @@ fun FeaturesPager(onOpenCategory: (String) -> Unit) {
                 }
             }
         } else {
+            item { Spacer(Modifier.height(12.dp)) }
             item {
-                SegmentedColumn(
-                    modifier = Modifier.padding(top = 12.dp),
-                    contentPadding = PaddingValues(horizontal = 16.dp),
+                // Spotlight counters double as shortcuts into the pseudo-categories.
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
                 ) {
-                    item(key = NEW_FEATURES_CATEGORY) {
-                        BaseWidget(
-                            icon = MaterialSymbols.Outlined.Fiber_new,
-                            title = stringResource(featureCategoryTitleRes(NEW_FEATURES_CATEGORY)),
-                            description = stringResource(
-                                R.string.features_new_summary,
-                                NewFeatures.WINDOW_DAYS,
-                                FeatureCategoryState.newItems.size,
-                            ),
-                            onClick = { onOpenCategory(NEW_FEATURES_CATEGORY) },
-                            trailingContent = {
-                                Icon(
-                                    imageVector = MaterialSymbols.Outlined.Chevron_right,
-                                    contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                )
-                            },
-                        )
-                    }
-                    item(key = ENABLED_FEATURES_CATEGORY) {
-                        val enabledCount = FeatureCategoryState.enabledItems().size
-                        BaseWidget(
-                            icon = MaterialSymbols.Outlined.Check_circle,
-                            title = stringResource(featureCategoryTitleRes(ENABLED_FEATURES_CATEGORY)),
-                            description = stringResource(R.string.feature_category_enabled_summary, enabledCount),
-                            onClick = { onOpenCategory(ENABLED_FEATURES_CATEGORY) },
-                            trailingContent = {
-                                Icon(
-                                    imageVector = MaterialSymbols.Outlined.Chevron_right,
-                                    contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                )
-                            },
-                        )
-                    }
+                    XfStatTile(
+                        value = FeatureCategoryState.newItems.size.toString(),
+                        label = stringResource(featureCategoryTitleRes(NEW_FEATURES_CATEGORY)),
+                        icon = MaterialSymbols.Outlined.Fiber_new,
+                        onClick = { onOpenCategory(NEW_FEATURES_CATEGORY) },
+                        modifier = Modifier.weight(1f),
+                    )
+                    XfStatTile(
+                        value = FeatureCategoryState.enabledItems().size.toString(),
+                        label = stringResource(featureCategoryTitleRes(ENABLED_FEATURES_CATEGORY)),
+                        icon = MaterialSymbols.Outlined.Check_circle,
+                        onClick = { onOpenCategory(ENABLED_FEATURES_CATEGORY) },
+                        modifier = Modifier.weight(1f),
+                    )
                 }
             }
 
-            item { Spacer(Modifier.height(8.dp)) }
             item {
-                SegmentedColumn(contentPadding = PaddingValues(horizontal = 16.dp)) {
-                    FEATURE_CATEGORIES.forEach { category ->
-                        item(key = category.id) {
-                            BaseWidget(
-                                icon = category.icon,
-                                title = stringResource(category.titleRes),
-                                onClick = { onOpenCategory(category.id) },
-                                trailingContent = {
-                                    Icon(
-                                        imageVector = MaterialSymbols.Outlined.Chevron_right,
-                                        contentDescription = null,
-                                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    )
-                                },
+                SectionLabel(
+                    text = stringResource(R.string.home_stat_categories),
+                    modifier = Modifier.padding(horizontal = 16.dp, top = 8.dp),
+                )
+            }
+            lazySegmentedItems(FEATURE_CATEGORIES, key = { it.id }) { category ->
+                Column(Modifier.padding(horizontal = 16.dp)) {
+                    BaseWidget(
+                        icon = category.icon,
+                        title = stringResource(category.titleRes),
+                        onClick = { onOpenCategory(category.id) },
+                        trailingContent = {
+                            Icon(
+                                imageVector = MaterialSymbols.Outlined.Chevron_right,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
-                        }
-                    }
+                        },
+                    )
                 }
             }
         }

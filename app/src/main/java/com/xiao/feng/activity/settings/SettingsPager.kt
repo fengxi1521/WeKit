@@ -53,6 +53,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.nestedscroll.nestedScroll
@@ -428,13 +429,26 @@ private fun ProfileCard() {
     }
 
     SegmentedColumn {
-        item {
-            BaseItemContainer {
-                Row(
+        item { shape ->
+            val scheme = MaterialTheme.colorScheme
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(shape)
+                    .background(
+                        Brush.linearGradient(
+                            listOf(scheme.secondaryContainer, scheme.tertiaryContainer),
+                        ),
+                    )
+                    .padding(horizontal = 16.dp, vertical = 16.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Box(
                     modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 14.dp),
-                    verticalAlignment = Alignment.CenterVertically,
+                        .size(62.dp)
+                        .clip(CircleShape)
+                        .background(scheme.onSecondaryContainer.copy(alpha = 0.12f)),
+                    contentAlignment = Alignment.Center,
                 ) {
                     if (identity.avatarUrl.isNotEmpty()) {
                         AsyncImage(
@@ -448,28 +462,28 @@ private fun ProfileCard() {
                     } else {
                         AvatarPlaceholder()
                     }
+                }
 
-                    Spacer(Modifier.width(14.dp))
+                Spacer(Modifier.width(14.dp))
 
-                    Column(modifier = Modifier.weight(1f)) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = identity.nickname.ifEmpty { wxId.ifEmpty { "—" } },
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 18.sp,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        color = scheme.onSecondaryContainer,
+                    )
+                    if (wxId.isNotEmpty()) {
                         Text(
-                            text = identity.nickname.ifEmpty { wxId.ifEmpty { "—" } },
-                            fontWeight = FontWeight.SemiBold,
-                            fontSize = 16.sp,
+                            text = wxId,
+                            fontSize = 13.sp,
+                            color = scheme.onSecondaryContainer.copy(alpha = 0.72f),
+                            modifier = Modifier.padding(top = 2.dp),
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
-                            color = MaterialTheme.colorScheme.onSurface,
                         )
-                        if (wxId.isNotEmpty()) {
-                            Text(
-                                text = wxId,
-                                fontSize = 13.sp,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.padding(top = 2.dp),
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                            )
-                        }
                     }
                 }
             }

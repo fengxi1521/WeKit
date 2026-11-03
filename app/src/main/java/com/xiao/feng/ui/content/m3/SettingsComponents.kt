@@ -93,7 +93,7 @@ fun SettingsScaffold(
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
-                .m3BackdropLayer(barBackdrop),
+                .xfPageBackground(),
             contentPadding = innerPadding,
             content = content,
         )
