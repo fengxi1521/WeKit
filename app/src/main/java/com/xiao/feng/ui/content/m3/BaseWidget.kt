@@ -119,23 +119,15 @@ fun BaseWidget(
     val baseShape = LocalSegmentedItemShape.current
 
     val backgroundColor = if (selected) {
-        MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.92f)
+        MaterialTheme.colorScheme.primary.copy(alpha = 0.16f)
     } else {
-        MaterialTheme.colorScheme.surfaceContainerLowest.copy(alpha = 0.62f)
+        MaterialTheme.colorScheme.surface.copy(alpha = 0.64f)
     }
 
-    val baseContentColor = if (selected) {
-        MaterialTheme.colorScheme.contentColorFor(MaterialTheme.colorScheme.primaryContainer)
-    } else {
-        MaterialTheme.colorScheme.onSurface
-    }
+    val baseContentColor = MaterialTheme.colorScheme.onSurface
 
     val resolvedIconColor = iconColor
-        ?: if (selected) {
-            baseContentColor
-        } else {
-            MaterialTheme.colorScheme.onSurfaceVariant
-        }
+        ?: MaterialTheme.colorScheme.primary
 
     val finalDescriptionColor = when {
         isError -> MaterialTheme.colorScheme.error
@@ -190,34 +182,24 @@ fun BaseWidget(
                     contentAlignment = Alignment.Center
                 ) {
                     if (icon != null) {
-                        // Framed glyph: a hairline square instead of a filled gradient chip, so the
-                        // row reads as part of a flat sheet rather than a stack of tiles.
+                        // Round violet badge so settings rows match the capsule language.
                         Box(
                             modifier = Modifier
                                 .size(36.dp)
-                                .clip(RoundedCornerShape(10.dp))
+                                .clip(RoundedCornerShape(50))
                                 .background(
                                     if (selected) {
                                         MaterialTheme.colorScheme.primary
                                     } else {
-                                        MaterialTheme.colorScheme.primary.copy(alpha = 0.09f)
+                                        MaterialTheme.colorScheme.primary.copy(alpha = 0.13f)
                                     },
-                                )
-                                .border(
-                                    width = 1.dp,
-                                    color = if (selected) {
-                                        MaterialTheme.colorScheme.primary
-                                    } else {
-                                        MaterialTheme.colorScheme.primary.copy(alpha = 0.26f)
-                                    },
-                                    shape = RoundedCornerShape(10.dp),
                                 ),
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
                                 imageVector = icon,
                                 contentDescription = null,
-                                modifier = Modifier.size(20.dp),
+                                modifier = Modifier.size(19.dp),
                                 tint = iconColor
                                     ?: if (selected) {
                                         MaterialTheme.colorScheme.onPrimary

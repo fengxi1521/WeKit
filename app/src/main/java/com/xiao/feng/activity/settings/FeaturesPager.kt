@@ -26,6 +26,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -189,7 +190,7 @@ fun FeaturesPager(onOpenCategory: (String) -> Unit) {
     }
 }
 
-/** Outlined shortcut chip with a count bubble; replaces the two identical spotlight tiles. */
+/** Frosted capsule shortcut with a gradient count bubble. */
 @Composable
 private fun QuickChip(
     label: String,
@@ -199,21 +200,31 @@ private fun QuickChip(
     modifier: Modifier = Modifier,
 ) {
     val scheme = MaterialTheme.colorScheme
+    val shape = RoundedCornerShape(50)
     Row(
         modifier = modifier
-            .clip(RoundedCornerShape(14.dp))
-            .background(scheme.surfaceContainerLowest.copy(alpha = 0.66f))
-            .border(1.dp, scheme.outline.copy(alpha = 0.2f), RoundedCornerShape(14.dp))
+            .clip(shape)
+            .background(scheme.surface.copy(alpha = 0.68f))
+            .border(1.dp, scheme.primary.copy(alpha = 0.16f), shape)
             .clickable(onClick = onClick)
-            .padding(horizontal = 12.dp, vertical = 10.dp),
+            .padding(horizontal = 8.dp, vertical = 8.dp)
+            .padding(start = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Icon(
-            imageVector = icon,
-            contentDescription = null,
-            tint = scheme.primary,
-            modifier = Modifier.size(18.dp),
-        )
+        Box(
+            Modifier
+                .size(30.dp)
+                .clip(RoundedCornerShape(50))
+                .background(scheme.primary.copy(alpha = 0.13f)),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                tint = scheme.primary,
+                modifier = Modifier.size(17.dp),
+            )
+        }
         Spacer(Modifier.width(8.dp))
         Text(
             text = label,
@@ -224,20 +235,28 @@ private fun QuickChip(
             modifier = Modifier.weight(1f),
         )
         Spacer(Modifier.width(6.dp))
-        Text(
-            text = count.toString(),
-            style = MaterialTheme.typography.labelMedium,
-            fontWeight = FontWeight.Bold,
-            color = scheme.onPrimary,
-            modifier = Modifier
-                .clip(RoundedCornerShape(8.dp))
-                .background(scheme.primary)
-                .padding(horizontal = 7.dp, vertical = 2.dp),
-        )
+        Box(
+            Modifier
+                .clip(RoundedCornerShape(50))
+                .background(
+                    androidx.compose.ui.graphics.Brush.horizontalGradient(
+                        listOf(scheme.primary, scheme.tertiary),
+                    ),
+                )
+                .padding(horizontal = 8.dp, vertical = 3.dp),
+            contentAlignment = Alignment.Center,
+        ) {
+            Text(
+                text = count.toString(),
+                style = MaterialTheme.typography.labelMedium,
+                fontWeight = FontWeight.Bold,
+                color = scheme.onPrimary,
+            )
+        }
     }
 }
 
-/** Two-column category cell: framed icon, name, feature count and a small chevron. */
+/** Two-column glass category cell: round icon badge, name, count capsule. */
 @Composable
 private fun CategoryTile(
     category: FeatureCategory,
@@ -246,12 +265,19 @@ private fun CategoryTile(
     modifier: Modifier = Modifier,
 ) {
     val scheme = MaterialTheme.colorScheme
+    val shape = RoundedCornerShape(24.dp)
     Column(
         modifier = modifier
-            .height(124.dp)
-            .clip(RoundedCornerShape(18.dp))
-            .background(scheme.surfaceContainerLowest.copy(alpha = 0.7f))
-            .border(1.dp, scheme.outline.copy(alpha = 0.2f), RoundedCornerShape(18.dp))
+            .height(128.dp)
+            .shadow(
+                elevation = 10.dp,
+                shape = shape,
+                ambientColor = scheme.primary.copy(alpha = 0.14f),
+                spotColor = scheme.primary.copy(alpha = 0.20f),
+            )
+            .clip(shape)
+            .background(scheme.surface.copy(alpha = 0.68f))
+            .border(1.dp, scheme.primary.copy(alpha = 0.13f), shape)
             .clickable(onClick = onClick)
             .padding(14.dp),
     ) {
@@ -261,10 +287,9 @@ private fun CategoryTile(
         ) {
             Box(
                 modifier = Modifier
-                    .size(34.dp)
-                    .clip(RoundedCornerShape(9.dp))
-                    .background(scheme.primary.copy(alpha = 0.09f))
-                    .border(1.dp, scheme.primary.copy(alpha = 0.24f), RoundedCornerShape(9.dp)),
+                    .size(36.dp)
+                    .clip(RoundedCornerShape(50))
+                    .background(scheme.primary.copy(alpha = 0.13f)),
                 contentAlignment = Alignment.Center,
             ) {
                 Icon(
@@ -275,12 +300,19 @@ private fun CategoryTile(
                 )
             }
             Spacer(Modifier.weight(1f))
-            Icon(
-                imageVector = MaterialSymbols.Outlined.Chevron_right,
-                contentDescription = null,
-                tint = scheme.onSurfaceVariant.copy(alpha = 0.55f),
-                modifier = Modifier.size(18.dp),
-            )
+            Box(
+                Modifier
+                    .clip(RoundedCornerShape(50))
+                    .background(scheme.primary.copy(alpha = 0.10f))
+                    .padding(horizontal = 9.dp, vertical = 3.dp),
+            ) {
+                Text(
+                    text = count.toString(),
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = scheme.primary,
+                )
+            }
         }
         Spacer(Modifier.weight(1f))
         Text(
@@ -291,13 +323,6 @@ private fun CategoryTile(
             maxLines = 2,
             overflow = TextOverflow.Ellipsis,
             lineHeight = 18.sp,
-        )
-        Spacer(Modifier.height(4.dp))
-        Text(
-            text = stringResource(R.string.features_category_count, count),
-            style = MaterialTheme.typography.labelSmall,
-            color = scheme.onSurfaceVariant,
-            maxLines = 1,
         )
     }
 }

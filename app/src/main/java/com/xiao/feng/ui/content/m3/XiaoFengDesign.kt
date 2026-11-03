@@ -1,10 +1,12 @@
 package com.xiao.feng.ui.content.m3
 
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
@@ -13,6 +15,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -34,6 +37,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawWithCache
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
@@ -62,54 +66,69 @@ data class XfTab(
 )
 
 /**
- * Static page backdrop: a soft vertical wash, a thin accent band across the header and one large
- * faint ring in the top-right corner.
+ * Violet-aurora page backdrop.
  *
- * Everything is drawn from a cached description inside [drawWithCache], so scrolling never
- * allocates or re-reads theme state per frame. The look deliberately replaces the old blurred
- * backdrop with cheap geometry: a wash, one rectangle and one stroked circle.
+ * A vertical wash plus three large radial blooms (primary / tertiary / secondary) and a sparse
+ * field of light dust. Everything is described once inside [drawWithCache], so the page pays for
+ * three gradients and a couple dozen tiny circles at draw time — no blur, no per-frame work.
  */
 @Composable
 fun Modifier.xfPageBackground(): Modifier {
     val scheme = MaterialTheme.colorScheme
+    val dark = isSystemInDarkTheme()
     return drawWithCache {
         val wash = Brush.verticalGradient(
-            0f to scheme.surfaceContainerLow,
-            0.45f to scheme.surfaceContainer,
-            1f to scheme.surfaceContainerLowest,
+            0f to scheme.surfaceContainerLowest,
+            0.4f to scheme.surfaceContainer,
+            1f to scheme.surfaceContainerLow,
         )
-        val bandHeight = 190.dp.toPx()
-        val band = Brush.horizontalGradient(
-            0f to scheme.primary.copy(alpha = 0.075f),
-            0.7f to scheme.tertiary.copy(alpha = 0.035f),
-            1f to Color.Transparent,
-            startX = 0f,
-            endX = size.width,
+        val bloomPrimary = Brush.radialGradient(
+            colors = listOf(
+                scheme.primary.copy(alpha = if (dark) 0.42f else 0.26f),
+                Color.Transparent,
+            ),
+            center = Offset(size.width * 0.94f, -size.height * 0.04f),
+            radius = size.width * 1.05f,
         )
-        val ringColor = scheme.primary.copy(alpha = 0.07f)
-        val ringStroke = Stroke(width = 2.dp.toPx())
+        val bloomTertiary = Brush.radialGradient(
+            colors = listOf(
+                scheme.tertiary.copy(alpha = if (dark) 0.30f else 0.17f),
+                Color.Transparent,
+            ),
+            center = Offset(size.width * 0.02f, size.height * 0.42f),
+            radius = size.width * 0.8f,
+        )
+        val bloomSecondary = Brush.radialGradient(
+            colors = listOf(
+                scheme.secondary.copy(alpha = if (dark) 0.18f else 0.10f),
+                Color.Transparent,
+            ),
+            center = Offset(size.width * 0.72f, size.height * 1.04f),
+            radius = size.width * 0.74f,
+        )
+        val dust = List(24) { index ->
+            val x = ((index * 73 + 11) % 97) / 97f
+            val y = ((index * 47 + 23) % 101) / 101f
+            Offset(x * size.width, y * size.height)
+        }
+        val dustColor = scheme.primary.copy(alpha = if (dark) 0.20f else 0.11f)
+        val dustRadius = 1.3.dp.toPx()
         onDrawBehind {
             drawRect(wash)
-            drawRect(
-                brush = band,
-                size = Size(size.width, bandHeight),
-            )
-            drawCircle(
-                color = ringColor,
-                radius = size.width * 0.46f,
-                center = Offset(size.width * 1.04f, bandHeight * 0.55f),
-                style = ringStroke,
-            )
+            drawRect(brush = bloomPrimary)
+            drawRect(brush = bloomTertiary)
+            drawRect(brush = bloomSecondary)
+            dust.forEach { drawCircle(dustColor, dustRadius, it) }
         }
     }
 }
 
 /**
- * Editorial page masthead used on every top-level screen.
+ * Page masthead used on every top-level screen.
  *
- * It replaces the collapsing large app bar: a small overline, an outsized title, an optional
- * subtitle, then a rule with a short accent segment. Back and page actions live in the slim row
- * above the title. Everything scrolls with the page, so content gets the full viewport.
+ * When the page has a back affordance or actions, they live in a floating translucent capsule
+ * above the title instead of a full-width app bar. The overline is a tinted capsule, and the
+ * closing rule is a violet-to-transparent gradient. Everything scrolls with the page.
  */
 @Composable
 fun XfMasthead(
@@ -123,8 +142,21 @@ fun XfMasthead(
     val scheme = MaterialTheme.colorScheme
     Column(modifier = modifier.fillMaxWidth().padding(horizontal = 20.dp)) {
         if (navigation != null || actions != null) {
+            val barShape = RoundedCornerShape(28.dp)
             Row(
-                modifier = Modifier.fillMaxWidth().height(52.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(56.dp)
+                    .shadow(
+                        elevation = 10.dp,
+                        shape = barShape,
+                        ambientColor = scheme.primary.copy(alpha = 0.20f),
+                        spotColor = scheme.primary.copy(alpha = 0.28f),
+                    )
+                    .clip(barShape)
+                    .background(scheme.surface.copy(alpha = 0.72f))
+                    .border(1.dp, scheme.primary.copy(alpha = 0.16f), barShape)
+                    .padding(horizontal = 6.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 navigation?.invoke()
@@ -136,21 +168,28 @@ fun XfMasthead(
                     actions?.invoke(this)
                 }
             }
-            Spacer(Modifier.height(4.dp))
+            Spacer(Modifier.height(16.dp))
         } else {
             Spacer(Modifier.height(12.dp))
         }
         if (eyebrow != null) {
-            Text(
-                text = eyebrow,
-                style = MaterialTheme.typography.labelMedium,
-                fontWeight = FontWeight.SemiBold,
-                letterSpacing = 2.4.sp,
-                color = scheme.primary,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
-            Spacer(Modifier.height(6.dp))
+            Box(
+                Modifier
+                    .clip(RoundedCornerShape(50))
+                    .background(scheme.primary.copy(alpha = 0.14f))
+                    .padding(horizontal = 12.dp, vertical = 5.dp),
+            ) {
+                Text(
+                    text = eyebrow,
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    letterSpacing = 1.2.sp,
+                    color = scheme.primary,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+            Spacer(Modifier.height(10.dp))
         }
         Text(
             text = title,
@@ -172,68 +211,62 @@ fun XfMasthead(
             )
         }
         Spacer(Modifier.height(16.dp))
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Box(
-                Modifier
-                    .width(30.dp)
-                    .height(2.dp)
-                    .clip(RoundedCornerShape(1.dp))
-                    .background(scheme.primary),
-            )
-            Spacer(Modifier.width(10.dp))
-            Box(
-                Modifier
-                    .weight(1f)
-                    .height(1.dp)
-                    .background(scheme.outline.copy(alpha = 0.28f)),
-            )
-        }
+        Box(
+            Modifier
+                .fillMaxWidth()
+                .height(2.dp)
+                .clip(RoundedCornerShape(1.dp))
+                .background(
+                    Brush.horizontalGradient(
+                        listOf(scheme.primary, scheme.tertiary, Color.Transparent),
+                    ),
+                ),
+        )
         Spacer(Modifier.height(16.dp))
     }
 }
 
 /**
- * Chapter label used above lazy groups: a small accent dot, the title in tracked-out caps and a
- * hairline that runs to the right edge. Unlike the old bare label it reads as a chapter marker.
+ * Chapter label used above lazy groups: a tinted capsule followed by a violet hairline.
  */
 @Composable
 fun SectionLabel(
     text: String,
     modifier: Modifier = Modifier,
 ) {
+    val scheme = MaterialTheme.colorScheme
     Row(
         modifier = modifier.fillMaxWidth().padding(top = 10.dp, bottom = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Box(
             Modifier
-                .size(6.dp)
-                .clip(RoundedCornerShape(3.dp))
-                .background(MaterialTheme.colorScheme.primary),
-        )
-        Spacer(Modifier.width(10.dp))
-        Text(
-            text = text,
-            style = MaterialTheme.typography.labelMedium,
-            fontWeight = FontWeight.SemiBold,
-            letterSpacing = 1.4.sp,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            maxLines = 1,
-        )
+                .clip(RoundedCornerShape(50))
+                .background(scheme.primary.copy(alpha = 0.14f))
+                .padding(horizontal = 11.dp, vertical = 4.dp),
+        ) {
+            Text(
+                text = text,
+                style = MaterialTheme.typography.labelMedium,
+                fontWeight = FontWeight.SemiBold,
+                letterSpacing = 0.4.sp,
+                color = scheme.primary,
+                maxLines = 1,
+            )
+        }
         Spacer(Modifier.width(10.dp))
         Box(
             Modifier
                 .weight(1f)
                 .height(1.dp)
-                .background(MaterialTheme.colorScheme.outline.copy(alpha = 0.26f)),
+                .background(scheme.primary.copy(alpha = 0.16f)),
         )
     }
 }
 
 /**
- * Metric tile for the dashboard/bento areas: an outlined cell with a large figure, a compact
- * label and an optional icon. No filled card, no gradient — the outline keeps it light and lets
- * the page wash show through.
+ * Metric tile for the dashboard/bento areas: a translucent violet-rimmed glass cell with a
+ * rounded icon badge, a large figure and a compact label.
  */
 @Composable
 fun XfStatTile(
@@ -245,16 +278,19 @@ fun XfStatTile(
     onClick: (() -> Unit)? = null,
 ) {
     val scheme = MaterialTheme.colorScheme
+    val shape = RoundedCornerShape(22.dp)
     Column(
         modifier = modifier
             .height(height)
-            .clip(RoundedCornerShape(18.dp))
-            .background(scheme.surfaceContainerLowest.copy(alpha = 0.72f))
-            .border(
-                width = 1.dp,
-                color = scheme.outline.copy(alpha = 0.22f),
-                shape = RoundedCornerShape(18.dp),
+            .shadow(
+                elevation = 10.dp,
+                shape = shape,
+                ambientColor = scheme.primary.copy(alpha = 0.16f),
+                spotColor = scheme.primary.copy(alpha = 0.22f),
             )
+            .clip(shape)
+            .background(scheme.surface.copy(alpha = 0.68f))
+            .border(width = 1.dp, color = scheme.primary.copy(alpha = 0.13f), shape = shape)
             .then(
                 if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier,
             )
@@ -265,6 +301,21 @@ fun XfStatTile(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
         ) {
+            Box(
+                Modifier
+                    .size(34.dp)
+                    .clip(RoundedCornerShape(50))
+                    .background(scheme.primary.copy(alpha = 0.13f)),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    tint = scheme.primary,
+                    modifier = Modifier.size(18.dp),
+                )
+            }
+            Spacer(Modifier.width(10.dp))
             Text(
                 text = label,
                 style = MaterialTheme.typography.labelMedium,
@@ -273,12 +324,6 @@ fun XfStatTile(
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.weight(1f),
             )
-            Icon(
-                imageVector = icon,
-                contentDescription = null,
-                tint = scheme.primary.copy(alpha = 0.8f),
-                modifier = Modifier.size(18.dp),
-            )
         }
         Text(
             text = value,
@@ -286,7 +331,7 @@ fun XfStatTile(
             fontWeight = FontWeight.Black,
             fontSize = 34.sp,
             lineHeight = 36.sp,
-            color = scheme.onSurface,
+            color = scheme.primary,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
         )
@@ -331,8 +376,8 @@ fun XfSpecRow(
 }
 
 /**
- * Flat command-bar search: icon, inline placeholder and an underline. Used by the feature index
- * and the license list so both screens share the same search affordance.
+ * Capsule search field: a translucent pill with a leading glyph and an inline clear action.
+ * Used by the feature index and the license list.
  */
 @Composable
 fun XfSearchBar(
@@ -343,56 +388,63 @@ fun XfSearchBar(
     modifier: Modifier = Modifier,
 ) {
     val scheme = MaterialTheme.colorScheme
-    Column(modifier = modifier) {
-        Row(
-            modifier = Modifier.fillMaxWidth().height(50.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Icon(
-                imageVector = MaterialSymbols.Outlined.Search,
-                contentDescription = null,
-                tint = scheme.primary,
-                modifier = Modifier.size(20.dp),
-            )
-            Spacer(Modifier.width(12.dp))
-            BasicTextField(
-                value = query,
-                onValueChange = onQueryChange,
-                modifier = Modifier.weight(1f),
-                singleLine = true,
-                textStyle = MaterialTheme.typography.bodyLarge.copy(color = scheme.onSurface),
-                cursorBrush = SolidColor(scheme.primary),
-                decorationBox = { innerTextField ->
-                    Box(contentAlignment = Alignment.CenterStart) {
-                        if (query.isEmpty()) {
-                            Text(
-                                text = placeholder,
-                                style = MaterialTheme.typography.bodyLarge,
-                                color = scheme.onSurfaceVariant.copy(alpha = 0.62f),
-                            )
-                        }
-                        innerTextField()
+    val shape = RoundedCornerShape(50)
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .height(52.dp)
+            .clip(shape)
+            .background(scheme.surface.copy(alpha = 0.70f))
+            .border(1.dp, scheme.primary.copy(alpha = 0.16f), shape)
+            .padding(start = 16.dp, end = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(
+            imageVector = MaterialSymbols.Outlined.Search,
+            contentDescription = null,
+            tint = scheme.primary,
+            modifier = Modifier.size(19.dp),
+        )
+        Spacer(Modifier.width(10.dp))
+        BasicTextField(
+            value = query,
+            onValueChange = onQueryChange,
+            modifier = Modifier.weight(1f),
+            singleLine = true,
+            textStyle = MaterialTheme.typography.bodyMedium.copy(color = scheme.onSurface),
+            cursorBrush = SolidColor(scheme.primary),
+            decorationBox = { innerTextField ->
+                Box(contentAlignment = Alignment.CenterStart) {
+                    if (query.isEmpty()) {
+                        Text(
+                            text = placeholder,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = scheme.onSurfaceVariant.copy(alpha = 0.7f),
+                        )
                     }
-                },
-            )
-            if (query.isNotEmpty()) {
-                IconButton(onClick = { onQueryChange("") }) {
-                    Icon(
-                        imageVector = MaterialSymbols.Outlined.Close,
-                        contentDescription = clearContentDescription,
-                        tint = scheme.onSurfaceVariant,
-                    )
+                    innerTextField()
                 }
+            },
+        )
+        if (query.isNotEmpty()) {
+            IconButton(onClick = { onQueryChange("") }) {
+                Icon(
+                    imageVector = MaterialSymbols.Outlined.Close,
+                    contentDescription = clearContentDescription,
+                    tint = scheme.onSurfaceVariant,
+                    modifier = Modifier.size(18.dp),
+                )
             }
+        } else {
+            Spacer(Modifier.width(12.dp))
         }
-        HorizontalDivider(color = scheme.outline.copy(alpha = 0.22f))
     }
 }
 
 /**
- * Edge-to-edge bottom tab bar. It replaces the floating liquid-glass capsule: a flat strip with a
- * hairline top border, a sliding 24dp indicator and plain icon/label tabs. No shadow, no blur and
- * no rounded container, so it stays cheap during pager swipes.
+ * Floating violet capsule dock. The bar itself is a gradient pill lifted off the page; the
+ * selected tab grows into a lighter inner capsule and reveals its label. Cheap to draw: one
+ * gradient plus a cached highlight, animated tint/background only.
  */
 @Composable
 fun XfTabBar(
@@ -403,59 +455,74 @@ fun XfTabBar(
 ) {
     if (tabs.isEmpty()) return
     val scheme = MaterialTheme.colorScheme
-    val progress by animateFloatAsState(
-        targetValue = selectedIndex.toFloat(),
-        animationSpec = spring(dampingRatio = 0.82f, stiffness = 420f),
-        label = "tabIndicator",
-    )
-
-    Column(modifier = modifier.fillMaxWidth().background(scheme.surfaceContainer).navigationBarsPadding()) {
-        Box(
-            Modifier
-                .fillMaxWidth()
-                .height(1.dp)
-                .background(scheme.outline.copy(alpha = 0.16f)),
-        )
-        BoxWithConstraints(
-            modifier = Modifier.fillMaxWidth().height(58.dp),
-        ) {
-            val tabWidth = maxWidth / tabs.size.toFloat()
-            Box(
-                Modifier
-                    .offset(x = tabWidth * progress + (tabWidth - 24.dp) / 2)
-                    .width(24.dp)
-                    .height(2.dp)
-                    .clip(RoundedCornerShape(bottomStart = 2.dp, bottomEnd = 2.dp))
-                    .background(scheme.primary),
+    val shape = RoundedCornerShape(50)
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(horizontal = 20.dp)
+            .navigationBarsPadding()
+            .padding(bottom = 10.dp)
+            .height(64.dp)
+            .shadow(
+                elevation = 22.dp,
+                shape = shape,
+                ambientColor = scheme.primary.copy(alpha = 0.42f),
+                spotColor = scheme.primary.copy(alpha = 0.52f),
             )
-            Row(modifier = Modifier.fillMaxSize()) {
-                tabs.forEachIndexed { index, tab ->
-                    val selected = index == selectedIndex
-                    Column(
-                        modifier = Modifier
-                            .weight(1f)
-                            .fillMaxSize()
-                            .clickable(role = Role.Tab, onClick = { onSelected(index) }),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.Center,
-                    ) {
-                        Icon(
-                            imageVector = if (selected) tab.selectedIcon else tab.icon,
-                            contentDescription = tab.label,
-                            tint = if (selected) scheme.primary else scheme.onSurfaceVariant.copy(alpha = 0.72f),
-                            modifier = Modifier.size(22.dp),
-                        )
-                        Spacer(Modifier.height(4.dp))
-                        Text(
-                            text = tab.label,
-                            fontSize = 11.sp,
-                            lineHeight = 13.sp,
-                            fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
-                            maxLines = 1,
-                            softWrap = false,
-                            color = if (selected) scheme.primary else scheme.onSurfaceVariant.copy(alpha = 0.72f),
-                        )
-                    }
+            .clip(shape)
+            .background(
+                Brush.horizontalGradient(listOf(scheme.primary, scheme.primary, scheme.tertiary)),
+            )
+            .drawWithCache {
+                val glow = Brush.radialGradient(
+                    colors = listOf(Color.White.copy(alpha = 0.22f), Color.Transparent),
+                    center = Offset(size.width * 0.5f, 0f),
+                    radius = size.width * 0.9f,
+                )
+                onDrawBehind { drawRect(brush = glow) }
+            }
+            .border(1.dp, Color.White.copy(alpha = 0.20f), shape)
+            .padding(6.dp),
+        horizontalArrangement = Arrangement.spacedBy(4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        tabs.forEachIndexed { index, tab ->
+            val selected = index == selectedIndex
+            val tint by animateColorAsState(
+                targetValue = if (selected) Color.White else Color.White.copy(alpha = 0.72f),
+                label = "tabTint",
+            )
+            val inner by animateColorAsState(
+                targetValue = if (selected) Color.White.copy(alpha = 0.20f) else Color.Transparent,
+                label = "tabInner",
+            )
+            Row(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxHeight()
+                    .clip(RoundedCornerShape(50))
+                    .background(inner)
+                    .clickable(role = Role.Tab, onClick = { onSelected(index) }),
+                horizontalArrangement = Arrangement.Center,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Icon(
+                    imageVector = if (selected) tab.selectedIcon else tab.icon,
+                    contentDescription = tab.label,
+                    tint = tint,
+                    modifier = Modifier.size(22.dp),
+                )
+                if (selected) {
+                    Spacer(Modifier.width(7.dp))
+                    Text(
+                        text = tab.label,
+                        fontSize = 11.sp,
+                        lineHeight = 13.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        maxLines = 1,
+                        softWrap = false,
+                        color = tint,
+                    )
                 }
             }
         }
@@ -463,8 +530,7 @@ fun XfTabBar(
 }
 
 /**
- * Reusable outlined surface for small one-off panels (hero, banners, dashboard cells) that should
- * not look like another settings group.
+ * Reusable translucent glass surface for one-off panels (hero, banners, dashboard cells).
  */
 @Composable
 fun XfPanel(
@@ -472,15 +538,18 @@ fun XfPanel(
     content: @Composable BoxScope.() -> Unit,
 ) {
     val scheme = MaterialTheme.colorScheme
+    val shape = RoundedCornerShape(26.dp)
     Box(
         modifier = modifier
-            .clip(RoundedCornerShape(20.dp))
-            .background(scheme.surfaceContainerLowest.copy(alpha = 0.7f))
-            .border(
-                width = 1.dp,
-                color = scheme.outline.copy(alpha = 0.2f),
-                shape = RoundedCornerShape(20.dp),
-            ),
+            .shadow(
+                elevation = 12.dp,
+                shape = shape,
+                ambientColor = scheme.primary.copy(alpha = 0.16f),
+                spotColor = scheme.primary.copy(alpha = 0.22f),
+            )
+            .clip(shape)
+            .background(scheme.surface.copy(alpha = 0.70f))
+            .border(width = 1.dp, color = scheme.primary.copy(alpha = 0.13f), shape = shape),
         content = content,
     )
 }

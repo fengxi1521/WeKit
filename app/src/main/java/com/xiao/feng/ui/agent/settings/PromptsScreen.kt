@@ -2,12 +2,15 @@
 package com.xiao.feng.ui.agent.settings
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -63,6 +66,7 @@ import com.xiao.feng.ui.content.m3.ExpressiveBackButton
 import com.xiao.feng.ui.content.m3.BaseWidget
 import com.xiao.feng.ui.content.m3.SegmentedColumn
 import com.xiao.feng.ui.content.m3.SwitchWidget
+import com.xiao.feng.ui.content.m3.xfPageBackground
 import com.xiao.feng.utils.android.showToast
 import kotlinx.coroutines.launch
 import java.util.UUID
@@ -112,21 +116,28 @@ fun PromptsScreen(onBack: () -> Unit) {
             Column(
                 modifier = Modifier
                     .statusBarsPadding()
-                    .background(MaterialTheme.colorScheme.surfaceContainer),
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
             ) {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(56.dp)
-                        .padding(start = 20.dp, end = 16.dp),
+                        .clip(RoundedCornerShape(28.dp))
+                        .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.72f))
+                        .border(
+                            1.dp,
+                            MaterialTheme.colorScheme.primary.copy(alpha = 0.16f),
+                            RoundedCornerShape(28.dp),
+                        )
+                        .padding(horizontal = 6.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     ExpressiveBackButton(onClick = onBack)
-                    Spacer(Modifier.width(12.dp))
+                    Spacer(Modifier.width(6.dp))
                     Text(
                         text = stringResource(R.string.agent_prompts_title),
-                        style = MaterialTheme.typography.headlineSmall,
-                        fontWeight = FontWeight.Bold,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold,
                         color = MaterialTheme.colorScheme.onSurface,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
@@ -144,7 +155,7 @@ fun PromptsScreen(onBack: () -> Unit) {
     ) { innerPadding ->
         HorizontalPager(
             state = pagerState,
-            modifier = Modifier.fillMaxSize(),
+            modifier = Modifier.fillMaxSize().xfPageBackground(),
             beyondViewportPageCount = PROMPT_TAB_LABELS.size - 1,
         ) { page ->
             when (page) {
@@ -301,8 +312,7 @@ fun PromptsScreen(onBack: () -> Unit) {
 }
 
 /**
- * Flat four-tab strip with a short underline under the active tab, matching the Logs page chrome
- * instead of a filled Material tab row.
+ * Capsule four-tab strip: the active tab fills with the primary color, matching the Logs chrome.
  */
 @Composable
 private fun PromptTabStrip(
@@ -310,41 +320,38 @@ private fun PromptTabStrip(
     onSelected: (Int) -> Unit,
 ) {
     val scheme = MaterialTheme.colorScheme
-    Column {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 20.dp),
-        ) {
-            PROMPT_TAB_LABELS.forEachIndexed { index, labelRes ->
-                val selected = index == selectedIndex
-                Column(
-                    modifier = Modifier
-                        .weight(1f)
-                        .clickable { onSelected(index) }
-                        .padding(vertical = 10.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                ) {
-                    Text(
-                        text = stringResource(labelRes),
-                        style = MaterialTheme.typography.labelLarge,
-                        fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
-                        color = if (selected) scheme.primary else scheme.onSurfaceVariant,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                    Spacer(Modifier.height(6.dp))
-                    Box(
-                        Modifier
-                            .width(20.dp)
-                            .height(2.dp)
-                            .clip(RoundedCornerShape(1.dp))
-                            .background(if (selected) scheme.primary else androidx.compose.ui.graphics.Color.Transparent),
-                    )
-                }
+    val shape = RoundedCornerShape(50)
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(44.dp)
+            .clip(shape)
+            .background(scheme.surface.copy(alpha = 0.70f))
+            .border(1.dp, scheme.primary.copy(alpha = 0.14f), shape)
+            .padding(4.dp),
+        horizontalArrangement = Arrangement.spacedBy(4.dp),
+    ) {
+        PROMPT_TAB_LABELS.forEachIndexed { index, labelRes ->
+            val selected = index == selectedIndex
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxHeight()
+                    .clip(shape)
+                    .background(if (selected) scheme.primary else androidx.compose.ui.graphics.Color.Transparent)
+                    .clickable { onSelected(index) },
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(
+                    text = stringResource(labelRes),
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
+                    color = if (selected) scheme.onPrimary else scheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
             }
         }
-        HorizontalDivider(color = scheme.outline.copy(alpha = 0.16f))
     }
 }
 

@@ -152,28 +152,26 @@ fun SegmentedColumn(
                 modifier = Modifier.padding(titlePadding),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                // Chapter marker: accent dot, tracked-out label, then a rule to the right edge.
+                // Chapter marker: tinted capsule, then a violet rule to the right edge.
                 Box(
                     modifier = Modifier
-                        .width(6.dp)
-                        .height(6.dp)
-                        .clip(RoundedCornerShape(3.dp))
-                        .background(MaterialTheme.colorScheme.primary),
-                )
-                Spacer(Modifier.width(10.dp))
-                Text(
-                    text = title,
-                    style = MaterialTheme.typography.labelMedium,
-                    fontWeight = FontWeight.SemiBold,
-                    letterSpacing = 1.4.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
+                        .clip(RoundedCornerShape(50))
+                        .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.14f))
+                        .padding(horizontal = 11.dp, vertical = 4.dp),
+                ) {
+                    Text(
+                        text = title,
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.primary,
+                    )
+                }
                 Spacer(Modifier.width(10.dp))
                 Box(
                     modifier = Modifier
                         .weight(1f)
                         .height(1.dp)
-                        .background(MaterialTheme.colorScheme.outline.copy(alpha = 0.26f)),
+                        .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.16f)),
                 )
             }
         }
@@ -206,7 +204,7 @@ fun SegmentedColumn(
                         if (index > 0) {
                             HorizontalDivider(
                                 thickness = 1.dp,
-                                color = MaterialTheme.colorScheme.outline.copy(alpha = 0.16f),
+                                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.10f),
                             )
                         }
                         itemData.content(shape)
