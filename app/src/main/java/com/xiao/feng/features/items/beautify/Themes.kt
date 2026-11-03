@@ -3,6 +3,7 @@ package com.xiao.feng.features.items.beautify
 import android.annotation.SuppressLint
 import android.app.Activity
 import android.content.Context
+import android.content.Intent
 import android.content.res.ColorStateList
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
@@ -70,6 +71,7 @@ import dev.ujhhgtg.reflekt.reflekt
 import dev.ujhhgtg.reflekt.utils.Modifiers
 import dev.ujhhgtg.reflekt.utils.toClass
 import com.xiao.feng.R
+import com.xiao.feng.activity.theme.ThemeStudioSettingsActivity
 import com.xiao.feng.i18n.LocalXiaoFengLocalizedContext
 import com.xiao.feng.dexkit.abc.IResolveDex
 import com.xiao.feng.dexkit.dsl.dexClass
@@ -167,6 +169,20 @@ object Themes : ClickableFeature(), IResolveDex {
     )
 
     private fun getThemePath(themeId: String): File = (THEMES_PATH / themeId).toFile()
+
+    /** 主题根目录；主题工坊直接在这里创建、编辑主题。 */
+    fun themesDirectory(): File = THEMES_PATH.toFile()
+
+    /** 主题工坊读取的主题列表（仅包含含 manifest.json 的目录）。 */
+    fun availableThemes(): List<ThemeInfo> = scanThemes()
+
+    /** 当前选中的主题 id，「0」表示无主题。 */
+    fun selectedThemeId(): String = currentThemeId
+
+    /** 由主题工坊切换当前主题；重启微信后生效。 */
+    fun selectTheme(themeId: String) {
+        currentThemeId = themeId
+    }
 
     /** 扫描 [THEMES_PATH]：每个含 `manifest.json` 的文件夹都是一个主题。 */
     private fun scanThemes(): List<ThemeInfo> {
@@ -3001,62 +3017,6 @@ object Themes : ClickableFeature(), IResolveDex {
     // ------------------------------------------------------------------
 
     override fun onClick(context: ComponentActivity) {
-        val themes = listOf(getDefaultTheme(context)) + scanThemes()
-        showComposeDialog(context) {
-            val localizedContext = LocalXiaoFengLocalizedContext.current
-            var selectedId by remember {
-                mutableStateOf(
-                    currentThemeId.takeIf { id ->
-                        id == DEFAULT_THEME_ID || themes.any { it.id == id }
-                    } ?: DEFAULT_THEME_ID
-                )
-            }
-
-            AlertDialogContent(
-                title = { Text(stringResource(R.string.beautify_theme_title)) },
-                text = {
-                    Column(Modifier.verticalScroll(rememberScrollState())) {
-                        SegmentedColumn(contentPadding = PaddingValues(0.dp)) {
-                            item(key = "info") {
-                                BaseWidget(
-                                    iconPlaceholder = false,
-                                    title = stringResource(R.string.beautify_theme_directory, THEMES_PATH),
-                                    description = stringResource(R.string.beautify_theme_instructions),
-                                )
-                            }
-                            themes.forEach { theme ->
-                                item(key = theme.id) {
-                                    RadioButtonWidget(
-                                        iconPlaceholder = false,
-                                        title = theme.name,
-                                        description = buildString {
-                                            append(localizedContext.getString(R.string.beautify_theme_author, theme.author))
-                                            if (theme.version.isNotBlank()) {
-                                                append(localizedContext.getString(R.string.beautify_theme_version, theme.version))
-                                            }
-                                            if (theme.description.isNotBlank()) {
-                                                append("\n")
-                                                append(theme.description)
-                                            }
-                                        },
-                                        selected = selectedId == theme.id,
-                                        onClick = {
-                                            selectedId = theme.id
-                                            if (theme.id != currentThemeId) {
-                                                currentThemeId = theme.id
-                                                showToast(localizedContext.getString(R.string.beautify_theme_saved))
-                                            }
-                                        },
-                                    )
-                                }
-                            }
-                        }
-                    }
-                },
-                dismissButton = {
-                    TextButton(onClick = onDismiss) { Text(stringResource(R.string.dialog_close)) }
-                },
-            )
-        }
+        context.startActivity(Intent(context, ThemeStudioSettingsActivity::class.java))
     }
 }
