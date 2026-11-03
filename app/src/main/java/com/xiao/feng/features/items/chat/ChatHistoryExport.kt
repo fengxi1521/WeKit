@@ -1312,10 +1312,10 @@ private fun statisticsTypeLabel(context: Context, code: Int): String =
         ?: context.localizedChatString(R.string.chat_history_export_other_message)
 
 /**
- * Maps members to the days elapsed since they joined, capped at [RECENT_JOIN_DAYS]. Join notices
- * only exist as system-message XML in the history, so only the latest week ending at [endDay] is read.
+ * Finds the members who joined within [RECENT_JOIN_DAYS] of [endDay]. Join notices only exist as
+ * system-message XML in the history, so only the latest week is read.
  */
-private fun loadRecentJoinDays(wxId: String, endDay: Long, scale: Long): Map<String, Int> {
+private fun loadRecentJoinDays(wxId: String, endDay: Long, scale: Long): Map<String, RecentJoin> {
     val startDay = endDay - RECENT_JOIN_DAYS + 1
     val (since, until) = ReportRange(startDay, endDay).window.bounds(scale)
     val condition = buildString {
