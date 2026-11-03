@@ -66,6 +66,7 @@ private fun ThemeStudioRoot(onFinish: () -> Unit) {
         NavDisplay(
             backStack = backStack,
             onBack = {
+                revision++
                 if (navigator.backStackSize() <= 1) onFinish() else navigator.pop()
             },
             transition = xiaoFengNavTransition(ThemeSettings.pageTransitionAnimation),

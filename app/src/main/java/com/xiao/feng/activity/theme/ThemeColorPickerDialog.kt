@@ -57,10 +57,13 @@ fun ThemeColorPickerDialog(
     onConfirm: (String) -> Unit,
     onDismiss: () -> Unit,
 ) {
-    val initial = parsePickerColor(initialColor)
-    var hue by remember { mutableFloatStateOf(initial.hue) }
-    var saturation by remember { mutableFloatStateOf(initial.saturation) }
-    var brightness by remember { mutableFloatStateOf(initial.value) }
+    val initial = remember(initialColor) { parsePickerColor(initialColor) }
+    val initialHsv = remember(initial) {
+        FloatArray(3).also { android.graphics.Color.colorToHSV(initial.toArgb(), it) }
+    }
+    var hue by remember { mutableFloatStateOf(initialHsv[0]) }
+    var saturation by remember { mutableFloatStateOf(initialHsv[1]) }
+    var brightness by remember { mutableFloatStateOf(initialHsv[2]) }
     var alpha by remember { mutableFloatStateOf(initial.alpha) }
     var hexText by remember { mutableStateOf(hexOf(initial)) }
     var panelSize by remember { mutableStateOf(IntSize.Zero) }

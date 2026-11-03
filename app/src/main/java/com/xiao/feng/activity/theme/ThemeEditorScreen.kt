@@ -92,7 +92,11 @@ fun ThemeEditorScreen(themeId: String, onBack: () -> Unit) {
     }
 
     fun setColor(key: String, value: String) {
-        val next = draft.copy(colors = draft.colors + (key to value))
+        val clean = value.trim().removePrefix("#").uppercase()
+        val colors = draft.colors.toMutableMap()
+        // Black is the picker's "unset" value: dropping the key restores WeChat's native color.
+        if (clean == "000000" || clean == "FF000000") colors.remove(key) else colors[key] = clean
+        val next = draft.copy(colors = colors)
         draft = next
         ThemeStudioRepository.writeColors(next.id, next.colors)
     }
