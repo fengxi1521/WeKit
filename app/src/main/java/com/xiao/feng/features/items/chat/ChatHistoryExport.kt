@@ -1058,8 +1058,13 @@ private fun reportRange(period: ReportPeriod, customStartDay: Long, customEndDay
     }
 }
 
-/** One member's contribution: their messages in the range and the days they actually spoke. */
-private data class MemberReport(val label: String, val messages: Long, val activeDays: Int)
+/** One member's contribution: messages in the range, days they spoke, and their latest date. */
+private data class MemberReport(
+    val label: String,
+    val messages: Long,
+    val activeDays: Int,
+    val lastDay: Long?,
+)
 
 /** One day of activity: how many messages arrived and how many members sent them. */
 private data class DailyActivity(val day: Long, val messages: Long, val activeMembers: Int)
@@ -1179,6 +1184,7 @@ private fun loadStatisticsReport(
                 label = label,
                 messages = row.reportLong("msg_count"),
                 activeDays = activeDaysBySender[sender]?.size ?: 0,
+                lastDay = activeDaysBySender[sender]?.maxOrNull(),
             )
         }
 
@@ -1188,14 +1194,14 @@ private fun loadStatisticsReport(
             .filter { (memberWxId, _) -> memberWxId != selfWxId && memberWxId !in spokenMembers }
             .map { it.value }
             .sorted()
-        silentMembers.forEach { ranking += MemberReport(it, 0, 0) }
+        silentMembers.forEach { ranking += MemberReport(it, 0, 0, null) }
     } else if (total > sent) {
-        ranking += MemberReport(peerDisplayName, total - sent, peerActiveDays.size)
+        ranking += MemberReport(peerDisplayName, total - sent, peerActiveDays.size, peerActiveDays.maxOrNull())
     }
     if (sent > 0) {
-        ranking += MemberReport(selfLabel, sent, selfActiveDays.size)
+        ranking += MemberReport(selfLabel, sent, selfActiveDays.size, selfActiveDays.maxOrNull())
     } else if (isGroupChat) {
-        ranking += MemberReport(selfLabel, 0, 0)
+        ranking += MemberReport(selfLabel, 0, 0, null)
     }
 
     // A single-day report still benefits from a trend, so it covers the latest week instead.
@@ -1254,7 +1260,7 @@ private fun statisticsTypeLabel(context: Context, code: Int): String =
     MessageType.fromCode(code)?.let { context.localizedChatString(it.displayNameRes) }
         ?: context.localizedChatString(R.string.chat_history_export_other_message)
 
-/** Renders one ranking line: total messages, days actually spent speaking, and the daily average. */
+/** Renders one ranking line: total messages, days spent speaking, daily average, and last date. */
 private fun statisticsMemberLine(context: Context, member: MemberReport, coveredDays: Int): String {
     if (member.messages == 0L) {
         return context.localizedChatString(R.string.chat_statistics_report_member_silent, member.label)
@@ -1266,6 +1272,7 @@ private fun statisticsMemberLine(context: Context, member: MemberReport, covered
         member.messages,
         member.activeDays,
         dailyAverage,
+        formatEpochDay(member.lastDay!!),
     )
 }
 
