@@ -251,6 +251,9 @@
     <string name="features_new_summary">%2$d features added in the last %1$d days</string>
     <string name="home_module_activated">Module activated</string>
     <string name="home_brand_tagline">WeChat enhancement module</string>
+    <string name="home_stat_enabled">Enabled</string>
+    <string name="home_stat_new">New</string>
+    <string name="home_stat_categories">Categories</string>
     <string name="home_device_info_title">Device information</string>
     <string name="home_learn_more_title">Learn more</string>
     <string name="home_learn_more_item_title">XiaoFeng documentation</string>

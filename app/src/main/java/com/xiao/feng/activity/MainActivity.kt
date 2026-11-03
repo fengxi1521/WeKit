@@ -19,6 +19,9 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -70,6 +73,7 @@ import com.xiao.feng.ui.content.Button
 import com.xiao.feng.ui.content.DefaultColumn
 import com.xiao.feng.ui.content.IconButton
 import com.xiao.feng.ui.content.TextButton
+import com.xiao.feng.ui.content.m3.xfPageBackground
 import com.xiao.feng.ui.utils.GitHubIcon
 import com.xiao.feng.ui.utils.TelegramIcon
 import com.xiao.feng.ui.utils.theme.ModuleAppTheme
@@ -361,6 +365,7 @@ class MainActivity : ComponentActivity() {
 
         Scaffold(
             modifier = Modifier.fillMaxSize(),
+            containerColor = MaterialTheme.colorScheme.surfaceContainer,
             topBar = {
                 CenterAlignedTopAppBar(
                     title = {
@@ -458,9 +463,11 @@ class MainActivity : ComponentActivity() {
         ) { innerPadding ->
             Column(
                 modifier = Modifier
+                    .fillMaxSize()
+                    .xfPageBackground()
                     .padding(innerPadding)
-                    .padding(top = 16.dp)
-                    .padding(horizontal = 16.dp),
+                    .verticalScroll(rememberScrollState())
+                    .padding(top = 16.dp, bottom = 24.dp, start = 16.dp, end = 16.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 // The activation card relies on the libxposed service, which is only
@@ -469,6 +476,7 @@ class MainActivity : ComponentActivity() {
                     val activationState = rememberActivationState()
                     Card(
                         colors = CardDefaults.cardColors(containerColor = activationState.color),
+                        shape = RoundedCornerShape(24.dp),
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Row(
@@ -500,6 +508,7 @@ class MainActivity : ComponentActivity() {
 
                 ElevatedCard(
                     modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(24.dp),
                 ) {
                     Column(modifier = Modifier.padding(16.dp)) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -552,7 +561,8 @@ class MainActivity : ComponentActivity() {
                             }
                         }
                     },
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(24.dp),
                 ) {
                     Row(
                         modifier = Modifier.padding(16.dp),
@@ -596,7 +606,8 @@ class MainActivity : ComponentActivity() {
                                 ?: localizedContext.getString(R.string.module_app_open_wechat_failed, hostPkg)
                         }
                     },
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(24.dp),
                 ) {
                     Row(
                         modifier = Modifier.padding(16.dp),
@@ -863,7 +874,8 @@ class MainActivity : ComponentActivity() {
     private fun LinkCard(icon: ImageVector, title: String, subtitle: String, onClick: () -> Unit) {
         ElevatedCard(
             onClick = onClick,
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(24.dp),
         ) {
             Row(
                 modifier = Modifier.padding(16.dp),

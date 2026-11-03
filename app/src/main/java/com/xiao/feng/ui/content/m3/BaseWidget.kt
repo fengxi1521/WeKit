@@ -33,6 +33,7 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalDensity
@@ -82,7 +83,7 @@ fun BaseWidget(
     iconColor: Color? = null,
     iconPlaceholder: Boolean = false,
     title: String,
-    titleStyle: TextStyle = MaterialTheme.typography.titleMedium,
+    titleStyle: TextStyle = MaterialTheme.typography.titleMediumEmphasized,
     description: String? = null,
     descriptionStyle: TextStyle = MaterialTheme.typography.bodyMedium,
     descriptionColor: Color? = null,
@@ -171,7 +172,7 @@ fun BaseWidget(
 
     val shapes = ListItemDefaults.shapes(
         shape = baseShape,
-        pressedShape = RoundedCornerShape(CornerRadius),
+        pressedShape = baseShape,
         selectedShape = baseShape,
         focusedShape = baseShape,
         hoveredShape = baseShape
@@ -193,21 +194,31 @@ fun BaseWidget(
                         // floating bare on the row background.
                         Box(
                             modifier = Modifier
-                                .size(36.dp)
-                                .clip(RoundedCornerShape(12.dp))
+                                .size(38.dp)
+                                .clip(RoundedCornerShape(13.dp))
                                 .background(
                                     if (selected) {
-                                        MaterialTheme.colorScheme.primary
+                                        Brush.linearGradient(
+                                            listOf(
+                                                MaterialTheme.colorScheme.primary,
+                                                MaterialTheme.colorScheme.tertiary,
+                                            ),
+                                        )
                                     } else {
-                                        MaterialTheme.colorScheme.primaryContainer
-                                    }
+                                        Brush.linearGradient(
+                                            listOf(
+                                                MaterialTheme.colorScheme.primaryContainer,
+                                                MaterialTheme.colorScheme.secondaryContainer,
+                                            ),
+                                        )
+                                    },
                                 ),
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
                                 imageVector = icon,
                                 contentDescription = null,
-                                modifier = Modifier.size(20.dp),
+                                modifier = Modifier.size(21.dp),
                                 tint = iconColor
                                     ?: if (selected) {
                                         MaterialTheme.colorScheme.onPrimary
@@ -217,7 +228,7 @@ fun BaseWidget(
                             )
                         }
                     } else {
-                        Spacer(modifier = Modifier.size(36.dp))
+                        Spacer(modifier = Modifier.size(38.dp))
                     }
                 }
             }

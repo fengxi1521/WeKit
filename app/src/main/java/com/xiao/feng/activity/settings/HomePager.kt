@@ -2,6 +2,7 @@ package com.xiao.feng.activity.settings
 
 import android.os.Build
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -36,8 +37,11 @@ import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.composables.icons.materialsymbols.MaterialSymbols
 import com.composables.icons.materialsymbols.outlined.Check_circle
+import com.composables.icons.materialsymbols.outlined.Chat
+import com.composables.icons.materialsymbols.outlined.Wand_stars
 import com.xiao.feng.BuildConfig
 import com.xiao.feng.R
 import com.xiao.feng.activity.openLsposedManager
@@ -46,6 +50,7 @@ import com.xiao.feng.loader.entry.zygisk.ZygiskLoaderService
 import com.xiao.feng.loader.startup.StartupInfo
 import com.xiao.feng.ui.content.m3.BaseWidget
 import com.xiao.feng.ui.content.m3.SegmentedColumn
+import com.xiao.feng.ui.content.m3.XfStatTile
 import com.xiao.feng.utils.HostInfo
 import com.xiao.feng.utils.formatEpoch
 
@@ -57,18 +62,15 @@ import com.xiao.feng.utils.formatEpoch
 @Composable
 fun HomePager() {
     M3ListScaffold(title = stringResource(R.string.app_name)) {
-        item {
-            Column(
-                modifier = Modifier.padding(top = 12.dp),
-            ) {
-                BrandHero()
-                Spacer(Modifier.height(16.dp))
-                StatusCard()
-                DeviceInformation()
-                LearnMore()
-                Spacer(Modifier.height(CONTENT_BOTTOM_INSET))
-            }
-        }
+        item { Spacer(Modifier.height(12.dp)) }
+        item { BrandHero() }
+        item { Spacer(Modifier.height(12.dp)) }
+        item { StatusCard() }
+        item { Spacer(Modifier.height(12.dp)) }
+        item { DashboardStats() }
+        item { DeviceInformation() }
+        item { LearnMore() }
+        item { Spacer(Modifier.height(CONTENT_BOTTOM_INSET)) }
     }
 }
 
@@ -86,12 +88,28 @@ private fun BrandHero() {
             .clip(RoundedCornerShape(28.dp))
             .background(Brush.linearGradient(listOf(scheme.primary, scheme.tertiary))),
     ) {
+        // Layered translucent rings give the hero depth without any runtime blur.
         Box(
             modifier = Modifier
                 .align(Alignment.TopEnd)
                 .padding(top = 12.dp, end = 12.dp)
                 .size(88.dp)
                 .background(scheme.onPrimary.copy(alpha = 0.12f), CircleShape),
+        )
+        Box(
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .size(150.dp)
+                .background(scheme.onPrimary.copy(alpha = 0.06f), CircleShape),
+        )
+        Text(
+            text = "XF",
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .padding(end = 14.dp, bottom = 2.dp),
+            style = MaterialTheme.typography.displayMedium,
+            fontWeight = FontWeight.Black,
+            color = scheme.onPrimary.copy(alpha = 0.14f),
         )
         Column(modifier = Modifier.padding(horizontal = 20.dp, vertical = 20.dp)) {
             Text(
@@ -136,12 +154,50 @@ private fun HeroBadge(text: String) {
     }
 }
 
+/**
+ * Dashboard counters: one glance at how many switches are on and how much new content shipped.
+ * States come from the same per-revision snapshot the feature screen uses, so no per-feature query
+ * runs here.
+ */
+@Composable
+private fun DashboardStats() {
+    val revision = FeatureCategoryState.revision
+    val enabledCount = remember(revision) { FeatureCategoryState.enabledItems().size }
+    val newCount = remember(revision) { FeatureCategoryState.newItems.size }
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp),
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        XfStatTile(
+            value = enabledCount.toString(),
+            label = stringResource(R.string.home_stat_enabled),
+            icon = MaterialSymbols.Outlined.Check_circle,
+            modifier = Modifier.weight(1f),
+        )
+        XfStatTile(
+            value = newCount.toString(),
+            label = stringResource(R.string.home_stat_new),
+            icon = MaterialSymbols.Outlined.Wand_stars,
+            modifier = Modifier.weight(1f),
+        )
+        XfStatTile(
+            value = FEATURE_CATEGORIES.size.toString(),
+            label = stringResource(R.string.home_stat_categories),
+            icon = MaterialSymbols.Outlined.Chat,
+            modifier = Modifier.weight(1f),
+        )
+    }
+}
+
 @Composable
 private fun StatusCard() {
     val context = LocalContext.current
     val activity = LocalComponentActivity.current
     var showNoRootManager by remember { mutableStateOf(false) }
-    val contentColor = MaterialTheme.colorScheme.onSecondaryContainer
+    val contentColor = MaterialTheme.colorScheme.onSurface
     val statusTitle = stringResource(R.string.home_module_activated)
     val hookBridgeName = StartupInfo.hookBridge?.hookBridgeName
         ?: stringResource(R.string.common_not_provided)
@@ -150,9 +206,9 @@ private fun StatusCard() {
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp),
-        color = MaterialTheme.colorScheme.secondaryContainer,
+        color = MaterialTheme.colorScheme.surfaceBright,
         contentColor = contentColor,
-        shape = MaterialTheme.shapes.large,
+        shape = RoundedCornerShape(24.dp),
         onClick = {
             if (StartupInfo.loaderService is ZygiskLoaderService) {
                 showNoRootManager = !openRootManager(context)
@@ -163,10 +219,27 @@ private fun StatusCard() {
     ) {
         ListItem(
             leadingContent = {
-                Icon(
-                    imageVector = MaterialSymbols.Outlined.Check_circle,
-                    contentDescription = statusTitle,
-                )
+                Box(
+                    modifier = Modifier
+                        .size(38.dp)
+                        .clip(RoundedCornerShape(13.dp))
+                        .background(
+                            Brush.linearGradient(
+                                listOf(
+                                    MaterialTheme.colorScheme.primary,
+                                    MaterialTheme.colorScheme.tertiary,
+                                ),
+                            ),
+                        ),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(
+                        imageVector = MaterialSymbols.Outlined.Check_circle,
+                        contentDescription = statusTitle,
+                        tint = MaterialTheme.colorScheme.onPrimary,
+                        modifier = Modifier.size(21.dp),
+                    )
+                }
             },
             supportingContent = {
                 Text(
@@ -186,7 +259,7 @@ private fun StatusCard() {
                 contentColor = contentColor,
                 leadingContentColor = contentColor,
                 trailingContentColor = contentColor,
-                supportingContentColor = contentColor.copy(alpha = 0.7f),
+                supportingContentColor = contentColor.copy(alpha = 0.65f),
             ),
             content = {
                 Text(
@@ -218,12 +291,12 @@ private fun StatusTag(label: String, backgroundColor: Color, contentColor: Color
             .padding(end = 4.dp)
             .background(
                 color = backgroundColor,
-                shape = RoundedCornerShape(4.dp),
+                shape = RoundedCornerShape(percent = 50),
             )
     ) {
         Text(
             text = label,
-            modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp),
+            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
             style = MaterialTheme.typography.labelSmallEmphasized,
             color = contentColor,
         )
@@ -236,14 +309,12 @@ private fun DeviceInformation() {
     SegmentedColumn(title = stringResource(R.string.home_device_info_title)) {
         item {
             BaseWidget(
-                iconPlaceholder = false,
                 title = stringResource(R.string.home_wechat_version),
                 description = stringResource(R.string.home_version_value, HostInfo.versionName, HostInfo.versionCode),
             )
         }
         item {
             BaseWidget(
-                iconPlaceholder = false,
                 title = stringResource(R.string.home_module_version),
                 description = stringResource(
                     R.string.home_version_value,
@@ -254,21 +325,18 @@ private fun DeviceInformation() {
         }
         item {
             BaseWidget(
-                iconPlaceholder = false,
                 title = stringResource(R.string.home_build_time),
                 description = formatEpoch(BuildConfig.BUILD_TIMESTAMP, true),
             )
         }
         item {
             BaseWidget(
-                iconPlaceholder = false,
                 title = stringResource(R.string.home_device_model),
                 description = stringResource(R.string.home_device_model_value, Build.MANUFACTURER, Build.MODEL),
             )
         }
         item {
             BaseWidget(
-                iconPlaceholder = false,
                 title = stringResource(R.string.home_android_version),
                 description = stringResource(
                     R.string.home_android_version_value,
@@ -279,7 +347,6 @@ private fun DeviceInformation() {
         }
         item {
             BaseWidget(
-                iconPlaceholder = false,
                 title = stringResource(R.string.home_loading_environment),
                 description = stringResource(
                     R.string.home_loading_environment_value,
@@ -297,7 +364,6 @@ private fun LearnMore() {
     SegmentedColumn(title = stringResource(R.string.home_learn_more_title)) {
         item {
             BaseWidget(
-                iconPlaceholder = false,
                 title = stringResource(R.string.home_learn_more_item_title),
                 description = stringResource(R.string.home_learn_more_item_summary),
                 onClick = { uriHandler.openUri("https://docs.xfeng.dev") },

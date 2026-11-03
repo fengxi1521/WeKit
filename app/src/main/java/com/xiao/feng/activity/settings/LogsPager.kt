@@ -440,7 +440,7 @@ fun LogsPager() {
         HorizontalPager(
             state = pagerState,
             modifier = Modifier.fillMaxSize(),
-            beyondViewportPageCount = 1,
+            beyondViewportPageCount = 0,
             userScrollEnabled = false,
             key = { LOG_TABS[it] },
         ) { page ->

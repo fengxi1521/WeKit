@@ -17,6 +17,7 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.TopAppBarScrollBehavior
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
@@ -50,13 +51,24 @@ fun ExpressiveCollapsingTopAppBar(
 ) {
     val state = scrollBehavior.state
     val fraction = state.collapsedFraction
-    val expandedStyle = MaterialTheme.typography.displaySmall.copy(textMotion = TextMotion.Animated)
-    val collapsedStyle = MaterialTheme.typography.titleLarge.copy(textMotion = TextMotion.Animated)
+    val typography = MaterialTheme.typography
+    val expandedStyle = remember(typography) {
+        typography.displaySmall.copy(textMotion = TextMotion.Animated)
+    }
+    val collapsedStyle = remember(typography) {
+        typography.titleLarge.copy(textMotion = TextMotion.Animated)
+    }
     val textMeasurer = rememberTextMeasurer()
     // Endpoint metrics keep the scroll range stable while the visible title changes size. They
     // also allow the bar to grow with accessibility font scaling instead of clipping the text.
-    val expandedTitle = textMeasurer.measure(title, expandedStyle, softWrap = false, maxLines = 1)
-    val collapsedTitle = textMeasurer.measure(title, collapsedStyle, softWrap = false, maxLines = 1)
+    // Remember them: this composable re-runs on every scroll frame, and re-measuring both
+    // endpoint titles per frame is pure waste.
+    val expandedTitle = remember(title, expandedStyle, textMeasurer) {
+        textMeasurer.measure(title, expandedStyle, softWrap = false, maxLines = 1)
+    }
+    val collapsedTitle = remember(title, collapsedStyle, textMeasurer) {
+        textMeasurer.measure(title, collapsedStyle, softWrap = false, maxLines = 1)
+    }
 
     Layout(
         modifier = modifier
