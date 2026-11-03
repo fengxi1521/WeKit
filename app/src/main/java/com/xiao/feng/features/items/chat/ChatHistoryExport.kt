@@ -1328,40 +1328,24 @@ private fun joinNoticeWxIds(content: String): List<String> {
         .toList()
 }
 
-/**
- * Renders one ranking entry as two lines: the rank with totals first, then the pace underneath.
- * Phone-width export viewers wrap a single long line, so the numbers get their own indented line.
- */
-private fun statisticsMemberLine(
-    context: Context,
-    member: MemberReport,
-    coveredDays: Int,
-    rank: Int,
-): String {
+/** Renders one ranking line: total messages, days spent speaking, daily average, and last date. */
+private fun statisticsMemberLine(context: Context, member: MemberReport, coveredDays: Int): String {
     val joinSuffix = member.joinDays?.let {
         context.localizedChatString(R.string.chat_statistics_report_member_new_join, it)
     }.orEmpty()
     if (member.messages == 0L) {
-        return context.localizedChatString(
-            R.string.chat_statistics_report_member_silent,
-            rank,
-            member.label,
-        ) + joinSuffix
+        return context.localizedChatString(R.string.chat_statistics_report_member_silent, member.label) +
+            joinSuffix
     }
     val dailyAverage = "%.1f".format(member.messages.toDouble() / coveredDays)
-    val head = context.localizedChatString(
+    return context.localizedChatString(
         R.string.chat_statistics_report_member_stats,
-        rank,
         member.label,
         member.messages,
         member.activeDays,
-    )
-    val detail = context.localizedChatString(
-        R.string.chat_statistics_report_member_detail,
         dailyAverage,
         formatEpochDay(member.lastDay!!),
-    )
-    return head + "\n" + detail + joinSuffix
+    ) + joinSuffix
 }
 
 private fun buildStatisticsReportText(
@@ -1418,8 +1402,8 @@ private fun buildStatisticsReportText(
                 report.ranking.count { it.messages == 0L },
             )
         )
-        report.ranking.forEachIndexed { index, member ->
-            appendLine(statisticsMemberLine(context, member, report.coveredDays, index + 1))
+        report.ranking.forEach { member ->
+            appendLine(statisticsMemberLine(context, member, report.coveredDays))
         }
         appendLine()
         appendLine(context.localizedChatString(R.string.chat_statistics_report_types))

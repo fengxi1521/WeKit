@@ -2249,9 +2249,8 @@
     <string name="chat_statistics_report_types">Message types:</string>
     <string name="chat_statistics_report_activity">Activity (%1$d days):</string>
     <string name="chat_statistics_report_activity_line">  %1$s: %2$d messages, %3$d senders</string>
-    <string name="chat_statistics_report_member_stats">  %1$d. %2$s: %3$d messages, spoke on %4$d days</string>
-    <string name="chat_statistics_report_member_detail">     %1$s/day, last spoke on %2$s</string>
-    <string name="chat_statistics_report_member_silent">  %1$d. %2$s: 0 messages (silent)</string>
+    <string name="chat_statistics_report_member_stats">  %1$s: %2$d messages, spoke on %3$d days, %4$s/day, last spoke on %5$s</string>
+    <string name="chat_statistics_report_member_silent">  %1$s: 0 messages (silent)</string>
     <string name="chat_statistics_report_member_new_join">, joined %1$d days ago</string>
     <string name="chat_statistics_report_line">  %1$s: %2$d</string>
     <string name="chat_swipe_conversation_config">Swipe menu settings</string>
