@@ -111,8 +111,12 @@ object LikeAllAuthorMoments : SwitchFeature(), WeMomentsContextMenuApi.IMenuItem
         var skipped = 0
         var failed = 0
 
-        for (snsId in queryOwnedSnsIds(owner)) {
-            val snsInfo = WeMomentsApi.getSnsInfoBySnsId(snsId) ?: continue
+        val seen = mutableSetOf<String>()
+        for (snsInfo in collectOwnedSnsInfos(owner)) {
+            val tableId = WeMomentsApi.getSnsTableId(snsInfo) ?: continue
+            // A pinned Moment is also cached in the SnsInfo table on some hosts; like it once.
+            if (!seen.add(tableId)) continue
+
             if (WeMomentsApi.isDeleted(snsInfo) || WeMomentsApi.isLiked(snsInfo)) {
                 skipped++
                 continue
@@ -134,9 +138,14 @@ object LikeAllAuthorMoments : SwitchFeature(), WeMomentsContextMenuApi.IMenuItem
     }
 
     /**
-     * Enumerates the author's posts from the local SnsInfo cache. Pinned posts live in the same
-     * table, so they are covered by this query as well.
+     * Pinned Moments live in the host's star storage rather than the SnsInfo table (the latter
+     * only yields regular posts), so both sources have to be merged here.
      */
+    private fun collectOwnedSnsInfos(owner: String): List<Any> =
+        queryOwnedSnsIds(owner).mapNotNull { WeMomentsApi.getSnsInfoBySnsId(it) } +
+                WeMomentsApi.getPinnedSnsInfos(owner)
+
+    /** Enumerates the author's regular posts from the local SnsInfo cache. */
     private fun queryOwnedSnsIds(owner: String): List<Long> {
         val sql = """
             SELECT snsId FROM SnsInfo

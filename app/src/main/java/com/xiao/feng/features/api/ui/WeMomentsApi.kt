@@ -143,6 +143,9 @@ object WeMomentsApi : ApiFeature(), IResolveDex {
     private const val SNS_INFO_CLASS = "com.tencent.mm.plugin.sns.storage.SnsInfo"
     private const val LIKE_COMMENT_TYPE = 1
 
+    /** Star storage pages pinned Moments by create time; hosts keep only a handful per author. */
+    private const val PINNED_SNS_LIMIT = 50
+
     private val classSnsService by dexClass {
         searchPackages("com.tencent.mm.plugin.sns.model")
         matcher {
@@ -218,6 +221,26 @@ object WeMomentsApi : ApiFeature(), IResolveDex {
             paramTypes("long")
             returnType(SNS_INFO_CLASS)
             usingStrings("select *,rowid from SnsInfo  where SnsInfo.snsId=")
+        }
+    }
+
+    /**
+     * Pinned Moments are kept in the host's separate star storage instead of the SnsInfo table,
+     * so a plain SnsInfo query (used by "like all Moments of this author") never sees them.
+     */
+    private val methodGetStarSnsInfoByLimit by dexMethod {
+        matcher {
+            paramTypes("java.lang.String", "int")
+            returnType("java.util.ArrayList")
+            usingEqStrings("getStarSnsInfoByLimit")
+        }
+    }
+
+    private val fieldSnsStarStorageInstance by dexField {
+        matcher {
+            declaredClass(methodGetStarSnsInfoByLimit.data.declaredClassName)
+            modifiers = Modifier.STATIC
+            type(methodGetStarSnsInfoByLimit.data.declaredClassName)
         }
     }
 
@@ -1005,6 +1028,13 @@ object WeMomentsApi : ApiFeature(), IResolveDex {
             WeLogger.e(TAG, "failed to get Moments snsInfo by snsId=$snsId", error)
             null
         }
+    }
+
+    /** The author's pinned Moments, read from the host's star storage. */
+    fun getPinnedSnsInfos(owner: String): List<Any> {
+        val storage = fieldSnsStarStorageInstance.field.get(null)!!
+        @Suppress("UNCHECKED_CAST")
+        return methodGetStarSnsInfoByLimit.method.invoke(storage, owner, PINNED_SNS_LIMIT) as List<Any>
     }
 
     private const val TIMELINE_OBJECT_CLASS = "com.tencent.mm.protocal.protobuf.TimeLineObject"
