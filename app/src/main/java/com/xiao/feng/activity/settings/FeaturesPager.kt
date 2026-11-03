@@ -185,7 +185,9 @@ fun FeaturesPager(onOpenCategory: (String) -> Unit) {
             item {
                 SectionLabel(
                     text = stringResource(R.string.home_stat_categories),
-                    modifier = Modifier.padding(horizontal = 16.dp, top = 8.dp),
+                    modifier = Modifier
+                        .padding(horizontal = 16.dp)
+                        .padding(top = 8.dp),
                 )
             }
             lazySegmentedItems(FEATURE_CATEGORIES, key = { it.id }) { category ->
