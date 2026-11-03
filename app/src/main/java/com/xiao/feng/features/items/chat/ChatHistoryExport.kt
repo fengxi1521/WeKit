@@ -1042,12 +1042,21 @@ private const val WEEKLY_REPORT_DAYS = 7L
 private const val RECENT_JOIN_DAYS = 7L
 
 /** The join notice XML lists every joiner under a "names" link. */
-private val JOIN_NAMES_LINK = Regex("""<link\s+name="names"[^>]*>.*?</link>""", RegexOption.DOT_MATCHES_ALL)
+private val JOIN_NAMES_LINK =
+    Regex("""<link\s+name=["']names["'][^>]*>.*?</link>""", RegexOption.DOT_MATCHES_ALL)
 
 /** QR-code join notices name the joiner in the "username" link instead. */
-private val JOIN_SINGLE_LINK = Regex("""<link\s+name="username"[^>]*>.*?</link>""", RegexOption.DOT_MATCHES_ALL)
+private val JOIN_SINGLE_LINK =
+    Regex("""<link\s+name=["']username["'][^>]*>.*?</link>""", RegexOption.DOT_MATCHES_ALL)
 
 private val JOIN_MEMBER_WXID = Regex("""<username>(?:<!\[CDATA\[)?(.+?)(?:\]\]>)?</username>""")
+
+private val JOIN_MEMBER_NICKNAME = Regex("""<nickname>(?:<!\[CDATA\[)?(.+?)(?:\]\]>)?</nickname>""")
+
+private val JOIN_MEMBER_BLOCK = Regex("""<member>.*?</member>""", RegexOption.DOT_MATCHES_ALL)
+
+/** The notice wording varies between "加入了群聊", "加入群聊" and "被邀请加入群聊". */
+private val JOIN_NOTICE_TEXT = Regex("""加入[了的]?群聊""")
 
 /** Inclusive epoch-day bounds of a report. */
 private data class ReportRange(val startDay: Long, val endDay: Long) {
@@ -1068,6 +1077,9 @@ private fun reportRange(period: ReportPeriod, customStartDay: Long, customEndDay
         }
     }
 }
+
+/** One recent joiner: how many days back from the report's last day they joined, plus the notice nickname. */
+private data class RecentJoin(val days: Int, val nickname: String)
 
 /** One member's contribution: messages in the range, days they spoke, and their latest date. */
 private data class MemberReport(
@@ -1168,7 +1180,7 @@ private fun loadStatisticsReport(
     }
 
     val ranking = mutableListOf<MemberReport>()
-    val joinDaysByWxId = if (isGroupChat) loadRecentJoinDays(wxId, range.endDay, scale) else emptyMap()
+    val recentJoins = if (isGroupChat) loadRecentJoinDays(wxId, range.endDay, scale) else emptyMap()
     if (isGroupChat) {
         val names = loadGroupSenderNames(wxId)
         val selfWxId = WeApi.selfWxId
@@ -1185,13 +1197,17 @@ private fun loadStatisticsReport(
             // the substring before the first colon is garbage rather than a sender.
             if (!GROUP_SENDER_PREFIX.matches(sender)) return@forEach
             val memberName = names[sender]
-            if (memberName == null && !includeLeftGroup) return@forEach
-            val label = if (memberName != null) {
-                memberName
-            } else {
-                // The sender already left the group: fall back to the contact profile and mark it.
-                val name = WeDatabaseApi.getDisplayName(sender).takeIf { it != sender } ?: sender
-                leftGroupLabel.format(name)
+            val joinInfo = recentJoins[sender]
+            // A member missing from the member table is normally skipped, but a recent join notice
+            // proves they are in the group, so fresh joiners stay in the ranking.
+            if (memberName == null && joinInfo == null && !includeLeftGroup) return@forEach
+            val fallbackName = WeDatabaseApi.getDisplayName(sender).takeIf { it != sender } ?: sender
+            val label = when {
+                memberName != null -> memberName
+                joinInfo != null && joinInfo.nickname.isNotEmpty() -> joinInfo.nickname
+                joinInfo != null -> fallbackName
+                // The sender already left the group: use the contact profile and mark it.
+                else -> leftGroupLabel.format(fallbackName)
             }
             spokenMembers += sender
             ranking += MemberReport(
@@ -1199,7 +1215,7 @@ private fun loadStatisticsReport(
                 messages = row.reportLong("msg_count"),
                 activeDays = activeDaysBySender[sender]?.size ?: 0,
                 lastDay = activeDaysBySender[sender]?.maxOrNull(),
-                joinDays = joinDaysByWxId[sender],
+                joinDays = joinInfo?.days,
             )
         }
 
@@ -1209,8 +1225,21 @@ private fun loadStatisticsReport(
             .filter { (memberWxId, _) -> memberWxId != selfWxId && memberWxId !in spokenMembers }
             .sortedBy { it.value }
         silentMembers.forEach { (memberWxId, label) ->
-            ranking += MemberReport(label, 0, 0, null, joinDaysByWxId[memberWxId])
+            ranking += MemberReport(label, 0, 0, null, recentJoins[memberWxId]?.days)
         }
+        // A join notice can name members the member table does not expose yet, so the notice itself
+        // also feeds the ranking; otherwise fresh joiners would never show up.
+        recentJoins.entries
+            .filter { (memberWxId, _) ->
+                memberWxId != selfWxId && memberWxId !in spokenMembers && memberWxId !in names
+            }
+            .sortedBy { it.key }
+            .forEach { (memberWxId, joinInfo) ->
+                val name = joinInfo.nickname.ifEmpty {
+                    WeDatabaseApi.getDisplayName(memberWxId).takeIf { it != memberWxId } ?: memberWxId
+                }
+                ranking += MemberReport(name, 0, 0, null, joinInfo.days)
+            }
     } else if (total > sent) {
         ranking += MemberReport(peerDisplayName, total - sent, peerActiveDays.size, peerActiveDays.maxOrNull())
     }
@@ -1220,10 +1249,10 @@ private fun loadStatisticsReport(
             sent,
             selfActiveDays.size,
             selfActiveDays.maxOrNull(),
-            joinDaysByWxId[WeApi.selfWxId],
+            recentJoins[WeApi.selfWxId]?.days,
         )
     } else if (isGroupChat) {
-        ranking += MemberReport(selfLabel, 0, 0, null, joinDaysByWxId[WeApi.selfWxId])
+        ranking += MemberReport(selfLabel, 0, 0, null, recentJoins[WeApi.selfWxId]?.days)
     }
 
     // A single-day report still benefits from a trend, so it covers the latest week instead.
@@ -1292,29 +1321,42 @@ private fun loadRecentJoinDays(wxId: String, endDay: Long, scale: Long): Map<Str
     val condition = buildString {
         appendExportConditions(since, until, SenderFilter.ALL, false, "")
     }
-    val joinDays = HashMap<String, Int>()
+    val joinDays = HashMap<String, RecentJoin>()
     WeDatabaseApi.rawQuery(
-        "SELECT createTime, content FROM message WHERE talker = ? AND instr(content, 'sysmsg') > 0$condition",
+        """SELECT createTime, content FROM message WHERE talker = ?
+           AND (instr(content, 'sysmsg') > 0 OR instr(content, '加入') > 0)$condition""",
         arrayOf<Any>(wxId),
     ).use { cursor ->
         while (cursor.moveToNext()) {
+            val content = cursor.getString(1) ?: continue
             val day = millisToEpochDay(cursor.getLong(0) * scale)
             val days = (endDay - day + 1).toInt()
-            joinNoticeWxIds(cursor.getString(1)).forEach { memberWxId ->
+            joinNoticeMembers(content).forEach { (memberWxId, nickname) ->
                 // A member who left and rejoined appears again; the latest join notice wins.
-                joinDays[memberWxId] = minOf(joinDays[memberWxId] ?: days, days)
+                val known = joinDays[memberWxId]
+                joinDays[memberWxId] = if (known != null && known.days < days) {
+                    RecentJoin(known.days, known.nickname)
+                } else {
+                    RecentJoin(days, nickname)
+                }
             }
         }
     }
     return joinDays
 }
 
-/** Reads the joining members' wxIds from a join notice, or nothing when the message is not one. */
-private fun joinNoticeWxIds(content: String): List<String> {
-    if (!content.contains("加入群聊")) return emptyList()
-    val sysmsgStart = content.indexOf("<sysmsg")
+/** Reads the joining members' wxIds and nicknames from a join notice, or nothing when it is not one. */
+private fun joinNoticeMembers(content: String): List<Pair<String, String>> {
+    // Some clients store the notice markup HTML-escaped, so decode before looking for the XML.
+    val markup = content
+        .replace("&lt;", "<")
+        .replace("&gt;", ">")
+        .replace("&quot;", "\"")
+        .replace("&#39;", "'")
+    if (!JOIN_NOTICE_TEXT.containsMatchIn(markup)) return emptyList()
+    val sysmsgStart = markup.indexOf("<sysmsg")
     if (sysmsgStart < 0) return emptyList()
-    val body = content.substring(sysmsgStart)
+    val body = markup.substring(sysmsgStart)
     // Invites list every joiner under "names"; QR-code joins only name the joiner.
     val joinerLink = if (body.contains("通过扫描")) {
         JOIN_SINGLE_LINK.find(body)?.value
@@ -1322,10 +1364,12 @@ private fun joinNoticeWxIds(content: String): List<String> {
         JOIN_NAMES_LINK.find(body)?.value
     }
     val block = joinerLink ?: return emptyList()
-    return JOIN_MEMBER_WXID.findAll(block)
-        .map { it.groupValues[1].trim() }
-        .filter { GROUP_SENDER_PREFIX.matches(it) }
-        .toList()
+    return JOIN_MEMBER_BLOCK.findAll(block).mapNotNull { member ->
+        val memberWxId = JOIN_MEMBER_WXID.find(member.value)?.groupValues?.get(1)?.trim().orEmpty()
+        if (!GROUP_SENDER_PREFIX.matches(memberWxId)) return@mapNotNull null
+        val nickname = JOIN_MEMBER_NICKNAME.find(member.value)?.groupValues?.get(1)?.trim().orEmpty()
+        memberWxId to nickname
+    }.toList()
 }
 
 /**
