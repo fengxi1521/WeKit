@@ -1038,6 +1038,17 @@ private class MessageBodyFormatter(
 /** Number of days covered by a weekly report, including today. */
 private const val WEEKLY_REPORT_DAYS = 7L
 
+/** How long a freshly joined member keeps the "newly joined" marker, counted back from the report's last day. */
+private const val RECENT_JOIN_DAYS = 7L
+
+/** The join notice XML lists every joiner under a "names" link. */
+private val JOIN_NAMES_LINK = Regex("""<link\s+name="names"[^>]*>.*?</link>""", RegexOption.DOT_MATCHES_ALL)
+
+/** QR-code join notices name the joiner in the "username" link instead. */
+private val JOIN_SINGLE_LINK = Regex("""<link\s+name="username"[^>]*>.*?</link>""", RegexOption.DOT_MATCHES_ALL)
+
+private val JOIN_MEMBER_WXID = Regex("""<username>(?:<!\[CDATA\[)?(.+?)(?:\]\]>)?</username>""")
+
 /** Inclusive epoch-day bounds of a report. */
 private data class ReportRange(val startDay: Long, val endDay: Long) {
     val window: ExportWindow
@@ -1064,6 +1075,8 @@ private data class MemberReport(
     val messages: Long,
     val activeDays: Int,
     val lastDay: Long?,
+    /** Days since joining when the member is new enough for a marker, else null. */
+    val joinDays: Int? = null,
 )
 
 /** One day of activity: how many messages arrived and how many members sent them. */
@@ -1155,6 +1168,7 @@ private fun loadStatisticsReport(
     }
 
     val ranking = mutableListOf<MemberReport>()
+    val joinDaysByWxId = if (isGroupChat) loadRecentJoinDays(wxId, range.endDay, scale) else emptyMap()
     if (isGroupChat) {
         val names = loadGroupSenderNames(wxId)
         val selfWxId = WeApi.selfWxId
@@ -1185,6 +1199,7 @@ private fun loadStatisticsReport(
                 messages = row.reportLong("msg_count"),
                 activeDays = activeDaysBySender[sender]?.size ?: 0,
                 lastDay = activeDaysBySender[sender]?.maxOrNull(),
+                joinDays = joinDaysByWxId[sender],
             )
         }
 
@@ -1192,16 +1207,23 @@ private fun loadStatisticsReport(
         // lists the silent ones with a count of zero.
         val silentMembers = names.entries
             .filter { (memberWxId, _) -> memberWxId != selfWxId && memberWxId !in spokenMembers }
-            .map { it.value }
-            .sorted()
-        silentMembers.forEach { ranking += MemberReport(it, 0, 0, null) }
+            .sortedBy { it.value }
+        silentMembers.forEach { (memberWxId, label) ->
+            ranking += MemberReport(label, 0, 0, null, joinDaysByWxId[memberWxId])
+        }
     } else if (total > sent) {
         ranking += MemberReport(peerDisplayName, total - sent, peerActiveDays.size, peerActiveDays.maxOrNull())
     }
     if (sent > 0) {
-        ranking += MemberReport(selfLabel, sent, selfActiveDays.size, selfActiveDays.maxOrNull())
+        ranking += MemberReport(
+            selfLabel,
+            sent,
+            selfActiveDays.size,
+            selfActiveDays.maxOrNull(),
+            joinDaysByWxId[WeApi.selfWxId],
+        )
     } else if (isGroupChat) {
-        ranking += MemberReport(selfLabel, 0, 0, null)
+        ranking += MemberReport(selfLabel, 0, 0, null, joinDaysByWxId[WeApi.selfWxId])
     }
 
     // A single-day report still benefits from a trend, so it covers the latest week instead.
@@ -1260,10 +1282,57 @@ private fun statisticsTypeLabel(context: Context, code: Int): String =
     MessageType.fromCode(code)?.let { context.localizedChatString(it.displayNameRes) }
         ?: context.localizedChatString(R.string.chat_history_export_other_message)
 
+/**
+ * Maps members to the days elapsed since they joined, capped at [RECENT_JOIN_DAYS]. Join notices
+ * only exist as system-message XML in the history, so only the latest week ending at [endDay] is read.
+ */
+private fun loadRecentJoinDays(wxId: String, endDay: Long, scale: Long): Map<String, Int> {
+    val startDay = endDay - RECENT_JOIN_DAYS + 1
+    val (since, until) = ReportRange(startDay, endDay).window.bounds(scale)
+    val condition = buildString {
+        appendExportConditions(since, until, SenderFilter.ALL, false, "")
+    }
+    val joinDays = HashMap<String, Int>()
+    WeDatabaseApi.rawQuery(
+        "SELECT createTime, content FROM message WHERE talker = ? AND instr(content, 'sysmsg') > 0$condition",
+        arrayOf<Any>(wxId),
+    ).use { cursor ->
+        while (cursor.moveToNext()) {
+            val day = millisToEpochDay(cursor.getLong(0) * scale)
+            val days = (endDay - day + 1).toInt()
+            joinNoticeWxIds(cursor.getString(1)).forEach { memberWxId ->
+                // A member who left and rejoined appears again; the latest join notice wins.
+                joinDays[memberWxId] = minOf(joinDays[memberWxId] ?: days, days)
+            }
+        }
+    }
+    return joinDays
+}
+
+/** Reads the joining members' wxIds from a join notice, or nothing when the message is not one. */
+private fun joinNoticeWxIds(content: String): List<String> {
+    if (!content.contains("加入群聊")) return emptyList()
+    val sysmsgStart = content.indexOf("<sysmsg")
+    if (sysmsgStart < 0) return emptyList()
+    val body = content.substring(sysmsgStart)
+    // Invites list every joiner under "names"; QR-code joins only name the joiner.
+    val block = JOIN_NAMES_LINK.find(body)?.value
+        ?: if (body.contains("通过扫描")) JOIN_SINGLE_LINK.find(body)?.value else null
+        ?: return emptyList()
+    return JOIN_MEMBER_WXID.findAll(block)
+        .map { it.groupValues[1].trim() }
+        .filter { GROUP_SENDER_PREFIX.matches(it) }
+        .toList()
+}
+
 /** Renders one ranking line: total messages, days spent speaking, daily average, and last date. */
 private fun statisticsMemberLine(context: Context, member: MemberReport, coveredDays: Int): String {
+    val joinSuffix = member.joinDays?.let {
+        context.localizedChatString(R.string.chat_statistics_report_member_new_join, it)
+    }.orEmpty()
     if (member.messages == 0L) {
-        return context.localizedChatString(R.string.chat_statistics_report_member_silent, member.label)
+        return context.localizedChatString(R.string.chat_statistics_report_member_silent, member.label) +
+            joinSuffix
     }
     val dailyAverage = "%.1f".format(member.messages.toDouble() / coveredDays)
     return context.localizedChatString(
@@ -1273,7 +1342,7 @@ private fun statisticsMemberLine(context: Context, member: MemberReport, covered
         member.activeDays,
         dailyAverage,
         formatEpochDay(member.lastDay!!),
-    )
+    ) + joinSuffix
 }
 
 private fun buildStatisticsReportText(
