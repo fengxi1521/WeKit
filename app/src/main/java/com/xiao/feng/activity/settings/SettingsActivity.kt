@@ -8,15 +8,10 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.annotation.Keep
 import androidx.annotation.StringRes
-import androidx.compose.animation.Crossfade
 import androidx.compose.animation.core.tween
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.navigationBars
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.pager.HorizontalPager
@@ -26,8 +21,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBarDefaults
-import androidx.compose.material3.rememberTopAppBarState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.remember
@@ -36,11 +29,8 @@ import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.composables.icons.materialsymbols.MaterialSymbols
 import com.composables.icons.materialsymbols.outlined.Account_circle
 import com.composables.icons.materialsymbols.outlined.Add_circle
@@ -80,17 +70,12 @@ import com.xiao.feng.i18n.LocaleResourceMode
 import com.xiao.feng.i18n.LocalXiaoFengLocalizedContext
 import com.xiao.feng.i18n.XiaoFengLocaleProvider
 import com.xiao.feng.data.KvStore
-import com.xiao.feng.ui.content.FloatingBottomBar
-import com.xiao.feng.ui.content.FloatingBottomBarDefaults
 import com.xiao.feng.ui.content.m3.BaseWidget
-import com.xiao.feng.ui.content.m3.ExpressiveCollapsingTopAppBar
 import com.xiao.feng.ui.content.m3.SwitchWidget
-import com.xiao.feng.ui.content.m3.XfDockItem
-import com.xiao.feng.ui.content.m3.XiaoFengDock
+import com.xiao.feng.ui.content.m3.XfMasthead
+import com.xiao.feng.ui.content.m3.XfTab
+import com.xiao.feng.ui.content.m3.XfTabBar
 import com.xiao.feng.ui.content.m3.xfPageBackground
-import com.xiao.feng.ui.content.m3AppBarBlur
-import com.xiao.feng.ui.content.m3AppBarColor
-import com.xiao.feng.ui.content.rememberMaterial3BlurBackdrop
 import com.xiao.feng.ui.navigation.LocalNavigator
 import com.xiao.feng.ui.navigation.Navigator
 import com.xiao.feng.ui.navigation.rememberM3NavEffects
@@ -101,8 +86,6 @@ import com.xiao.feng.ui.animation.predictiveback.xiaoFengNavTransition
 import com.xiao.feng.utils.WeLogger
 import kotlinx.coroutines.launch
 import kotlinx.serialization.Serializable
-import top.yukonga.miuix.kmp.blur.layerBackdrop
-import top.yukonga.miuix.kmp.blur.rememberLayerBackdrop
 import top.yukonga.miuix.kmp.nav.core.NavDisplay
 import top.yukonga.miuix.kmp.nav.core.NavKey
 import top.yukonga.miuix.kmp.nav.core.rememberNavBackStack
@@ -256,9 +239,12 @@ private fun MainPagerScreen(
     onOpenLicense: () -> Unit,
 ) {
     val scope = rememberCoroutineScope()
-    val barBottomPadding = 12.dp + WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
-    val dockItems = TAB_ITEMS.map {
-        XfDockItem(label = stringResource(it.labelRes), icon = it.outlined)
+    val tabs = TAB_ITEMS.map {
+        XfTab(
+            label = stringResource(it.labelRes),
+            icon = it.outlined,
+            selectedIcon = it.filled,
+        )
     }
 
     Box(modifier = Modifier.fillMaxSize()) {
@@ -268,21 +254,20 @@ private fun MainPagerScreen(
             key = { it },
         ) { page ->
             when (page) {
-                0 -> HomePager()
+                0 -> HomePager(
+                    onOpenFeatures = { scope.launch { pagerState.animateScrollToPage(1) } },
+                )
                 1 -> FeaturesPager(onOpenCategory = onOpenCategory)
                 2 -> LogsPager()
                 else -> SettingsPager(onOpenLicense = onOpenLicense)
             }
         }
 
-        XiaoFengDock(
-            items = dockItems,
+        XfTabBar(
+            tabs = tabs,
             selectedIndex = pagerState.targetPage,
             onSelected = { scope.launch { pagerState.animateScrollToPage(it) } },
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .padding(horizontal = 16.dp, vertical = 0.dp)
-                .padding(bottom = barBottomPadding),
+            modifier = Modifier.align(Alignment.BottomCenter),
         )
     }
 }
@@ -300,7 +285,7 @@ private val TAB_ITEMS = listOf(
     NavItem(R.string.nav_settings, MaterialSymbols.Outlined.Settings, MaterialSymbols.OutlinedFilled.Settings),
 )
 
-/** Bottom padding so scrollable content clears the floating bar. */
+/** Bottom padding so scrollable content clears the tab bar. */
 val CONTENT_BOTTOM_INSET = 112.dp
 
 // ---------------------------------------------------------------------------
@@ -311,33 +296,30 @@ val CONTENT_BOTTOM_INSET = 112.dp
 fun M3ListScaffold(
     title: String,
     navigationIcon: @Composable (() -> Unit)? = null,
+    subtitle: String? = null,
+    eyebrow: String? = null,
     content: LazyListScope.() -> Unit,
 ) {
-    val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior(rememberTopAppBarState())
     Scaffold(
-        modifier = Modifier
-            .fillMaxSize()
-            .nestedScroll(scrollBehavior.nestedScrollConnection),
+        modifier = Modifier.fillMaxSize(),
         containerColor = MaterialTheme.colorScheme.surfaceContainer,
-        topBar = {
-            ExpressiveCollapsingTopAppBar(
-                title = title,
-                navigationIcon = { navigationIcon?.invoke() },
-                scrollBehavior = scrollBehavior,
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceContainer,
-                    scrolledContainerColor = MaterialTheme.colorScheme.surfaceContainer,
-                ),
-            )
-        },
     ) { innerPadding ->
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
                 .xfPageBackground(),
-            contentPadding = innerPadding,
-            content = content,
-        )
+            contentPadding = PaddingValues(top = innerPadding.calculateTopPadding()),
+        ) {
+            item(key = "masthead") {
+                XfMasthead(
+                    title = title,
+                    subtitle = subtitle,
+                    eyebrow = eyebrow,
+                    navigation = navigationIcon,
+                )
+            }
+            content()
+        }
     }
 }
 

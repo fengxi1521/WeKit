@@ -12,6 +12,7 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Arrangement
@@ -23,6 +24,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
@@ -35,15 +37,10 @@ import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SmallFloatingActionButton
-import androidx.compose.material3.PrimaryTabRow
-import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.pulltorefresh.PullToRefreshDefaults
 import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
@@ -64,7 +61,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -88,10 +84,7 @@ import com.xiao.feng.i18n.LocalXiaoFengLocalizedContext
 import com.xiao.feng.ui.content.m3.BaseItemContainer
 import com.xiao.feng.ui.content.m3.DropDownMenuWidget
 import com.xiao.feng.ui.content.m3.DropdownOption
-import com.xiao.feng.ui.content.m3AppBarBlur
-import com.xiao.feng.ui.content.m3AppBarColor
-import com.xiao.feng.ui.content.m3BackdropLayer
-import com.xiao.feng.ui.content.rememberMaterial3BlurBackdrop
+import com.xiao.feng.ui.content.m3.xfPageBackground
 import com.xiao.feng.utils.HostInfo
 import com.xiao.feng.utils.WeLogger
 import com.xiao.feng.utils.android.showToastSuspend
@@ -286,7 +279,7 @@ private fun saveLogFile(context: Context, localizedContext: () -> Context, file:
 }
 
 private val LOGS_BOTTOM_BAR_INSET = 88.dp
-private val LOGS_CONTENT_BOTTOM_INSET = 184.dp
+private val LOGS_CONTENT_BOTTOM_INSET = 96.dp
 private const val LOG_SCROLL_ANIMATION_THRESHOLD = 500
 
 private val LOG_TABS = listOf(LogKind.RUN, LogKind.CRASH)
@@ -317,9 +310,6 @@ fun LogsPager() {
     val currentFile = currentFiles[kind]
     var menuExpanded by remember { mutableStateOf(false) }
 
-    val scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior()
-    val barBackdrop = rememberMaterial3BlurBackdrop()
-
     fun requestRefresh(targetKind: LogKind, fromPull: Boolean) {
         val ownsPullIndicator = fromPull || activePullRequests[targetKind] != null
         val request = LogRefreshRequest(++refreshGeneration, targetKind, ownsPullIndicator)
@@ -328,112 +318,96 @@ fun LogsPager() {
     }
 
     Scaffold(
-        modifier = Modifier
-            .fillMaxSize()
-            .nestedScroll(scrollBehavior.nestedScrollConnection),
+        modifier = Modifier.fillMaxSize(),
         containerColor = MaterialTheme.colorScheme.surfaceContainer,
         topBar = {
-            // The blur layer spans the app bar and the tab row beneath it, mirroring the old
-            // miuix TopAppBar bottomContent arrangement.
-            Column(modifier = Modifier.m3AppBarBlur(barBackdrop)) {
-                TopAppBar(
-                    title = { Text(stringResource(R.string.nav_logs)) },
-                    scrollBehavior = scrollBehavior,
-                    colors = TopAppBarDefaults.topAppBarColors(
-                        containerColor = barBackdrop.m3AppBarColor(),
-                        scrolledContainerColor = barBackdrop.m3AppBarColor(),
-                    ),
-                    actions = {
-                        IconButton(onClick = {
-                            currentFile?.let { shareLogFile(context, localizedContext, it) }
-                                ?: scope.launch {
-                                    showToastSuspend(localizedContext.getString(R.string.logs_nothing_to_share))
-                                }
-                        }) {
-                            Icon(
-                                imageVector = MaterialSymbols.Outlined.Share,
-                                contentDescription = stringResource(R.string.logs_share),
-                            )
-                        }
-                        IconButton(onClick = {
-                            currentFile?.let { saveLogFile(context, { localizedContext }, it) }
-                                ?: scope.launch {
-                                    showToastSuspend(localizedContext.getString(R.string.logs_nothing_to_save))
-                                }
-                        }) {
-                            Icon(
-                                imageVector = MaterialSymbols.Outlined.Save,
-                                contentDescription = stringResource(R.string.logs_save),
-                            )
-                        }
-                        // Overflow menu anchored to the icon, matching the Settings-page dropdown style.
-                        IconButton(onClick = { menuExpanded = true }) {
-                            Icon(
-                                imageVector = MaterialSymbols.Outlined.More_vert,
-                                contentDescription = stringResource(R.string.accessibility_overflow_menu),
-                            )
-                        }
-                        DropdownMenu(
-                            expanded = menuExpanded,
-                            onDismissRequest = { menuExpanded = false },
-                        ) {
-                            DropdownMenuItem(
-                                text = { Text(stringResource(R.string.logs_refresh)) },
-                                leadingIcon = { Icon(MaterialSymbols.Outlined.Refresh, null) },
-                                onClick = {
-                                    menuExpanded = false
-                                    requestRefresh(kind, fromPull = false)
-                                },
-                            )
-                            DropdownMenuItem(
-                                text = { Text(stringResource(R.string.logs_clear)) },
-                                leadingIcon = { Icon(MaterialSymbols.Outlined.Delete_sweep, null) },
-                                onClick = {
-                                    menuExpanded = false
-                                    scope.launch {
-                                        withContext(Dispatchers.IO) {
-                                            when (kind) {
-                                                LogKind.RUN -> WeLogger.allLogFiles
-                                                    .forEach { runCatching { it.toFile().delete() } }
-
-                                                LogKind.CRASH -> CrashLogsManager.deleteAllCrashLogs()
-                                            }
-                                        }
-                                        requestRefresh(kind, fromPull = false)
-                                    }
-                                },
-                            )
-                        }
-                    },
-                )
-                Box(
+            Column(
+                modifier = Modifier
+                    .statusBarsPadding()
+                    .background(MaterialTheme.colorScheme.surfaceContainer),
+            ) {
+                Row(
                     modifier = Modifier
-                        .padding(horizontal = 12.dp)
-                        .padding(bottom = 8.dp),
+                        .fillMaxWidth()
+                        .height(56.dp)
+                        .padding(start = 20.dp, end = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    PrimaryTabRow(
-                        selectedTabIndex = selectedTab,
-                        containerColor = Color.Transparent,
+                    Text(
+                        text = stringResource(R.string.nav_logs),
+                        style = MaterialTheme.typography.headlineSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface,
+                    )
+                    Spacer(Modifier.weight(1f))
+                    IconButton(onClick = {
+                        currentFile?.let { shareLogFile(context, localizedContext, it) }
+                            ?: scope.launch {
+                                showToastSuspend(localizedContext.getString(R.string.logs_nothing_to_share))
+                            }
+                    }) {
+                        Icon(
+                            imageVector = MaterialSymbols.Outlined.Share,
+                            contentDescription = stringResource(R.string.logs_share),
+                        )
+                    }
+                    IconButton(onClick = {
+                        currentFile?.let { saveLogFile(context, { localizedContext }, it) }
+                            ?: scope.launch {
+                                showToastSuspend(localizedContext.getString(R.string.logs_nothing_to_save))
+                            }
+                    }) {
+                        Icon(
+                            imageVector = MaterialSymbols.Outlined.Save,
+                            contentDescription = stringResource(R.string.logs_save),
+                        )
+                    }
+                    // Overflow menu anchored to the icon, matching the Settings-page dropdown style.
+                    IconButton(onClick = { menuExpanded = true }) {
+                        Icon(
+                            imageVector = MaterialSymbols.Outlined.More_vert,
+                            contentDescription = stringResource(R.string.accessibility_overflow_menu),
+                        )
+                    }
+                    DropdownMenu(
+                        expanded = menuExpanded,
+                        onDismissRequest = { menuExpanded = false },
                     ) {
-                        LOG_TABS.forEachIndexed { index, tabKind ->
-                            Tab(
-                                selected = selectedTab == index,
-                                onClick = {
-                                    selectedTab = index
-                                    scope.launch { pagerState.animateScrollToPage(index) }
-                                },
-                                text = {
-                                    Text(
-                                        stringResource(
-                                            if (tabKind == LogKind.RUN) R.string.logs_tab_runtime
-                                            else R.string.logs_tab_crash
-                                        )
-                                    )
-                                },
-                            )
-                        }
+                        DropdownMenuItem(
+                            text = { Text(stringResource(R.string.logs_refresh)) },
+                            leadingIcon = { Icon(MaterialSymbols.Outlined.Refresh, null) },
+                            onClick = {
+                                menuExpanded = false
+                                requestRefresh(kind, fromPull = false)
+                            },
+                        )
+                        DropdownMenuItem(
+                            text = { Text(stringResource(R.string.logs_clear)) },
+                            leadingIcon = { Icon(MaterialSymbols.Outlined.Delete_sweep, null) },
+                            onClick = {
+                                menuExpanded = false
+                                scope.launch {
+                                    withContext(Dispatchers.IO) {
+                                        when (kind) {
+                                            LogKind.RUN -> WeLogger.allLogFiles
+                                                .forEach { runCatching { it.toFile().delete() } }
+
+                                            LogKind.CRASH -> CrashLogsManager.deleteAllCrashLogs()
+                                        }
+                                    }
+                                    requestRefresh(kind, fromPull = false)
+                                }
+                            },
+                        )
                     }
                 }
+                LogTabStrip(
+                    selectedIndex = selectedTab,
+                    onSelected = { index ->
+                        selectedTab = index
+                        scope.launch { pagerState.animateScrollToPage(index) }
+                    },
+                )
             }
         },
     ) { innerPadding ->
@@ -449,7 +423,6 @@ fun LogsPager() {
             LogTabContent(
                 kind = k,
                 listState = if (k == LogKind.RUN) runListState else crashListState,
-                backdropLayer = Modifier.m3BackdropLayer(barBackdrop),
                 innerPadding = innerPadding,
                 refreshRequest = request,
                 isPullRefreshing = activePullRequests[k] == request && request?.ownsPullIndicator == true,
@@ -463,11 +436,64 @@ fun LogsPager() {
     }
 }
 
+/**
+ * Flat two-tab strip with a short underline under the active tab. It replaces the Material
+ * [PrimaryTabRow] so the log header matches the rest of the editorial chrome.
+ */
+@Composable
+private fun LogTabStrip(
+    selectedIndex: Int,
+    onSelected: (Int) -> Unit,
+) {
+    val scheme = MaterialTheme.colorScheme
+    Column {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp),
+        ) {
+            LOG_TABS.forEachIndexed { index, kind ->
+                val selected = index == selectedIndex
+                Column(
+                    modifier = Modifier
+                        .weight(1f)
+                        .clickable { onSelected(index) }
+                        .padding(vertical = 10.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                ) {
+                    Text(
+                        text = stringResource(
+                            if (kind == LogKind.RUN) R.string.logs_tab_runtime
+                            else R.string.logs_tab_crash,
+                        ),
+                        style = MaterialTheme.typography.labelLarge,
+                        fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
+                        color = if (selected) scheme.primary else scheme.onSurfaceVariant,
+                    )
+                    Spacer(Modifier.height(6.dp))
+                    Box(
+                        Modifier
+                            .width(28.dp)
+                            .height(2.dp)
+                            .clip(RoundedCornerShape(1.dp))
+                            .background(if (selected) scheme.primary else Color.Transparent),
+                    )
+                }
+            }
+        }
+        Box(
+            Modifier
+                .fillMaxWidth()
+                .height(1.dp)
+                .background(scheme.outline.copy(alpha = 0.16f)),
+        )
+    }
+}
+
 @Composable
 private fun LogTabContent(
     kind: LogKind,
     listState: LazyListState,
-    backdropLayer: Modifier,
     innerPadding: PaddingValues,
     refreshRequest: LogRefreshRequest?,
     isPullRefreshing: Boolean,
@@ -553,8 +579,9 @@ private fun LogTabContent(
     ) {
         LazyColumn(
             state = listState,
-            modifier = backdropLayer
+            modifier = Modifier
                 .fillMaxSize()
+                .xfPageBackground()
                 .padding(horizontal = 12.dp),
             contentPadding = innerPadding,
         ) {
@@ -593,7 +620,7 @@ private fun LogTabContent(
                     items(runEntries.size, key = { "run-$it" }) { i ->
                         RunLogCard(
                             runEntries[i],
-                            Modifier.padding(top = if (i == 0) 8.dp else ListItemDefaults.SegmentedGap),
+                            Modifier.padding(top = if (i == 0) 8.dp else 6.dp),
                         )
                     }
                 }
@@ -607,7 +634,7 @@ private fun LogTabContent(
                     items(crashSections.size, key = { "crash-$it" }) { i ->
                         CrashSectionCard(
                             crashSections[i],
-                            Modifier.padding(top = if (i == 0) 8.dp else ListItemDefaults.SegmentedGap),
+                            Modifier.padding(top = if (i == 0) 8.dp else 6.dp),
                         )
                     }
                 }

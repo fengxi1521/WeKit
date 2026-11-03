@@ -9,14 +9,12 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.plus
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
@@ -28,18 +26,14 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedCard
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBarDefaults
-import androidx.compose.material3.rememberTopAppBarState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.compositionLocalOf
@@ -53,10 +47,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
@@ -76,7 +68,6 @@ import com.composables.icons.materialsymbols.outlined.Block
 import com.composables.icons.materialsymbols.outlined.Brightness_medium
 import com.composables.icons.materialsymbols.outlined.Build_circle
 import com.composables.icons.materialsymbols.outlined.Chevron_right
-import com.composables.icons.materialsymbols.outlined.Close
 import com.composables.icons.materialsymbols.outlined.Colorize
 import com.composables.icons.materialsymbols.outlined.Contrast
 import com.composables.icons.materialsymbols.outlined.Delete_forever
@@ -89,7 +80,6 @@ import com.composables.icons.materialsymbols.outlined.Language
 import com.composables.icons.materialsymbols.outlined.License
 import com.composables.icons.materialsymbols.outlined.Notifications
 import com.composables.icons.materialsymbols.outlined.Rule_settings
-import com.composables.icons.materialsymbols.outlined.Search
 import com.composables.icons.materialsymbols.outlined.Shield
 import com.composables.icons.materialsymbols.outlined.Style
 import com.composables.icons.materialsymbols.outlined.Swipe
@@ -123,13 +113,12 @@ import com.xiao.feng.ui.content.m3.CornerRadius
 import com.xiao.feng.ui.content.m3.DropDownMenuWidget
 import com.xiao.feng.ui.content.m3.DropdownOption
 import com.xiao.feng.ui.content.m3.ExpressiveBackButton
-import com.xiao.feng.ui.content.m3.ExpressiveCollapsingTopAppBar
 import com.xiao.feng.ui.content.m3.SegmentedColumn
 import com.xiao.feng.ui.content.m3.SwitchWidget
-import com.xiao.feng.ui.content.m3AppBarBlur
-import com.xiao.feng.ui.content.m3AppBarColor
-import com.xiao.feng.ui.content.m3BackdropLayer
-import com.xiao.feng.ui.content.rememberMaterial3BlurBackdrop
+import com.xiao.feng.ui.content.m3.XfMasthead
+import com.xiao.feng.ui.content.m3.XfPanel
+import com.xiao.feng.ui.content.m3.XfSearchBar
+import com.xiao.feng.ui.content.m3.xfPageBackground
 import com.xiao.feng.ui.utils.GitHubIcon
 import com.xiao.feng.ui.utils.TelegramIcon
 import com.xiao.feng.ui.utils.theme.AppColorSpec
@@ -428,63 +417,66 @@ private fun ProfileCard() {
         }
     }
 
-    SegmentedColumn {
-        item { shape ->
-            val scheme = MaterialTheme.colorScheme
-            Row(
+    val scheme = MaterialTheme.colorScheme
+    XfPanel(modifier = Modifier
+        .fillMaxWidth()
+        .padding(horizontal = 16.dp)) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            // Identity band: a slim accent rule instead of a full gradient card.
+            Box(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(shape)
-                    .background(
-                        Brush.linearGradient(
-                            listOf(scheme.secondaryContainer, scheme.tertiaryContainer),
-                        ),
-                    )
-                    .padding(horizontal = 16.dp, vertical = 16.dp),
-                verticalAlignment = Alignment.CenterVertically,
+                    .width(3.dp)
+                    .height(54.dp)
+                    .clip(RoundedCornerShape(2.dp))
+                    .background(scheme.primary),
+            )
+            Spacer(Modifier.width(14.dp))
+            Box(
+                modifier = Modifier
+                    .size(58.dp)
+                    .clip(CircleShape)
+                    .background(scheme.primary.copy(alpha = 0.12f)),
+                contentAlignment = Alignment.Center,
             ) {
-                Box(
-                    modifier = Modifier
-                        .size(62.dp)
-                        .clip(CircleShape)
-                        .background(scheme.onSecondaryContainer.copy(alpha = 0.12f)),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    if (identity.avatarUrl.isNotEmpty()) {
-                        AsyncImage(
-                            model = identity.avatarUrl,
-                            contentDescription = null,
-                            contentScale = ContentScale.Crop,
-                            modifier = Modifier
-                                .size(56.dp)
-                                .clip(CircleShape),
-                        )
-                    } else {
-                        AvatarPlaceholder()
-                    }
+                if (identity.avatarUrl.isNotEmpty()) {
+                    AsyncImage(
+                        model = identity.avatarUrl,
+                        contentDescription = null,
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier
+                            .size(56.dp)
+                            .clip(CircleShape),
+                    )
+                } else {
+                    AvatarPlaceholder()
                 }
+            }
 
-                Spacer(Modifier.width(14.dp))
+            Spacer(Modifier.width(14.dp))
 
-                Column(modifier = Modifier.weight(1f)) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = identity.nickname.ifEmpty { wxId.ifEmpty { "—" } },
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 19.sp,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    color = scheme.onSurface,
+                )
+                if (wxId.isNotEmpty()) {
                     Text(
-                        text = identity.nickname.ifEmpty { wxId.ifEmpty { "—" } },
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 18.sp,
+                        text = wxId,
+                        fontSize = 12.sp,
+                        color = scheme.onSurfaceVariant,
+                        modifier = Modifier.padding(top = 3.dp),
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
-                        color = scheme.onSecondaryContainer,
                     )
-                    if (wxId.isNotEmpty()) {
-                        Text(
-                            text = wxId,
-                            fontSize = 13.sp,
-                            color = scheme.onSecondaryContainer.copy(alpha = 0.72f),
-                            modifier = Modifier.padding(top = 2.dp),
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                        )
-                    }
                 }
             }
         }
@@ -1071,89 +1063,65 @@ fun LicenseScreen(onBack: () -> Unit) {
         )
     }
     var selectedLibrary by remember { mutableStateOf<Library?>(null) }
-    val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior(rememberTopAppBarState())
-    val barBackdrop = rememberMaterial3BlurBackdrop()
 
     Scaffold(
-        modifier = Modifier
-            .fillMaxSize()
-            .nestedScroll(scrollBehavior.nestedScrollConnection),
+        modifier = Modifier.fillMaxSize(),
         containerColor = MaterialTheme.colorScheme.surfaceContainer,
-        topBar = {
-            ExpressiveCollapsingTopAppBar(
-                modifier = Modifier.m3AppBarBlur(barBackdrop),
-                title = stringResource(R.string.licenses_title),
-                navigationIcon = { ExpressiveBackButton(onClick = onBack) },
-                scrollBehavior = scrollBehavior,
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = barBackdrop.m3AppBarColor(),
-                    scrolledContainerColor = barBackdrop.m3AppBarColor(),
-                ),
-            )
-        }
     ) { scaffoldPadding ->
-        LibrariesContainer(
-            libraries = filteredLibraries,
+        Box(
             modifier = Modifier
                 .fillMaxSize()
-                .m3BackdropLayer(barBackdrop),
-            contentPadding = scaffoldPadding + PaddingValues(horizontal = 16.dp),
-            colors = LibraryDefaults.libraryColors(
-                libraryBackgroundColor = MaterialTheme.colorScheme.surfaceContainer,
-                libraryContentColor = MaterialTheme.colorScheme.onSurface,
-            ),
-            variantColors = LibraryDefaults.m3VariantColors(
-                rowBackground = MaterialTheme.colorScheme.surfaceBright,
-                rowExpandedBackground = MaterialTheme.colorScheme.surfaceBright,
-                rowOnBackground = MaterialTheme.colorScheme.onSurface,
-                rowSubtleContent = MaterialTheme.colorScheme.onSurfaceVariant,
-            ),
-            detailMode = LibraryDetailMode.None,
-            header = {
-                item(key = "search") {
-                    OutlinedTextField(
-                        value = query,
-                        onValueChange = { query = it },
+                .xfPageBackground(),
+        ) {
+            LibrariesContainer(
+                libraries = filteredLibraries,
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = scaffoldPadding,
+                colors = LibraryDefaults.libraryColors(
+                    libraryBackgroundColor = Color.Transparent,
+                    libraryContentColor = MaterialTheme.colorScheme.onSurface,
+                ),
+                variantColors = LibraryDefaults.m3VariantColors(
+                    rowBackground = MaterialTheme.colorScheme.surfaceContainerLowest.copy(alpha = 0.7f),
+                    rowExpandedBackground = MaterialTheme.colorScheme.surfaceContainerLowest.copy(alpha = 0.7f),
+                    rowOnBackground = MaterialTheme.colorScheme.onSurface,
+                    rowSubtleContent = MaterialTheme.colorScheme.onSurfaceVariant,
+                ),
+                detailMode = LibraryDetailMode.None,
+                header = {
+                    item(key = "masthead") {
+                        XfMasthead(
+                            title = stringResource(R.string.licenses_title),
+                            navigation = { ExpressiveBackButton(onClick = onBack) },
+                        )
+                    }
+                    item(key = "search") {
+                        XfSearchBar(
+                            query = query,
+                            onQueryChange = { query = it },
+                            placeholder = stringResource(R.string.licenses_search_hint),
+                            clearContentDescription = stringResource(R.string.action_clear),
+                            modifier = Modifier.padding(horizontal = 16.dp),
+                        )
+                    }
+                },
+                libraryRow = { _, library, expanded, toggle, style ->
+                    LibraryRow(
+                        library = library,
+                        expanded = expanded,
+                        onToggle = toggle,
+                        style = style,
                         modifier = Modifier
-                            .padding(top = 12.dp)
-                            .fillMaxWidth(),
-                        label = { Text(stringResource(R.string.licenses_search_hint)) },
-                        singleLine = true,
-                        leadingIcon = {
-                            Icon(
-                                imageVector = MaterialSymbols.Outlined.Search,
-                                contentDescription = null,
-                            )
-                        },
-                        trailingIcon = {
-                            if (query.isNotEmpty()) {
-                                IconButton(onClick = { query = "" }) {
-                                    Icon(
-                                        imageVector = MaterialSymbols.Outlined.Close,
-                                        contentDescription = stringResource(R.string.action_clear),
-                                    )
-                                }
-                            }
-                        },
+                            .padding(horizontal = 16.dp, vertical = 4.dp)
+                            .clip(RoundedCornerShape(CornerRadius)),
                     )
-                }
-            },
-            libraryRow = { _, library, expanded, toggle, style ->
-                LibraryRow(
-                    library = library,
-                    expanded = expanded,
-                    onToggle = toggle,
-                    style = style,
-                    modifier = Modifier
-                        .padding(vertical = 4.dp)
-                        .clip(RoundedCornerShape(CornerRadius)),
-                )
-            },
-            onLibraryClick = { library ->
-                selectedLibrary = library
-                true
-            },
-        )
+                },
+                onLibraryClick = { library ->
+                    selectedLibrary = library
+                    true
+                },
+            )
+        }
 
         selectedLibrary?.let { library ->
             val uriHandler = LocalUriHandler.current

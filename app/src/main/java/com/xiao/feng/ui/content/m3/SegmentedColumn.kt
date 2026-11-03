@@ -13,7 +13,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.ListItemDefaults
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -105,7 +105,7 @@ class SegmentedColumnScope {
         animatedVisibility: Boolean = true,
         expanded: Boolean,
         topPadding: Dp? = null,
-        bottomPadding: Dp = 1.dp,
+        bottomPadding: Dp = 0.dp,
         topContent: @Composable (Shape) -> Unit,
         bottomContent: @Composable (Shape) -> Unit,
     ) {
@@ -138,7 +138,7 @@ fun SegmentedColumn(
     modifier: Modifier = Modifier,
     title: String = "",
     contentPadding: PaddingValues = PaddingValues(horizontal = PADDING_HORIZONTAL.dp, vertical = PADDING_VERTICAL.dp),
-    titlePadding: PaddingValues = PaddingValues(start = PADDING_HORIZONTAL.dp, top = PADDING_VERTICAL.dp, bottom = 10.dp),
+    titlePadding: PaddingValues = PaddingValues(start = 2.dp, top = PADDING_VERTICAL.dp, bottom = 12.dp),
     content: SegmentedColumnScope.() -> Unit,
 ) {
     val scope = SegmentedColumnScope().apply(content)
@@ -152,21 +152,28 @@ fun SegmentedColumn(
                 modifier = Modifier.padding(titlePadding),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                // Accent bar: the group header reads as a section marker instead of plain text.
+                // Chapter marker: accent dot, tracked-out label, then a rule to the right edge.
                 Box(
                     modifier = Modifier
-                        .width(3.dp)
-                        .height(16.dp)
-                        .clip(RoundedCornerShape(2.dp))
+                        .width(6.dp)
+                        .height(6.dp)
+                        .clip(RoundedCornerShape(3.dp))
                         .background(MaterialTheme.colorScheme.primary),
                 )
-                Spacer(Modifier.width(8.dp))
+                Spacer(Modifier.width(10.dp))
                 Text(
                     text = title,
-                    style = MaterialTheme.typography.titleSmall,
+                    style = MaterialTheme.typography.labelMedium,
                     fontWeight = FontWeight.SemiBold,
-                    letterSpacing = 0.6.sp,
+                    letterSpacing = 1.4.sp,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Spacer(Modifier.width(10.dp))
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(1.dp)
+                        .background(MaterialTheme.colorScheme.outline.copy(alpha = 0.26f)),
                 )
             }
         }
@@ -193,10 +200,15 @@ fun SegmentedColumn(
                 CompositionLocalProvider(LocalSegmentedItemShape provides shape) {
                     Column(
                         modifier = Modifier.padding(
-                            top = itemData.customTopPadding
-                                ?: if (index == 0) 0.dp else ListItemDefaults.SegmentedGap,
+                            top = itemData.customTopPadding ?: 0.dp,
                         ),
                     ) {
+                        if (index > 0) {
+                            HorizontalDivider(
+                                thickness = 1.dp,
+                                color = MaterialTheme.colorScheme.outline.copy(alpha = 0.16f),
+                            )
+                        }
                         itemData.content(shape)
                     }
                 }

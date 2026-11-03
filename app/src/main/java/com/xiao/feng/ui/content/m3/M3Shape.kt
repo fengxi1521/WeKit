@@ -3,7 +3,7 @@ package com.xiao.feng.ui.content.m3
 import androidx.compose.ui.unit.dp
 
 /** Outer corner radius of a segmented group / card. */
-val CornerRadius = 24.dp
+val CornerRadius = 18.dp
 
 /**
  * Radius of the seam between two rows inside a group. Zero keeps neighbouring rows visually joined,

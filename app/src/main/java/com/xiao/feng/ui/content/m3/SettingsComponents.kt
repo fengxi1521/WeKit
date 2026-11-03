@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
@@ -30,9 +31,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SheetValue
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.rememberBottomSheetState
-import androidx.compose.material3.rememberTopAppBarState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -41,62 +40,51 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.xiao.feng.R
-import com.xiao.feng.ui.content.m3AppBarBlur
-import com.xiao.feng.ui.content.m3AppBarColor
-import com.xiao.feng.ui.content.m3BackdropLayer
-import com.xiao.feng.ui.content.rememberMaterial3BlurBackdrop
 
 /** Bottom padding so scrollable content clears the system nav bar comfortably. */
 val SETTINGS_CONTENT_BOTTOM_INSET = 32.dp
 
 /**
- * Shared settings scaffold: collapsing blurred
- * [ExpressiveCollapsingTopAppBar] with an optional back button + a scroll-through-blur [LazyColumn], mirroring
- * [com.xiao.feng.activity.settings.M3ListScaffold] with back and action callbacks.
+ * Shared settings scaffold: an editorial [XfMasthead] with optional back/actions followed by the
+ * page's lazy content. It mirrors [com.xiao.feng.activity.settings.M3ListScaffold] and deliberately
+ * drops the old collapsing blurred app bar so every page shares one flat, line-based header.
  */
 @Composable
 fun SettingsScaffold(
     title: String,
     onBack: (() -> Unit)?,
-    actions: @Composable RowScope.() -> Unit = {},
+    actions: (@Composable RowScope.() -> Unit)? = null,
+    subtitle: String? = null,
     content: LazyListScope.() -> Unit,
 ) {
-    val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior(rememberTopAppBarState())
-    val barBackdrop = rememberMaterial3BlurBackdrop()
+    val navigation: (@Composable () -> Unit)? = if (onBack != null) {
+        { ExpressiveBackButton(onClick = onBack) }
+    } else {
+        null
+    }
     Scaffold(
-        modifier = Modifier
-            .fillMaxSize()
-            .nestedScroll(scrollBehavior.nestedScrollConnection),
+        modifier = Modifier.fillMaxSize(),
         containerColor = MaterialTheme.colorScheme.surfaceContainer,
-        topBar = {
-            ExpressiveCollapsingTopAppBar(
-                modifier = Modifier.m3AppBarBlur(barBackdrop),
-                title = title,
-                navigationIcon = {
-                    if (onBack != null) {
-                        ExpressiveBackButton(onClick = onBack)
-                    }
-                },
-                actions = actions,
-                scrollBehavior = scrollBehavior,
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = barBackdrop.m3AppBarColor(),
-                    scrolledContainerColor = barBackdrop.m3AppBarColor(),
-                ),
-            )
-        },
     ) { innerPadding ->
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
                 .xfPageBackground(),
-            contentPadding = innerPadding,
-            content = content,
-        )
+            contentPadding = PaddingValues(top = innerPadding.calculateTopPadding()),
+        ) {
+            item(key = "masthead") {
+                XfMasthead(
+                    title = title,
+                    subtitle = subtitle,
+                    navigation = navigation,
+                    actions = actions,
+                )
+            }
+            content()
+        }
     }
 }
 

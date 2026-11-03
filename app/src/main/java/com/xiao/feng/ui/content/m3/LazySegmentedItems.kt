@@ -2,11 +2,13 @@
 package com.xiao.feng.ui.content.m3
 
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.ListItemDefaults
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Modifier
@@ -39,11 +41,19 @@ fun <T> LazyListScope.lazySegmentedItems(
 
         Box(
             Modifier
-                .animateItem()
-                .padding(top = if (index == 0) 0.dp else ListItemDefaults.SegmentedGap),
+                .animateItem(),
         ) {
-            CompositionLocalProvider(LocalSegmentedItemShape provides shape) {
-                itemContent(item)
+            Column {
+                if (index > 0) {
+                    HorizontalDivider(
+                        modifier = Modifier.padding(horizontal = 16.dp),
+                        thickness = 1.dp,
+                        color = MaterialTheme.colorScheme.outline.copy(alpha = 0.16f),
+                    )
+                }
+                CompositionLocalProvider(LocalSegmentedItemShape provides shape) {
+                    itemContent(item)
+                }
             }
         }
     }

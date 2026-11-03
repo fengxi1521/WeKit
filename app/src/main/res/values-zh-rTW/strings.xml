@@ -223,9 +223,11 @@
     <string name="features_clear_search">清除搜索</string>
     <string name="features_no_results">未匹配到任何相關功能</string>
     <string name="features_category_empty">目前分類沒有可顯示的功能</string>
+    <string name="features_category_count">共 %1$d 項</string>
     <string name="features_new_summary">最近 %1$d 天新增 %2$d 個功能</string>
     <string name="home_module_activated">模塊已激活</string>
     <string name="home_brand_tagline">微信增強模組</string>
+    <string name="home_overview_title">概覽</string>
     <string name="home_stat_enabled">已啟用</string>
     <string name="home_stat_new">新功能</string>
     <string name="home_stat_categories">分類</string>

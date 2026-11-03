@@ -1,6 +1,8 @@
 
 package com.xiao.feng.ui.agent.settings
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -10,22 +12,20 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.PrimaryTabRow
-import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -40,9 +40,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.composables.icons.materialsymbols.MaterialSymbols
 import com.composables.icons.materialsymbols.outlined.Add
@@ -62,10 +63,6 @@ import com.xiao.feng.ui.content.m3.ExpressiveBackButton
 import com.xiao.feng.ui.content.m3.BaseWidget
 import com.xiao.feng.ui.content.m3.SegmentedColumn
 import com.xiao.feng.ui.content.m3.SwitchWidget
-import com.xiao.feng.ui.content.m3AppBarBlur
-import com.xiao.feng.ui.content.m3AppBarColor
-import com.xiao.feng.ui.content.m3BackdropLayer
-import com.xiao.feng.ui.content.rememberMaterial3BlurBackdrop
 import com.xiao.feng.utils.android.showToast
 import kotlinx.coroutines.launch
 import java.util.UUID
@@ -96,8 +93,6 @@ fun PromptsScreen(onBack: () -> Unit) {
 
     var selectedTab by rememberSaveable { mutableIntStateOf(0) }
     val pagerState = rememberPagerState(initialPage = selectedTab, pageCount = { PROMPT_TAB_LABELS.size })
-    val scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior()
-    val barBackdrop = rememberMaterial3BlurBackdrop()
 
     // Pager → tab: swiping a page updates the selected tab.
     LaunchedEffect(pagerState) {
@@ -111,56 +106,45 @@ fun PromptsScreen(onBack: () -> Unit) {
     var editPreset by remember { mutableStateOf<PresetPromptEntity?>(null) }
 
     Scaffold(
-        modifier = Modifier
-            .fillMaxSize()
-            .nestedScroll(scrollBehavior.nestedScrollConnection),
+        modifier = Modifier.fillMaxSize(),
         containerColor = MaterialTheme.colorScheme.surfaceContainer,
         topBar = {
-            // The blur layer spans the app bar and the tab row beneath it, mirroring LogsPager.
-            Column(modifier = Modifier.m3AppBarBlur(barBackdrop)) {
-                TopAppBar(
-                    title = { Text(stringResource(R.string.agent_prompts_title)) },
-                    navigationIcon = {
-                        Row {
-                            ExpressiveBackButton(onClick = onBack)
-                            Spacer(modifier = Modifier.size(16.dp))
-                        }
-                    },
-                    scrollBehavior = scrollBehavior,
-                    colors = TopAppBarDefaults.topAppBarColors(
-                        containerColor = barBackdrop.m3AppBarColor(),
-                        scrolledContainerColor = barBackdrop.m3AppBarColor(),
-                    ),
-                )
-                Box(
+            Column(
+                modifier = Modifier
+                    .statusBarsPadding()
+                    .background(MaterialTheme.colorScheme.surfaceContainer),
+            ) {
+                Row(
                     modifier = Modifier
-                        .padding(horizontal = 12.dp)
-                        .padding(bottom = 8.dp),
+                        .fillMaxWidth()
+                        .height(56.dp)
+                        .padding(start = 20.dp, end = 16.dp),
+                    verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    PrimaryTabRow(
-                        selectedTabIndex = selectedTab,
-                        containerColor = Color.Transparent,
-                    ) {
-                        PROMPT_TAB_LABELS.forEachIndexed { index, labelRes ->
-                            Tab(
-                                selected = selectedTab == index,
-                                onClick = {
-                                    selectedTab = index
-                                    scope.launch { pagerState.animateScrollToPage(index) }
-                                },
-                                text = { Text(stringResource(labelRes)) },
-                            )
-                        }
-                    }
+                    ExpressiveBackButton(onClick = onBack)
+                    Spacer(Modifier.width(12.dp))
+                    Text(
+                        text = stringResource(R.string.agent_prompts_title),
+                        style = MaterialTheme.typography.headlineSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
                 }
+                PromptTabStrip(
+                    selectedIndex = selectedTab,
+                    onSelected = { index ->
+                        selectedTab = index
+                        scope.launch { pagerState.animateScrollToPage(index) }
+                    },
+                )
             }
         },
     ) { innerPadding ->
         HorizontalPager(
             state = pagerState,
-            modifier = Modifier
-                .fillMaxSize()
-                .m3BackdropLayer(barBackdrop),
+            modifier = Modifier.fillMaxSize(),
             beyondViewportPageCount = PROMPT_TAB_LABELS.size - 1,
         ) { page ->
             when (page) {
@@ -314,6 +298,54 @@ fun PromptsScreen(onBack: () -> Unit) {
             }
         } },
     )
+}
+
+/**
+ * Flat four-tab strip with a short underline under the active tab, matching the Logs page chrome
+ * instead of a filled Material tab row.
+ */
+@Composable
+private fun PromptTabStrip(
+    selectedIndex: Int,
+    onSelected: (Int) -> Unit,
+) {
+    val scheme = MaterialTheme.colorScheme
+    Column {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp),
+        ) {
+            PROMPT_TAB_LABELS.forEachIndexed { index, labelRes ->
+                val selected = index == selectedIndex
+                Column(
+                    modifier = Modifier
+                        .weight(1f)
+                        .clickable { onSelected(index) }
+                        .padding(vertical = 10.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                ) {
+                    Text(
+                        text = stringResource(labelRes),
+                        style = MaterialTheme.typography.labelLarge,
+                        fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
+                        color = if (selected) scheme.primary else scheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                    Spacer(Modifier.height(6.dp))
+                    Box(
+                        Modifier
+                            .width(20.dp)
+                            .height(2.dp)
+                            .clip(RoundedCornerShape(1.dp))
+                            .background(if (selected) scheme.primary else androidx.compose.ui.graphics.Color.Transparent),
+                    )
+                }
+            }
+        }
+        HorizontalDivider(color = scheme.outline.copy(alpha = 0.16f))
+    }
 }
 
 // -------- Pages --------

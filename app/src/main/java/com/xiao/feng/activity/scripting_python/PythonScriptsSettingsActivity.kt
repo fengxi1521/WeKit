@@ -15,12 +15,19 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.Keep
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.width
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
@@ -28,8 +35,6 @@ import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
@@ -42,9 +47,12 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.composables.icons.materialsymbols.MaterialSymbols
 import com.composables.icons.materialsymbols.outlined.Add
@@ -85,10 +93,6 @@ import com.xiao.feng.ui.content.m3.SettingsScaffold
 import com.xiao.feng.ui.content.m3.SwitchWidget
 import com.xiao.feng.ui.content.m3.TextFieldDialogWidget
 import com.xiao.feng.ui.content.m3.rememberCreationBackGuard
-import com.xiao.feng.ui.content.m3AppBarBlur
-import com.xiao.feng.ui.content.m3AppBarColor
-import com.xiao.feng.ui.content.m3BackdropLayer
-import com.xiao.feng.ui.content.rememberMaterial3BlurBackdrop
 import com.xiao.feng.ui.navigation.LocalNavigator
 import com.xiao.feng.ui.navigation.Navigator
 import com.xiao.feng.ui.navigation.rememberM3NavEffects
@@ -755,23 +759,33 @@ private fun PythonEditorScreen(pluginId: String, onBack: () -> Unit) {
     }
 
     // 编辑器内部自行滚动并消费底部系统栏 / IME insets：只给顶部留出固定顶栏，底部不加 padding。
-    // backdrop 捕获层必须只包内容——若连顶栏一起捕获，顶栏模糊会采样到自己的输出，
-    // AGSL 着色器无限嵌套，渲染线程栈溢出（SIGSEGV）。
-    val barBackdrop = rememberMaterial3BlurBackdrop()
     Scaffold(
         modifier = Modifier.fillMaxSize(),
         containerColor = MaterialTheme.colorScheme.surfaceContainer,
         topBar = {
-            TopAppBar(
-                modifier = Modifier.m3AppBarBlur(barBackdrop),
-                title = { Text(stringResource(R.string.python_edit_entry)) },
-                navigationIcon = {
-                    Row {
-                        ExpressiveBackButton(onClick = guardedBack)
-                        Spacer(modifier = Modifier.size(16.dp))
-                    }
-                },
-                actions = {
+            Column(
+                modifier = Modifier
+                    .statusBarsPadding()
+                    .background(MaterialTheme.colorScheme.surfaceContainer),
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(56.dp)
+                        .padding(start = 20.dp, end = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    ExpressiveBackButton(onClick = guardedBack)
+                    Spacer(Modifier.width(12.dp))
+                    Text(
+                        text = stringResource(R.string.python_edit_entry),
+                        style = MaterialTheme.typography.headlineSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f),
+                    )
                     IconButton(
                         onClick = {
                             softWrap = !softWrap
@@ -824,12 +838,9 @@ private fun PythonEditorScreen(pluginId: String, onBack: () -> Unit) {
                             )
                         }
                     }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = barBackdrop.m3AppBarColor(),
-                    scrolledContainerColor = barBackdrop.m3AppBarColor(),
-                ),
-            )
+                }
+                HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.16f))
+            }
         },
     ) { innerPadding ->
         CodeEditor(
@@ -840,7 +851,6 @@ private fun PythonEditorScreen(pluginId: String, onBack: () -> Unit) {
             softWrap = softWrap,
             modifier = Modifier
                 .fillMaxSize()
-                .m3BackdropLayer(barBackdrop)
                 .padding(top = innerPadding.calculateTopPadding()),
         )
     }

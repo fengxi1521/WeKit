@@ -4,6 +4,7 @@ package com.xiao.feng.ui.content.m3
 
 import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
@@ -33,7 +34,6 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalDensity
@@ -119,9 +119,9 @@ fun BaseWidget(
     val baseShape = LocalSegmentedItemShape.current
 
     val backgroundColor = if (selected) {
-        MaterialTheme.colorScheme.primaryContainer
+        MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.92f)
     } else {
-        MaterialTheme.colorScheme.surfaceBright
+        MaterialTheme.colorScheme.surfaceContainerLowest.copy(alpha = 0.62f)
     }
 
     val baseContentColor = if (selected) {
@@ -190,45 +190,44 @@ fun BaseWidget(
                     contentAlignment = Alignment.Center
                 ) {
                     if (icon != null) {
-                        // XiaoFeng look: every icon sits in a tinted, rounded chip instead of
-                        // floating bare on the row background.
+                        // Framed glyph: a hairline square instead of a filled gradient chip, so the
+                        // row reads as part of a flat sheet rather than a stack of tiles.
                         Box(
                             modifier = Modifier
-                                .size(38.dp)
-                                .clip(RoundedCornerShape(13.dp))
+                                .size(36.dp)
+                                .clip(RoundedCornerShape(10.dp))
                                 .background(
                                     if (selected) {
-                                        Brush.linearGradient(
-                                            listOf(
-                                                MaterialTheme.colorScheme.primary,
-                                                MaterialTheme.colorScheme.tertiary,
-                                            ),
-                                        )
+                                        MaterialTheme.colorScheme.primary
                                     } else {
-                                        Brush.linearGradient(
-                                            listOf(
-                                                MaterialTheme.colorScheme.primaryContainer,
-                                                MaterialTheme.colorScheme.secondaryContainer,
-                                            ),
-                                        )
+                                        MaterialTheme.colorScheme.primary.copy(alpha = 0.09f)
                                     },
+                                )
+                                .border(
+                                    width = 1.dp,
+                                    color = if (selected) {
+                                        MaterialTheme.colorScheme.primary
+                                    } else {
+                                        MaterialTheme.colorScheme.primary.copy(alpha = 0.26f)
+                                    },
+                                    shape = RoundedCornerShape(10.dp),
                                 ),
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
                                 imageVector = icon,
                                 contentDescription = null,
-                                modifier = Modifier.size(21.dp),
+                                modifier = Modifier.size(20.dp),
                                 tint = iconColor
                                     ?: if (selected) {
                                         MaterialTheme.colorScheme.onPrimary
                                     } else {
-                                        MaterialTheme.colorScheme.onPrimaryContainer
+                                        MaterialTheme.colorScheme.primary
                                     }
                             )
                         }
                     } else {
-                        Spacer(modifier = Modifier.size(38.dp))
+                        Spacer(modifier = Modifier.size(36.dp))
                     }
                 }
             }

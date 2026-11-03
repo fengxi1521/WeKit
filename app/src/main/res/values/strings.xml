@@ -248,9 +248,11 @@
     <string name="features_clear_search">Clear search</string>
     <string name="features_no_results">No matching features</string>
     <string name="features_category_empty">There are no features to show in this category</string>
+    <string name="features_category_count">%1$d features</string>
     <string name="features_new_summary">%2$d features added in the last %1$d days</string>
     <string name="home_module_activated">Module activated</string>
     <string name="home_brand_tagline">WeChat enhancement module</string>
+    <string name="home_overview_title">Overview</string>
     <string name="home_stat_enabled">Enabled</string>
     <string name="home_stat_new">New</string>
     <string name="home_stat_categories">Categories</string>
