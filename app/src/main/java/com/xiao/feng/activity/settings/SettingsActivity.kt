@@ -301,7 +301,7 @@ private val TAB_ITEMS = listOf(
 )
 
 /** Bottom padding so scrollable content clears the floating bar. */
-val CONTENT_BOTTOM_INSET = 88.dp
+val CONTENT_BOTTOM_INSET = 112.dp
 
 // ---------------------------------------------------------------------------
 //  Shared scaffold (Material 3 Expressive)
