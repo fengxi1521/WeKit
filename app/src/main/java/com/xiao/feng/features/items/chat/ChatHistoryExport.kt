@@ -1316,9 +1316,12 @@ private fun joinNoticeWxIds(content: String): List<String> {
     if (sysmsgStart < 0) return emptyList()
     val body = content.substring(sysmsgStart)
     // Invites list every joiner under "names"; QR-code joins only name the joiner.
-    val block = JOIN_NAMES_LINK.find(body)?.value
-        ?: if (body.contains("通过扫描")) JOIN_SINGLE_LINK.find(body)?.value else null
-        ?: return emptyList()
+    val joinerLink = if (body.contains("通过扫描")) {
+        JOIN_SINGLE_LINK.find(body)?.value
+    } else {
+        JOIN_NAMES_LINK.find(body)?.value
+    }
+    val block = joinerLink ?: return emptyList()
     return JOIN_MEMBER_WXID.findAll(block)
         .map { it.groupValues[1].trim() }
         .filter { GROUP_SENDER_PREFIX.matches(it) }
