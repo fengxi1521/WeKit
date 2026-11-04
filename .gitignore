@@ -39,6 +39,10 @@ local.properties
 
 /decrypted_wechat.db
 
+# Signing keys
+*.jks
+*.keystore
+
 # Superpowers artifacts live in /home/xfeng/coding/xfeng_dev/superpowers (AGENTS.md there)
 .superpowers/
 docs/superpowers/
