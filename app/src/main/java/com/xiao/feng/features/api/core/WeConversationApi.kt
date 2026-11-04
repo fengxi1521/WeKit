@@ -30,6 +30,12 @@ object WeConversationApi : ApiFeature(), IResolveDex {
 
     private const val TAG = "WeConversationApi"
 
+    // notifyFlag bitmask accepted by RoomService.modChatRoomNotify for the group 「以下消息仍通知」
+    // switches: 1 = @我, 2 = @所有人, 4 = 群公告. A set bit keeps notifying while the group is
+    // muted, so 0 turns all three off — the module always mutes silently instead of inheriting
+    // whatever the host last stored.
+    private const val STILL_NOTIFY_NONE = 0
+
     // Clears 4096, 1048576, 16777216 and 33554432, which drive 8071/8072 red prefixes
 //    private const val ATTR_FLAG_COMMON_RED_BITS = 51384320
 //    private const val ATTR_FLAG_8071_8072_RED_PACKET_BITS = 33280
@@ -537,7 +543,8 @@ object WeConversationApi : ApiFeature(), IResolveDex {
      */
     fun setDnd(convId: String, dnd: Boolean) {
         if (convId.isGroupChatWxId) {
-            setChatRoomDnd(convId, dnd)
+            // Also clear 「以下消息仍通知」 (@我/@所有人/群公告) so a muted group is fully silent.
+            setChatRoomDnd(convId, dnd, STILL_NOTIFY_NONE)
             return
         }
         val stub = methodSetDnd.method.parameterTypes[0].createInstance(convId)
@@ -565,7 +572,7 @@ object WeConversationApi : ApiFeature(), IResolveDex {
      * Both `@chatroom` and OpenIM `@im.chatroom` rooms are covered: the room service is picked by
      * the room id's suffix, and each implementation builds its own flavour of the operation.
      */
-    private fun setChatRoomDnd(roomId: String, dnd: Boolean) {
+    private fun setChatRoomDnd(roomId: String, dnd: Boolean, stillNotifyFlags: Int) {
         if (methodGetRoomService.isPlaceholder || methodRoomOpLogRequest.isPlaceholder) {
             WeLogger.w(TAG, "room notify oplog unavailable on this build, cannot set dnd for $roomId")
             return
@@ -574,16 +581,17 @@ object WeConversationApi : ApiFeature(), IResolveDex {
             val serviceFactory = methodGetRoomService.method.declaringClass
             val roomService = methodGetRoomService.method
                 .invoke(WeServiceApi.getServiceByClass(serviceFactory.interfaces[0]), roomId)!!
-            // RoomService.modChatRoomNotify(roomId, notifyMsg, defaultNeedPushFlag): notifyMsg is
-            // the ChatRoomNotify value to set (1 = notify, 0 = muted). The push flag selects which
-            // messages still notify while muted; 0 is the value 8.0.65 hardcodes and the default of
-            // the `clicfg_chatroom_mute_refine_default` config newer builds read it from.
+            // RoomService.modChatRoomNotify(roomId, notifyMsg, notifyFlag): notifyMsg is the
+            // ChatRoomNotify value to set (1 = notify, 0 = muted) and notifyFlag is the
+            // 「以下消息仍通知」 bitmask (see STILL_NOTIFY_NONE). WeChat's own main mute switch
+            // always sends notifyFlag = 0, so silencing a group this way is exactly what the host
+            // does; the three switches stay off until the user re-enables them in group settings.
             val operation = roomService.reflekt()
                 .firstMethod {
                     parameters(BString, int, int)
                     returnType(methodRoomOpLogRequest.method.declaringClass.superclass!!)
                 }
-                .invoke(roomId, if (dnd) 0 else 1, 0)
+                .invoke(roomId, if (dnd) 0 else 1, stillNotifyFlags)
             // An unknown room suffix yields WeChat's no-op room service, whose operation object is
             // not the oplog-backed one — sending it is impossible, and silently doing nothing here
             // would look exactly like the bug this replaced.

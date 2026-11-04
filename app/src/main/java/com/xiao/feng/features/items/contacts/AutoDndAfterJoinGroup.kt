@@ -162,10 +162,8 @@ object AutoDndAfterJoinGroup : SwitchFeature(), IResolveDex {
                     WeLogger.d(TAG, "skip stale DND room=$roomId key=$key")
                     return@launch
                 }
-                if (WeConversationApi.isDnd(roomId)) {
-                    WeLogger.d(TAG, "skip already-muted room=$roomId key=$key version=${state.memberVersion}")
-                    return@launch
-                }
+                // Always re-send the silent DND op: even for an already-muted room this clears
+                // 「以下消息仍通知」 (@我/@所有人/群公告) through the same call.
                 WeConversationApi.setDnd(roomId, true)
                 WeLogger.i(TAG, "submitted DND room=$roomId key=$key version=${state.memberVersion}")
             } catch (e: Exception) {
