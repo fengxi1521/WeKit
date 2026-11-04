@@ -1,6 +1,8 @@
 package com.xiao.feng.features.items.system
 
 import android.app.ApplicationPackageManager
+import android.content.pm.ApplicationInfo
+import android.content.pm.PackageInfo
 import android.content.pm.PackageManager
 import android.content.pm.ResolveInfo
 import dev.ujhhgtg.reflekt.reflekt
@@ -56,6 +58,24 @@ object HideModuleFromAppList : SwitchFeature() {
                         throwable = PackageManager.NameNotFoundException(pkg)
                         WeLogger.i(TAG, "thrown NameNotFoundException from PackageManager::getApplicationInfo")
                     }
+                }
+            }
+
+            // Enumeration APIs: modules are commonly discovered by walking the whole installed-app
+            // list rather than by asking for this package directly.
+            methods { name = "getInstalledPackages" }.forEach {
+                it.hookAfter {
+                    @Suppress("UNCHECKED_CAST")
+                    result = (result as List<PackageInfo>)
+                        .filterNot { info -> info.packageName == PackageNames.MODULE }
+                }
+            }
+
+            methods { name = "getInstalledApplications" }.forEach {
+                it.hookAfter {
+                    @Suppress("UNCHECKED_CAST")
+                    result = (result as List<ApplicationInfo>)
+                        .filterNot { info -> info.packageName == PackageNames.MODULE }
                 }
             }
         }
