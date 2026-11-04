@@ -32,6 +32,7 @@ import androidx.compose.runtime.toMutableStateList
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.composables.icons.materialsymbols.MaterialSymbols
 import com.composables.icons.materialsymbols.outlined.Add
@@ -205,13 +206,21 @@ fun showScheduledMessagesDialog(context: ComponentActivity) {
                                             if (index >= 0) messages[index] = edited
                                         }
                                     },
-                                    content = { Text(message.summary()) },
+                                    content = {
+                                        Text(
+                                            text = message.summary(),
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis,
+                                        )
+                                    },
                                     supportingContent = {
                                         Text(
-                                            message.targets.joinToString(" ") { target ->
-                                                target.displayName.takeIf { it.isNotBlank() }
-                                                    ?: target.talker
-                                            }
+                                            text = message.text.lineSequence()
+                                                .firstOrNull { it.isNotBlank() }
+                                                ?.trim()
+                                                .orEmpty(),
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis,
                                         )
                                     },
                                     trailingContent = {

@@ -2562,6 +2562,19 @@
     <plurals name="chat_aggregation_current_match_count"><item quantity="one">Currently matches %1$d conversation</item><item quantity="other">Currently matches %1$d conversations</item></plurals>
     <string name="chat_aggregation_sql_help" formatted="false">Data sources: rcontact r, img_flag i, rconversation c\nExample: c.unReadCount &gt; 0 AND r.username LIKE \'%@chatroom\'</string>
     <string name="chat_aggregation_saved">Saved</string>
+    <string name="chat_aggregation_transfer_export">Export backup</string>
+    <string name="chat_aggregation_transfer_import">Import backup</string>
+    <string name="chat_aggregation_transfer_nothing">No folders to export</string>
+    <string name="chat_aggregation_transfer_export_success">Exported %1$d folders</string>
+    <string name="chat_aggregation_transfer_import_success">Imported %1$d folders (%2$d skipped)</string>
+    <string name="chat_aggregation_transfer_export_failed">Export failed</string>
+    <string name="chat_aggregation_transfer_import_failed">Import failed: not a valid folder backup</string>
+    <string name="feature_auto_add_joined_group_folder_name">Auto-add new groups to folder</string>
+    <string name="feature_auto_add_joined_group_folder_description">When you join a new group chat, automatically add it to the selected conversation folder. Enable Conversation folders and create a manual folder first.</string>
+    <string name="chat_auto_add_joined_group_folder_pick">Target folder</string>
+    <string name="chat_auto_add_joined_group_folder_none">No manual folders available. Create one in Conversation folders first.</string>
+    <string name="chat_auto_add_joined_group_folder_saved">New groups will be added to “%1$s”</string>
+    <string name="chat_auto_add_joined_group_folder_description">Automatically add the group chat to the selected conversation folder after joining</string>
     <string name="voice_edge_xiaoxiao">Xiaoxiao (female, gentle)</string>
     <string name="voice_edge_xiaoyi">Xiaoyi (female, lively)</string>
     <string name="voice_edge_yunxi">Yunxi (male, upbeat)</string>

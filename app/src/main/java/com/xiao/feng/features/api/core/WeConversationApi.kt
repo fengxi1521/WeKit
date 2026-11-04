@@ -31,10 +31,10 @@ object WeConversationApi : ApiFeature(), IResolveDex {
     private const val TAG = "WeConversationApi"
 
     // notifyFlag bitmask accepted by RoomService.modChatRoomNotify for the group 「以下消息仍通知」
-    // switches: 1 = @我, 2 = @所有人, 4 = 群公告. A set bit keeps notifying while the group is
-    // muted, so 0 turns all three off — the module always mutes silently instead of inheriting
-    // whatever the host last stored.
-    private const val STILL_NOTIFY_NONE = 0
+    // switches: 1 = @我, 2 = @所有人, 4 = 群公告. A set bit suppresses that option while the group
+    // is muted; 0 leaves all three enabled (WeChat's mute default), which is why muting with 0
+    // still lets @-mentions and announcements through. The module always mutes fully silent.
+    private const val STILL_NOTIFY_SUPPRESS_ALL = 0b111
 
     // Clears 4096, 1048576, 16777216 and 33554432, which drive 8071/8072 red prefixes
 //    private const val ATTR_FLAG_COMMON_RED_BITS = 51384320
@@ -543,8 +543,8 @@ object WeConversationApi : ApiFeature(), IResolveDex {
      */
     fun setDnd(convId: String, dnd: Boolean) {
         if (convId.isGroupChatWxId) {
-            // Also clear 「以下消息仍通知」 (@我/@所有人/群公告) so a muted group is fully silent.
-            setChatRoomDnd(convId, dnd, STILL_NOTIFY_NONE)
+            // Suppress 「以下消息仍通知」 (@我/@所有人/群公告) so a muted group is fully silent.
+            setChatRoomDnd(convId, dnd, if (dnd) STILL_NOTIFY_SUPPRESS_ALL else 0)
             return
         }
         val stub = methodSetDnd.method.parameterTypes[0].createInstance(convId)

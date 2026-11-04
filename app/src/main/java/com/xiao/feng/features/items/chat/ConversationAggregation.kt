@@ -362,6 +362,28 @@ object ConversationAggregation : ClickableFeature(),
     }
 
     /**
+     * Full folder snapshot for the standalone 归拢 import/export backup.
+     */
+    fun folderBackup(): List<ChatFolder> = loadFolders()
+
+    /**
+     * Restores folders decoded from a 归拢 backup, upserting by id and rebuilding the index.
+     * Invalid entries (wrong id prefix or blank name) are skipped. Returns applied/skipped counts.
+     */
+    suspend fun restoreFolderBackup(folders: List<ChatFolder>): Pair<Int, Int> {
+        val valid = folders.filter { isFolderId(it.id) && it.name.isNotBlank() }
+        if (valid.isNotEmpty()) {
+            try {
+                XiaoFengDatabase.instance.conversationCollectionDao().importFolders(valid)
+            } finally {
+                invalidateFolders()
+            }
+            syncFoldersToDatabase()
+        }
+        return valid.size to (folders.size - valid.size)
+    }
+
+    /**
      * Removes [talker] from the manual folder [folderId], persists, and rebuilds the index so the
      * row disappears from the folder immediately. No-op for missing / auto folders, or when the
      * talker isn't actually a member.
@@ -1486,6 +1508,7 @@ object ConversationAggregation : ClickableFeature(),
 
     private fun showManagerDialog(context: Context) {
         showComposeDialog(context) {
+            val localizedContext = LocalXiaoFengLocalizedContext.current
             var folders by remember { mutableStateOf(loadFolders()) }
 
             AlertDialogContent(
@@ -1495,6 +1518,19 @@ object ConversationAggregation : ClickableFeature(),
                 title = { Text(stringResource(R.string.chat_aggregation_title)) },
                 text = {
                     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.End
+                        ) {
+                            TextButton(onClick = {
+                                onDismiss()
+                                AggregationFolderTransfer.exportBackup(context, localizedContext)
+                            }) { Text(stringResource(R.string.chat_aggregation_transfer_export)) }
+                            TextButton(onClick = {
+                                onDismiss()
+                                AggregationFolderTransfer.importBackup(context, localizedContext)
+                            }) { Text(stringResource(R.string.chat_aggregation_transfer_import)) }
+                        }
                         LazyColumn(
                             modifier = Modifier.heightIn(max = 420.dp),
                             verticalArrangement = Arrangement.spacedBy(8.dp)
