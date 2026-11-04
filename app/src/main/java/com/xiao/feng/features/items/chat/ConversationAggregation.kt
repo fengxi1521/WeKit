@@ -384,6 +384,25 @@ object ConversationAggregation : ClickableFeature(),
     }
 
     /**
+     * Drops [talker] from every manual folder silently (no toast) and rebuilds the index. Used when
+     * a group membership ends and its folder row would otherwise become stale. Returns the number
+     * of folders that actually contained it.
+     */
+    suspend fun removeFromAllManualFolders(talker: String): Int {
+        val affected = loadFolders().filter { it.type == FolderType.MANUAL && talker in it.members }
+        if (affected.isEmpty()) return 0
+        try {
+            affected.forEach { folder ->
+                XiaoFengDatabase.instance.conversationCollectionDao().removeFolderMember(folder.id, talker)
+            }
+        } finally {
+            invalidateFolders()
+        }
+        syncFoldersToDatabase()
+        return affected.size
+    }
+
+    /**
      * Removes [talker] from the manual folder [folderId], persists, and rebuilds the index so the
      * row disappears from the folder immediately. No-op for missing / auto folders, or when the
      * talker isn't actually a member.
