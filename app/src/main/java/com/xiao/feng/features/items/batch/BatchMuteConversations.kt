@@ -84,13 +84,13 @@ object BatchMuteConversations : ClickableFeature() {
                     }
 
                     onDismiss()
-                    apply(selectedWxIds, mute)
+                    apply(context, selectedWxIds, mute)
                 }
             )
         }
     }
 
-    private fun apply(wxIds: Set<String>, mute: Boolean) {
+    private fun apply(context: Context, wxIds: Set<String>, mute: Boolean) {
         CoroutineScope(Dispatchers.IO).launch {
             showToastSuspend(
                 localizedBatchQuantity(R.plurals.batch_mute_progress, wxIds.size, wxIds.size),
