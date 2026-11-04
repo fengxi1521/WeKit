@@ -1,0 +1,510 @@
+[
+  {
+    "id": "box_dlCjloZh",
+    "name": "杂七杂八的群",
+    "enable": true,
+    "top": false,
+    "bottom": false,
+    "showMuteUnreadBadge": false,
+    "blockMessageNotification": false,
+    "keepChats": false,
+    "forceShow": false,
+    "items": [
+      {
+        "userName": "56487023307@chatroom",
+        "type": 2
+      },
+      {
+        "userName": "48029467091@chatroom",
+        "type": 2
+      },
+      {
+        "userName": "49129163549@chatroom",
+        "type": 2
+      },
+      {
+        "userName": "47569558692@chatroom",
+        "type": 2
+      },
+      {
+        "userName": "38706222993@chatroom",
+        "type": 2
+      },
+      {
+        "userName": "43156550609@chatroom",
+        "type": 2
+      },
+      {
+        "userName": "47695929870@chatroom",
+        "type": 2
+      },
+      {
+        "userName": "45839149006@chatroom",
+        "type": 2
+      },
+      {
+        "userName": "48641962993@chatroom",
+        "type": 2
+      },
+      {
+        "userName": "47665467910@chatroom",
+        "type": 2
+      },
+      {
+        "userName": "49347467940@chatroom",
+        "type": 2
+      },
+      {
+        "userName": "39082949044@chatroom",
+        "type": 2
+      },
+      {
+        "userName": "43627983121@chatroom",
+        "type": 2
+      },
+      {
+        "userName": "43674653976@chatroom",
+        "type": 2
+      },
+      {
+        "userName": "51836948229@chatroom",
+        "type": 2
+      },
+      {
+        "userName": "8578307543@chatroom",
+        "type": 2
+      },
+      {
+        "userName": "48281868683@chatroom",
+        "type": 2
+      },
+      {
+        "userName": "43941484171@chatroom",
+        "type": 2
+      },
+      {
+        "userName": "44585687603@chatroom",
+        "type": 2
+      },
+      {
+        "userName": "47308467555@chatroom",
+        "type": 2
+      },
+      {
+        "userName": "44080501459@chatroom",
+        "type": 2
+      },
+      {
+        "userName": "53594544100@chatroom",
+        "type": 2
+      },
+      {
+        "userName": "57448300816@chatroom",
+        "type": 2
+      },
+      {
+        "userName": "50156364142@chatroom",
+        "type": 2
+      },
+      {
+        "userName": "45132504059@chatroom",
+        "type": 2
+      },
+      {
+        "userName": "45380094152@chatroom",
+        "type": 2
+      },
+      {
+        "userName": "44010775022@chatroom",
+        "type": 2
+      },
+      {
+        "userName": "47471484934@chatroom",
+        "type": 2
+      },
+      {
+        "userName": "49632386420@chatroom",
+        "type": 2
+      },
+      {
+        "userName": "43501020392@chatroom",
+        "type": 2
+      }
+    ]
+  },
+  {
+    "id": "box_Q8R8PiP3",
+    "name": "家人",
+    "enable": true,
+    "top": true,
+    "bottom": false,
+    "showMuteUnreadBadge": false,
+    "blockMessageNotification": false,
+    "keepChats": false,
+    "forceShow": false,
+    "items": [
+      {
+        "userName": "wxid_3mkwa2b8iici22",
+        "type": 0
+      },
+      {
+        "userName": "wxid_munh5j09wjr822",
+        "type": 1
+      },
+      {
+        "userName": "wxid_wc692zegf7qm22",
+        "type": 1
+      }
+    ]
+  },
+  {
+    "id": "box_zI6Gug4N",
+    "name": "同学群聊",
+    "enable": true,
+    "top": false,
+    "bottom": false,
+    "showMuteUnreadBadge": false,
+    "blockMessageNotification": false,
+    "keepChats": false,
+    "forceShow": false,
+    "items": [
+      {
+        "userName": "44146940718@chatroom",
+        "type": 2
+      },
+      {
+        "userName": "49555991285@chatroom",
+        "type": 2
+      },
+      {
+        "userName": "57793188057@chatroom",
+        "type": 2
+      },
+      {
+        "userName": "34492403337@chatroom",
+        "type": 2
+      },
+      {
+        "userName": "34829907230@chatroom",
+        "type": 2
+      },
+      {
+        "userName": "56874391861@chatroom",
+        "type": 2
+      },
+      {
+        "userName": "47431733904@chatroom",
+        "type": 2
+      }
+    ]
+  },
+  {
+    "id": "box_xAiM0oB6",
+    "name": "职校同学",
+    "enable": true,
+    "top": false,
+    "bottom": false,
+    "showMuteUnreadBadge": false,
+    "blockMessageNotification": false,
+    "keepChats": false,
+    "forceShow": false,
+    "items": [
+      {
+        "userName": "wxid_42ag9wl6z0d822",
+        "type": 0
+      },
+      {
+        "userName": "wxid_wmxib80scpfj22",
+        "type": 0
+      },
+      {
+        "userName": "wxid_ofxnwce3ex4x22",
+        "type": 0
+      },
+      {
+        "userName": "wxid_qzunm0svubie22",
+        "type": 0
+      },
+      {
+        "userName": "wxid_y7mpnn9suhxo22",
+        "type": 0
+      },
+      {
+        "userName": "wxid_4jwuepx49xli22",
+        "type": 0
+      },
+      {
+        "userName": "wxid_668k2yrfrcbt22",
+        "type": 0
+      },
+      {
+        "userName": "wxid_9vhmsori1i4a22",
+        "type": 0
+      },
+      {
+        "userName": "wxid_qsixjjzh63z012",
+        "type": 0
+      },
+      {
+        "userName": "wxid_kcx89faqjf6t22",
+        "type": 0
+      },
+      {
+        "userName": "wxid_rxl4argr47l922",
+        "type": 0
+      },
+      {
+        "userName": "wxid_v5amwvunu0gz22",
+        "type": 0
+      },
+      {
+        "userName": "wxid_99onukt3q88i12",
+        "type": 1
+      },
+      {
+        "userName": "wxid_9k38ktcvh7hp22",
+        "type": 1
+      },
+      {
+        "userName": "wxid_ld1r5o38l5622",
+        "type": 1
+      },
+      {
+        "userName": "wxid_za5wsc4gngxu22",
+        "type": 1
+      },
+      {
+        "userName": "wxid_gou1susq8u5922",
+        "type": 1
+      },
+      {
+        "userName": "wxid_q33vupi4w7gw22",
+        "type": 1
+      },
+      {
+        "userName": "wxid_5il24xm4ogih12",
+        "type": 1
+      },
+      {
+        "userName": "wxid_j24fhx9ysbqm22",
+        "type": 0
+      },
+      {
+        "userName": "wxid_tflltq01leox22",
+        "type": 0
+      },
+      {
+        "userName": "wxid_bqvf04utk7sy22",
+        "type": 0
+      },
+      {
+        "userName": "wxid_q6oihfip1smo22",
+        "type": 0
+      },
+      {
+        "userName": "wxid_87rv3bvqixnb22",
+        "type": 0
+      },
+      {
+        "userName": "wxid_7p25gm6rfdrl22",
+        "type": 0
+      },
+      {
+        "userName": "wxid_ccggy9awtezd12",
+        "type": 0
+      },
+      {
+        "userName": "wxid_ewhpj4mj9r2v22",
+        "type": 0
+      },
+      {
+        "userName": "wxid_59sftbq3fa1t22",
+        "type": 0
+      },
+      {
+        "userName": "wxid_o1dn7kta6cmi22",
+        "type": 0
+      },
+      {
+        "userName": "wxid_kl79qlsvw30d22",
+        "type": 0
+      },
+      {
+        "userName": "wxid_zkbktsgm4t3y22",
+        "type": 0
+      },
+      {
+        "userName": "wxid_9q6tq8cvfz5922",
+        "type": 0
+      },
+      {
+        "userName": "wxid_k7v542ke4a8522",
+        "type": 0
+      }
+    ]
+  },
+  {
+    "id": "box_7hcvaVmW",
+    "name": "游戏群",
+    "enable": true,
+    "top": false,
+    "bottom": false,
+    "showMuteUnreadBadge": false,
+    "blockMessageNotification": false,
+    "keepChats": false,
+    "forceShow": false,
+    "items": [
+      {
+        "userName": "46169044692@chatroom",
+        "type": 2
+      },
+      {
+        "userName": "54835318918@chatroom",
+        "type": 2
+      },
+      {
+        "userName": "46172354836@chatroom",
+        "type": 2
+      },
+      {
+        "userName": "56053234228@chatroom",
+        "type": 2
+      },
+      {
+        "userName": "57673232589@chatroom",
+        "type": 2
+      },
+      {
+        "userName": "51635743291@chatroom",
+        "type": 2
+      },
+      {
+        "userName": "50141217306@chatroom",
+        "type": 2
+      },
+      {
+        "userName": "56659522702@chatroom",
+        "type": 2
+      },
+      {
+        "userName": "44853969887@chatroom",
+        "type": 2
+      },
+      {
+        "userName": "45950445973@chatroom",
+        "type": 2
+      },
+      {
+        "userName": "48412628812@chatroom",
+        "type": 2
+      }
+    ]
+  },
+  {
+    "id": "box_erU1e8PG",
+    "name": "扩列-不认识",
+    "enable": true,
+    "top": false,
+    "bottom": false,
+    "showMuteUnreadBadge": false,
+    "blockMessageNotification": false,
+    "keepChats": false,
+    "forceShow": false,
+    "items": [
+      {
+        "userName": "wxid_yfpybowqiqz922",
+        "type": 1
+      },
+      {
+        "userName": "wxid_mifsaky7xjdb22",
+        "type": 1
+      },
+      {
+        "userName": "wxid_pl38n8gpog7z22",
+        "type": 1
+      },
+      {
+        "userName": "wxid_oz3knke1ffgw22",
+        "type": 1
+      },
+      {
+        "userName": "wxid_co2sv592l8m522",
+        "type": 1
+      },
+      {
+        "userName": "wxid_etl3aj2c0r0312",
+        "type": 1
+      },
+      {
+        "userName": "wxid_sw0nakjb3fqw22",
+        "type": 1
+      },
+      {
+        "userName": "wxid_n2fqu08h5nfm22",
+        "type": 1
+      },
+      {
+        "userName": "wxid_ie6058sybenl22",
+        "type": 1
+      },
+      {
+        "userName": "wxid_6x15mf1p4n7y22",
+        "type": 1
+      }
+    ]
+  },
+  {
+    "id": "box_LnYru9Sw",
+    "name": "初中同学",
+    "enable": true,
+    "top": false,
+    "bottom": false,
+    "showMuteUnreadBadge": false,
+    "blockMessageNotification": false,
+    "keepChats": false,
+    "forceShow": false,
+    "items": [
+      {
+        "userName": "wxid_tlu3j6bef7pt12",
+        "type": 1
+      },
+      {
+        "userName": "wxid_j0dcu8biisgc12",
+        "type": 1
+      }
+    ]
+  },
+  {
+    "id": "box_YFDrRae8",
+    "name": "新分组",
+    "enable": true,
+    "top": false,
+    "bottom": false,
+    "showMuteUnreadBadge": false,
+    "blockMessageNotification": false,
+    "keepChats": false,
+    "forceShow": false,
+    "items": [
+      {
+        "userName": "gh_25d9ac85a4bc",
+        "type": 0
+      },
+      {
+        "userName": "service_officialaccounts",
+        "type": 0
+      },
+      {
+        "userName": "25984984796943929@openim",
+        "type": 0
+      },
+      {
+        "userName": "25984982809273336@openim",
+        "type": 0
+      },
+      {
+        "userName": "notifymessage",
+        "type": 0
+      }
+    ]
+  }
+]

@@ -1,0 +1,186 @@
+{
+  "version": 1,
+  "folders": [
+    {
+      "id": "xfeng_folder_1793767401216",
+      "name": "杂七杂八的群",
+      "members": [
+        "56487023307@chatroom",
+        "48029467091@chatroom",
+        "49129163549@chatroom",
+        "47569558692@chatroom",
+        "38706222993@chatroom",
+        "43156550609@chatroom",
+        "47695929870@chatroom",
+        "45839149006@chatroom",
+        "48641962993@chatroom",
+        "47665467910@chatroom",
+        "49347467940@chatroom",
+        "39082949044@chatroom",
+        "43627983121@chatroom",
+        "43674653976@chatroom",
+        "51836948229@chatroom",
+        "8578307543@chatroom",
+        "48281868683@chatroom",
+        "43941484171@chatroom",
+        "44585687603@chatroom",
+        "47308467555@chatroom",
+        "44080501459@chatroom",
+        "53594544100@chatroom",
+        "57448300816@chatroom",
+        "50156364142@chatroom",
+        "45132504059@chatroom",
+        "45380094152@chatroom",
+        "44010775022@chatroom",
+        "47471484934@chatroom",
+        "49632386420@chatroom",
+        "43501020392@chatroom"
+      ],
+      "type": "MANUAL",
+      "selectFields": "",
+      "whereClause": "",
+      "pinFlag": 0
+    },
+    {
+      "id": "xfeng_folder_1793767401217",
+      "name": "家人",
+      "members": [
+        "wxid_3mkwa2b8iici22",
+        "wxid_munh5j09wjr822",
+        "wxid_wc692zegf7qm22"
+      ],
+      "type": "MANUAL",
+      "selectFields": "",
+      "whereClause": "",
+      "pinFlag": 0
+    },
+    {
+      "id": "xfeng_folder_1793767401218",
+      "name": "同学群聊",
+      "members": [
+        "44146940718@chatroom",
+        "49555991285@chatroom",
+        "57793188057@chatroom",
+        "34492403337@chatroom",
+        "34829907230@chatroom",
+        "56874391861@chatroom",
+        "47431733904@chatroom"
+      ],
+      "type": "MANUAL",
+      "selectFields": "",
+      "whereClause": "",
+      "pinFlag": 0
+    },
+    {
+      "id": "xfeng_folder_1793767401219",
+      "name": "职校同学",
+      "members": [
+        "wxid_42ag9wl6z0d822",
+        "wxid_wmxib80scpfj22",
+        "wxid_ofxnwce3ex4x22",
+        "wxid_qzunm0svubie22",
+        "wxid_y7mpnn9suhxo22",
+        "wxid_4jwuepx49xli22",
+        "wxid_668k2yrfrcbt22",
+        "wxid_9vhmsori1i4a22",
+        "wxid_qsixjjzh63z012",
+        "wxid_kcx89faqjf6t22",
+        "wxid_rxl4argr47l922",
+        "wxid_v5amwvunu0gz22",
+        "wxid_99onukt3q88i12",
+        "wxid_9k38ktcvh7hp22",
+        "wxid_ld1r5o38l5622",
+        "wxid_za5wsc4gngxu22",
+        "wxid_gou1susq8u5922",
+        "wxid_q33vupi4w7gw22",
+        "wxid_5il24xm4ogih12",
+        "wxid_j24fhx9ysbqm22",
+        "wxid_tflltq01leox22",
+        "wxid_bqvf04utk7sy22",
+        "wxid_q6oihfip1smo22",
+        "wxid_87rv3bvqixnb22",
+        "wxid_7p25gm6rfdrl22",
+        "wxid_ccggy9awtezd12",
+        "wxid_ewhpj4mj9r2v22",
+        "wxid_59sftbq3fa1t22",
+        "wxid_o1dn7kta6cmi22",
+        "wxid_kl79qlsvw30d22",
+        "wxid_zkbktsgm4t3y22",
+        "wxid_9q6tq8cvfz5922",
+        "wxid_k7v542ke4a8522"
+      ],
+      "type": "MANUAL",
+      "selectFields": "",
+      "whereClause": "",
+      "pinFlag": 0
+    },
+    {
+      "id": "xfeng_folder_1793767401220",
+      "name": "游戏群",
+      "members": [
+        "46169044692@chatroom",
+        "54835318918@chatroom",
+        "46172354836@chatroom",
+        "56053234228@chatroom",
+        "57673232589@chatroom",
+        "51635743291@chatroom",
+        "50141217306@chatroom",
+        "56659522702@chatroom",
+        "44853969887@chatroom",
+        "45950445973@chatroom",
+        "48412628812@chatroom"
+      ],
+      "type": "MANUAL",
+      "selectFields": "",
+      "whereClause": "",
+      "pinFlag": 0
+    },
+    {
+      "id": "xfeng_folder_1793767401221",
+      "name": "扩列-不认识",
+      "members": [
+        "wxid_yfpybowqiqz922",
+        "wxid_mifsaky7xjdb22",
+        "wxid_pl38n8gpog7z22",
+        "wxid_oz3knke1ffgw22",
+        "wxid_co2sv592l8m522",
+        "wxid_etl3aj2c0r0312",
+        "wxid_sw0nakjb3fqw22",
+        "wxid_n2fqu08h5nfm22",
+        "wxid_ie6058sybenl22",
+        "wxid_6x15mf1p4n7y22"
+      ],
+      "type": "MANUAL",
+      "selectFields": "",
+      "whereClause": "",
+      "pinFlag": 0
+    },
+    {
+      "id": "xfeng_folder_1793767401222",
+      "name": "初中同学",
+      "members": [
+        "wxid_tlu3j6bef7pt12",
+        "wxid_j0dcu8biisgc12"
+      ],
+      "type": "MANUAL",
+      "selectFields": "",
+      "whereClause": "",
+      "pinFlag": 0
+    },
+    {
+      "id": "xfeng_folder_1793767401223",
+      "name": "新分组",
+      "members": [
+        "gh_25d9ac85a4bc",
+        "service_officialaccounts",
+        "25984984796943929@openim",
+        "25984982809273336@openim",
+        "notifymessage"
+      ],
+      "type": "MANUAL",
+      "selectFields": "",
+      "whereClause": "",
+      "pinFlag": 0
+    }
+  ]
+}
