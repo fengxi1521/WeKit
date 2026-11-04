@@ -111,9 +111,8 @@ enum class AppColorSpec(
  */
 object ThemeSettings {
 
-    var uiEngine by mutableStateOf(
-        SettingsUiEngine.fromName(KvStore.getString(Preferences.THEME_UI_ENGINE))
-    )
+    // Only the Material 3 engine is exposed; a stored legacy Nuke value is intentionally ignored.
+    var uiEngine by mutableStateOf(SettingsUiEngine.MATERIAL3)
         private set
     var themeMode by mutableStateOf(AppThemeMode.fromName(KvStore.getString(Preferences.THEME_MODE)))
         private set

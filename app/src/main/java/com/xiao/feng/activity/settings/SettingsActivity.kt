@@ -23,8 +23,11 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -61,7 +64,6 @@ import com.composables.icons.materialsymbols.outlinedfilled.Home
 import com.composables.icons.materialsymbols.outlinedfilled.Settings
 import com.composables.icons.materialsymbols.outlinedfilled.Tune
 import com.xiao.feng.R
-import com.xiao.feng.activity.nuke.NukeSettingsContent
 import com.xiao.feng.features.core.BaseFeature
 import com.xiao.feng.features.core.ClickableFeature
 import com.xiao.feng.features.core.FeatureCategoryIds
@@ -80,7 +82,6 @@ import com.xiao.feng.ui.navigation.LocalNavigator
 import com.xiao.feng.ui.navigation.Navigator
 import com.xiao.feng.ui.navigation.rememberM3NavEffects
 import com.xiao.feng.ui.utils.theme.ModuleTheme
-import com.xiao.feng.ui.utils.theme.SettingsUiEngine
 import com.xiao.feng.ui.utils.theme.ThemeSettings
 import com.xiao.feng.ui.animation.predictiveback.xiaoFengNavTransition
 import com.xiao.feng.utils.WeLogger
@@ -104,12 +105,13 @@ class SettingsActivity : ComponentActivity() {
                 LocalComponentActivity provides this
             ) {
                 XiaoFengLocaleProvider(mode = LocaleResourceMode.InjectedHost) {
-                    when (ThemeSettings.uiEngine) {
-                        SettingsUiEngine.MATERIAL3 -> ModuleTheme {
+                    ModuleTheme {
+                        var licensed by remember { mutableStateOf(ModuleLicense.isVerified) }
+                        if (licensed) {
                             SettingsRoot(onFinish = { finish() })
+                        } else {
+                            LicenseGate(onVerified = { licensed = true })
                         }
-
-                        SettingsUiEngine.NUKE -> NukeSettingsContent()
                     }
                 }
             }

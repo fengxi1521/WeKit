@@ -124,7 +124,6 @@ import com.xiao.feng.ui.utils.theme.AppColorSpec
 import com.xiao.feng.ui.utils.theme.AppPaletteStyle
 import com.xiao.feng.ui.utils.theme.AppThemeMode
 import com.xiao.feng.ui.utils.theme.PageTransitionAnimation
-import com.xiao.feng.ui.utils.theme.SettingsUiEngine
 import com.xiao.feng.ui.utils.theme.ThemeSettings
 import com.xiao.feng.utils.android.showToastSuspend
 import com.xiao.feng.utils.formatEpoch
@@ -497,19 +496,6 @@ private fun ThemeSection() {
     SeedColorPickerDialog(show = showColorPicker, onDismiss = { showColorPicker = false })
 
     SegmentedColumn(title = stringResource(R.string.settings_section_interface)) {
-        item {
-            DropDownMenuWidget(
-                title = stringResource(R.string.settings_ui_engine_title),
-                description = null,
-                value = ThemeSettings.uiEngine,
-                options = SettingsUiEngine.entries.map {
-                    DropdownOption(it, it.displayName)
-                },
-                onValueChange = ThemeSettings::updateUiEngine,
-                icon = MaterialSymbols.Outlined.Style,
-            )
-        }
-
         item {
             DropDownMenuWidget(
                 title = stringResource(R.string.settings_language_title),

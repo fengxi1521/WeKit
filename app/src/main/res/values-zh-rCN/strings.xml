@@ -2487,6 +2487,14 @@
     <string name="chat_fabricate_record_select_sender">选择发送者</string>
     <string name="chat_fabricate_record_cannot_delete_last">无法删除最后一条消息</string>
     <string name="chat_fabricate_record_copy">复制</string>
+    <string name="license_title">模块验证</string>
+    <string name="license_description">请输入卡密后使用本模块。验证成功后本机可直接进入，直至卡密到期。</string>
+    <string name="license_card_hint">卡密</string>
+    <string name="license_verify">验证</string>
+    <string name="license_success">验证成功</string>
+    <string name="license_failed">验证失败：%1$s</string>
+    <string name="license_network_error">网络错误，请稍后重试</string>
+    <string name="license_unknown_error">未知错误</string>
     <string name="chat_fabricate_record_in_group_action">伪造本群聊天记录</string>
     <string name="chat_fabricate_record_group_members_unavailable">无法读取本群成员</string>
     <string name="chat_fabricate_record_select_target">选择发送目标</string>

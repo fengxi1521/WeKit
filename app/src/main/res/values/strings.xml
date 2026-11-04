@@ -2527,6 +2527,14 @@
     <string name="chat_fabricate_record_select_sender">Select sender</string>
     <string name="chat_fabricate_record_cannot_delete_last">The last message cannot be deleted</string>
     <string name="chat_fabricate_record_copy">Copy</string>
+    <string name="license_title">Module verification</string>
+    <string name="license_description">Enter your card key to use this module. A verified device opens directly until the card expires.</string>
+    <string name="license_card_hint">Card key</string>
+    <string name="license_verify">Verify</string>
+    <string name="license_success">Verified</string>
+    <string name="license_failed">Verification failed: %1$s</string>
+    <string name="license_network_error">Network error, please try again later</string>
+    <string name="license_unknown_error">unknown error</string>
     <string name="chat_fabricate_record_in_group_action">Fabricate chat history with this group</string>
     <string name="chat_fabricate_record_group_members_unavailable">Could not load this group\'s members</string>
     <string name="chat_fabricate_record_select_target">Select recipient</string>

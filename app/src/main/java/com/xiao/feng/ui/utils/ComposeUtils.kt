@@ -18,10 +18,7 @@ import androidx.lifecycle.setViewTreeViewModelStoreOwner
 import androidx.savedstate.setViewTreeSavedStateRegistryOwner
 import com.xiao.feng.i18n.LocaleResourceMode
 import com.xiao.feng.i18n.XiaoFengLocaleProvider
-import com.xiao.feng.ui.content.nuke.NukeModuleTheme
 import com.xiao.feng.ui.utils.theme.ModuleTheme
-import com.xiao.feng.ui.utils.theme.SettingsUiEngine
-import com.xiao.feng.ui.utils.theme.ThemeSettings
 
 // useful for showing a compose dialog in non-compose context,
 // or when you don't want to manage the state for a dialog inside a composable
@@ -64,11 +61,7 @@ fun showComposeDialog(
                                 }
                             }
                         }
-                        if (ThemeSettings.uiEngine == SettingsUiEngine.NUKE) {
-                            NukeModuleTheme(content = themedContent)
-                        } else {
-                            themedContent()
-                        }
+                        themedContent()
                     }
                 }
             }
