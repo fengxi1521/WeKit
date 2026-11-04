@@ -43,7 +43,7 @@ import com.xiao.feng.features.api.core.WeApi
 import com.xiao.feng.features.api.ui.WeChatInputBarMenuApi
 import com.xiao.feng.features.api.ui.WeCurrentConversationApi
 import com.xiao.feng.features.items.chat_input_bar_menu.localizedChatInputString
-import com.xiao.feng.utils.isGroupChatWxId
+import com.xiao.feng.utils.strings.isGroupChatWxId
 import com.xiao.feng.i18n.LocalXiaoFengLocalizedContext
 import com.xiao.feng.features.api.core.WeDatabaseApi
 import com.xiao.feng.features.api.core.WeMessageApi
@@ -104,14 +104,15 @@ object FabricateChatHistoryMessage : ClickableFeature(), WeChatInputBarMenuApi.I
                 id = "fabricate_chat_history_in_group",
                 icon = MaterialSymbols.Outlined.History,
                 label = localizedChatInputString(R.string.chat_fabricate_record_in_group_action),
-            ) { context, _ ->
-                val activity = context as? ComponentActivity
-                if (activity == null) {
-                    WeLogger.w("FabricateChatHistoryMessage", "input bar context is not an activity")
-                } else {
-                    openForChat(activity, groupId)
-                }
-            }
+                onClick = { context, _ ->
+                    val activity = context as? ComponentActivity
+                    if (activity == null) {
+                        WeLogger.w("FabricateChatHistoryMessage", "input bar context is not an activity")
+                    } else {
+                        openForChat(activity, groupId)
+                    }
+                },
+            )
         )
     }
 
