@@ -36,8 +36,14 @@ import androidx.compose.ui.unit.dp
 import com.composables.icons.materialsymbols.MaterialSymbols
 import com.composables.icons.materialsymbols.outlined.Add
 import com.composables.icons.materialsymbols.outlined.Delete
+import com.composables.icons.materialsymbols.outlined.History
 import com.composables.icons.materialsymbols.outlined.Person_search
 import com.xiao.feng.R
+import com.xiao.feng.features.api.core.WeApi
+import com.xiao.feng.features.api.ui.WeChatInputBarMenuApi
+import com.xiao.feng.features.api.ui.WeCurrentConversationApi
+import com.xiao.feng.features.items.chat_input_bar_menu.localizedChatInputString
+import com.xiao.feng.utils.isGroupChatWxId
 import com.xiao.feng.i18n.LocalXiaoFengLocalizedContext
 import com.xiao.feng.features.api.core.WeDatabaseApi
 import com.xiao.feng.features.api.core.WeMessageApi
@@ -73,7 +79,7 @@ import java.util.TimeZone
 import kotlin.math.abs
 import kotlin.random.Random
 
-object FabricateChatHistoryMessage : ClickableFeature() {
+object FabricateChatHistoryMessage : ClickableFeature(), WeChatInputBarMenuApi.IActionItemsProvider {
 
     override val technicalId = "伪造聊天记录消息"
     override val nameRes = R.string.feature_fabricate_chat_history_message_name
@@ -81,6 +87,33 @@ object FabricateChatHistoryMessage : ClickableFeature() {
     override val descriptionRes = R.string.feature_fabricate_chat_history_message_description
 
     override val noSwitchWidget = true
+
+    override fun onEnable() {
+        WeChatInputBarMenuApi.addProvider(this)
+    }
+
+    override fun onDisable() {
+        WeChatInputBarMenuApi.removeProvider(this)
+    }
+
+    override fun getActionItems(): List<WeChatInputBarMenuApi.ActionItem> {
+        val groupId = WeCurrentConversationApi.value
+        if (!groupId.isGroupChatWxId) return emptyList()
+        return listOf(
+            WeChatInputBarMenuApi.ActionItem(
+                id = "fabricate_chat_history_in_group",
+                icon = MaterialSymbols.Outlined.History,
+                label = localizedChatInputString(R.string.chat_fabricate_record_in_group_action),
+            ) { context, _ ->
+                val activity = context as? ComponentActivity
+                if (activity == null) {
+                    WeLogger.w("FabricateChatHistoryMessage", "input bar context is not an activity")
+                } else {
+                    openForChat(activity, groupId)
+                }
+            }
+        )
+    }
 
     override fun onClick(context: ComponentActivity) {
         val contacts = WeDatabaseApi.getContacts()
@@ -92,12 +125,37 @@ object FabricateChatHistoryMessage : ClickableFeature() {
             )
         }
     }
+
+    /** Opens the generator with senders restricted to the members of [groupId]. */
+    private fun openForChat(context: ComponentActivity, groupId: String) {
+        val allContacts = WeDatabaseApi.getContacts()
+        val members = WeDatabaseApi.getGroupMembers(groupId)
+        val self = allContacts.firstOrNull { it.wxId == WeApi.selfWxId }
+        val senders = (members + listOfNotNull(self)).distinctBy { it.wxId }
+        if (senders.isEmpty()) {
+            showToast(
+                context,
+                context.localizedChatString(R.string.chat_fabricate_record_group_members_unavailable),
+            )
+            return
+        }
+        showComposeDialog(context) {
+            ChatRecordXmlGeneratorDialog(
+                contacts = senders,
+                sendTargets = allContacts,
+                preselectedTargetWxId = groupId,
+                onDismiss = onDismiss,
+            )
+        }
+    }
 }
 
 @Composable
 private fun ChatRecordXmlGeneratorDialog(
     contacts: List<WeContact>,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
+    sendTargets: List<WeContact> = contacts,
+    preselectedTargetWxId: String? = null,
 ) {
     val defaultTitle = stringResource(R.string.chat_fabricate_record_default_title)
     val defaultDescription = stringResource(R.string.chat_fabricate_record_default_description)
@@ -362,8 +420,8 @@ private fun ChatRecordXmlGeneratorDialog(
                     showComposeDialog(context) {
                         SingleContactSelector(
                             title = localizedContext.getString(R.string.chat_fabricate_record_select_target),
-                            contacts = contacts,
-                            initialSelectedWxId = null,
+                            contacts = sendTargets,
+                            initialSelectedWxId = preselectedTargetWxId,
                             onDismiss = this.onDismiss,
                             onConfirm = { wxId ->
                                 WeMessageApi.sendXmlAppMsg(wxId, xml)

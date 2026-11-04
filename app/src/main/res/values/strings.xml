@@ -323,6 +323,9 @@
     <string name="settings_clear_config_summary">Delete all module data, scripts, extensions and caches</string>
     <string name="settings_cleanup_legacy_title">Clean up old data</string>
     <string name="settings_cleanup_legacy_summary">Delete files kept in the old storage locations after migration</string>
+    <string name="settings_author_wechat_title">Author WeChat</string>
+    <string name="settings_author_wechat_summary">Scan to add the author on WeChat</string>
+    <string name="author_wechat_qr_description">Author WeChat QR code</string>
     <string name="settings_section_announcement">Announcements</string>
     <string name="settings_announcement_title">Announcements</string>
     <string name="settings_announcement_summary">See what changed in past updates</string>
@@ -2524,6 +2527,8 @@
     <string name="chat_fabricate_record_select_sender">Select sender</string>
     <string name="chat_fabricate_record_cannot_delete_last">The last message cannot be deleted</string>
     <string name="chat_fabricate_record_copy">Copy</string>
+    <string name="chat_fabricate_record_in_group_action">Fabricate chat history with this group</string>
+    <string name="chat_fabricate_record_group_members_unavailable">Could not load this group\'s members</string>
     <string name="chat_fabricate_record_select_target">Select recipient</string>
     <string name="chat_fabricate_record_sent">Sent</string>
     <string name="chat_fabricate_record_send">Send</string>

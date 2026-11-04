@@ -2472,6 +2472,8 @@
     <string name="chat_fabricate_record_select_sender">選擇發送者</string>
     <string name="chat_fabricate_record_cannot_delete_last">無法刪除最後一條消息</string>
     <string name="chat_fabricate_record_copy">複製</string>
+    <string name="chat_fabricate_record_in_group_action">偽造本群聊天記錄</string>
+    <string name="chat_fabricate_record_group_members_unavailable">無法讀取本群成員</string>
     <string name="chat_fabricate_record_select_target">選擇發送目標</string>
     <string name="chat_fabricate_record_sent">已發送</string>
     <string name="chat_fabricate_record_send">發送</string>

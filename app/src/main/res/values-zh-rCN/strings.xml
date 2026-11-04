@@ -294,6 +294,9 @@
     <string name="settings_clear_config_summary">删除模块数据库、脚本、扩展包、缓存和临时文件</string>
     <string name="settings_cleanup_legacy_title">清理旧数据</string>
     <string name="settings_cleanup_legacy_summary">删除迁移后旧存储位置中保留的文件</string>
+    <string name="settings_author_wechat_title">作者微信</string>
+    <string name="settings_author_wechat_summary">扫码添加作者微信</string>
+    <string name="author_wechat_qr_description">作者微信二维码</string>
     <string name="settings_section_announcement">公告</string>
     <string name="settings_announcement_title">公告</string>
     <string name="settings_announcement_summary">查看历次更新的内容</string>
@@ -2484,6 +2487,8 @@
     <string name="chat_fabricate_record_select_sender">选择发送者</string>
     <string name="chat_fabricate_record_cannot_delete_last">无法删除最后一条消息</string>
     <string name="chat_fabricate_record_copy">复制</string>
+    <string name="chat_fabricate_record_in_group_action">伪造本群聊天记录</string>
+    <string name="chat_fabricate_record_group_members_unavailable">无法读取本群成员</string>
     <string name="chat_fabricate_record_select_target">选择发送目标</string>
     <string name="chat_fabricate_record_sent">已发送</string>
     <string name="chat_fabricate_record_send">发送</string>

@@ -7,6 +7,7 @@ import androidx.activity.ComponentActivity
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -53,6 +54,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -144,9 +146,11 @@ fun SettingsPager(onOpenLicense: () -> Unit) {
 
     var showClearConfirm by remember { mutableStateOf(false) }
     var showAnnouncements by remember { mutableStateOf(false) }
+    var showAuthorQr by remember { mutableStateOf(false) }
 
     ClearConfigDialog(show = showClearConfirm, onDismiss = { showClearConfirm = false })
     AnnouncementDialog(show = showAnnouncements, onDismiss = { showAnnouncements = false })
+    AuthorQrDialog(show = showAuthorQr, onDismiss = { showAuthorQr = false })
 
     SettingsListScaffold(title = stringResource(R.string.settings_title)) {
         // Account info card.
@@ -302,6 +306,14 @@ fun SettingsPager(onOpenLicense: () -> Unit) {
                         title = stringResource(R.string.settings_build_commit_time_title),
                         summary = formatEpoch(BuildConfig.BUILD_TIMESTAMP, true),
                         icon = MaterialSymbols.Outlined.Build_circle,
+                    )
+                }
+                item {
+                    PrefArrow(
+                        title = stringResource(R.string.settings_author_wechat_title),
+                        summary = stringResource(R.string.settings_author_wechat_summary),
+                        icon = MaterialSymbols.Outlined.Account_circle,
+                        onClick = { showAuthorQr = true },
                     )
                 }
             }
@@ -861,6 +873,28 @@ private fun AnnouncementDialog(show: Boolean, onDismiss: () -> Unit) {
                     }
                 }
             }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.dialog_close)) }
+        },
+    )
+}
+
+@Composable
+private fun AuthorQrDialog(show: Boolean, onDismiss: () -> Unit) {
+    if (!show) return
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.settings_author_wechat_title)) },
+        text = {
+            Image(
+                painter = painterResource(R.drawable.author_wechat_qr),
+                contentDescription = stringResource(R.string.author_wechat_qr_description),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(max = 480.dp),
+                contentScale = ContentScale.Fit,
+            )
         },
         confirmButton = {
             TextButton(onClick = onDismiss) { Text(stringResource(R.string.dialog_close)) }
