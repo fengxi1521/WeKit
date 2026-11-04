@@ -8,6 +8,7 @@ import android.view.ViewGroup
 import android.view.Window
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
+import com.xiao.feng.R
 import com.xiao.feng.features.core.FeatureCategoryIds
 import com.xiao.feng.features.core.SwitchFeature
 import dev.ujhhgtg.reflekt.reflekt

@@ -75,11 +75,11 @@ object QuickHideConversations : SwitchFeature(), WeHomeScreenPopupMenuApi.IMenuI
                 contacts = conversations,
                 initialSelectedWxIds = emptySet(),
                 onDismiss = {
-                    dismiss()
+                    onDismiss()
                     finish()
                 },
                 onConfirm = { selected ->
-                    dismiss()
+                    onDismiss()
                     if (selected.isEmpty()) {
                         showToast(HostLocalizedStrings.get(R.string.quick_hide_select_empty))
                         finish()
