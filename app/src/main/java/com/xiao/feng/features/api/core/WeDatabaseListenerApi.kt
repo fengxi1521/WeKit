@@ -26,15 +26,6 @@ object WeDatabaseListenerApi : ApiFeature() {
         fun onInsert(table: String, values: ContentValues)
     }
 
-    /**
-     * Runs before the row reaches SQLite. Returning `false` drops the insert entirely, which is
-     * the only reliable way to keep a message out of the chat list, notification, summary and
-     * multi-device sync at the same time.
-     */
-    fun interface IInsertFilter {
-        fun allowInsert(table: String, values: ContentValues): Boolean
-    }
-
     fun interface IUpdateListener {
         fun onUpdate(table: String, values: ContentValues, whereClause: String?, whereArgs: Array<String>?, conflictAlgorithm: Int)
     }
@@ -46,14 +37,10 @@ object WeDatabaseListenerApi : ApiFeature() {
     private const val TAG = "WeDatabaseListenerApi"
 
     private val insertListeners = CopyOnWriteArrayList<IInsertListener>()
-    private val insertFilters = CopyOnWriteArrayList<IInsertFilter>()
     private val updateListeners = CopyOnWriteArrayList<IUpdateListener>()
     private val queryListeners = CopyOnWriteArrayList<IQueryListener>()
 
     fun addListener(listener: Any) {
-        if (listener is IInsertFilter) {
-            insertFilters.add(listener)
-        }
         if (listener is IInsertListener) {
             insertListeners.add(listener)
         }
@@ -66,9 +53,6 @@ object WeDatabaseListenerApi : ApiFeature() {
     }
 
     fun removeListener(listener: Any) {
-        if (listener is IInsertFilter) {
-            insertFilters.remove(listener)
-        }
         if (listener is IInsertListener) {
             insertListeners.remove(listener)
         }
@@ -87,7 +71,6 @@ object WeDatabaseListenerApi : ApiFeature() {
     }
 
     override fun onDisable() {
-        insertFilters.clear()
         insertListeners.clear()
         updateListeners.clear()
         queryListeners.clear()
@@ -119,36 +102,23 @@ object WeDatabaseListenerApi : ApiFeature() {
     // ==================== Insert Hook ====================
 
     private fun hookDatabaseInsert() {
-        val method = SQLiteDatabase::class.reflekt()
+        SQLiteDatabase::class.reflekt()
             .firstMethod {
                 name = "insertWithOnConflict"
                 parameters(String::class, String::class, ContentValues::class, Int::class)
+            }.hookAfter {
+                try {
+                    if (insertListeners.isEmpty()) return@hookAfter
+
+                    val table = args[0] as String
+                    val values = args[2] as ContentValues
+
+                    logWithStack("Insert", table, args, result)
+                    insertListeners.forEach { it.onInsert(table, values) }
+                } catch (e: Throwable) {
+                    WeLogger.e(TAG, "Insert dispatch failed", e)
+                }
             }
-
-        method.hookBefore {
-            if (insertFilters.isEmpty()) return@hookBefore
-
-            val table = args[0] as String
-            val values = args[2] as ContentValues
-            if (!insertFilters.all { it.allowInsert(table, values) }) {
-                logWithStack("InsertBlocked", table, args)
-                result = -1L
-            }
-        }
-
-        method.hookAfter {
-            try {
-                if (insertListeners.isEmpty()) return@hookAfter
-
-                val table = args[0] as String
-                val values = args[2] as ContentValues
-
-                logWithStack("Insert", table, args, result)
-                insertListeners.forEach { it.onInsert(table, values) }
-            } catch (e: Throwable) {
-                WeLogger.e(TAG, "Insert dispatch failed", e)
-            }
-        }
     }
 
     // ==================== Update Hook ====================
