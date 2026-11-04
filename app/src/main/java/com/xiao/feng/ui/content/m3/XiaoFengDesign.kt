@@ -1,7 +1,8 @@
 package com.xiao.feng.ui.content.m3
 
-import android.os.Build
-import androidx.compose.foundation.BorderStroke
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -14,6 +15,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -40,26 +42,19 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
-import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.composables.icons.materialsymbols.MaterialSymbols
 import com.composables.icons.materialsymbols.outlined.Close
 import com.composables.icons.materialsymbols.outlined.Search
-import com.xiao.feng.ui.content.FloatingBottomBar
-import com.xiao.feng.ui.content.FloatingBottomBarDefaults
-import com.xiao.feng.ui.content.FloatingBottomBarMode
-import com.xiao.feng.ui.content.liquid.InnerShadow
-import com.xiao.feng.ui.content.liquid.innerShadow
-import top.yukonga.miuix.kmp.blur.Backdrop
 
 /**
  * One tab shown in [XfTabBar].
@@ -129,53 +124,6 @@ fun Modifier.xfPageBackground(): Modifier {
 }
 
 /**
- * Liquid-glass surface used by the module chrome.
- *
- * WCX's panels read as a single piece of curved glass: a translucent violet tint, a diagonal
- * specular sheen across the top-left, a bright rim that fades toward the bottom-right and a
- * soft inner shadow hugging the top edge. This draws all of that in one cached pass and samples
- * no backdrop, so it stays cheap enough for scrolling lists (unlike a full refraction lens).
- */
-@Composable
-fun Modifier.xfGlassSurface(
-    shape: Shape,
-    tint: Color = MaterialTheme.colorScheme.surface.copy(alpha = 0.64f),
-    rim: Color = MaterialTheme.colorScheme.primary.copy(alpha = 0.18f),
-): Modifier {
-    val dark = isSystemInDarkTheme()
-    val rimBrush = Brush.linearGradient(
-        0f to Color.White.copy(alpha = if (dark) 0.24f else 0.62f),
-        0.42f to rim,
-        1f to Color.Transparent,
-    )
-    var surface = this
-        .clip(shape)
-        .background(tint, shape)
-        .drawWithCache {
-            val sheen = Brush.linearGradient(
-                colors = listOf(
-                    Color.White.copy(alpha = if (dark) 0.10f else 0.32f),
-                    Color.Transparent,
-                ),
-                start = Offset.Zero,
-                end = Offset(size.width * 1.1f, size.height * 0.85f),
-            )
-            onDrawBehind { drawRect(brush = sheen) }
-        }
-        .border(BorderStroke(1.dp, rimBrush), shape)
-    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-        surface = surface.innerShadow(shape) {
-            InnerShadow(
-                radius = 12.dp,
-                offset = DpOffset(0.dp, 6.dp),
-                color = Color.Black.copy(alpha = if (dark) 0.24f else 0.10f),
-            )
-        }
-    }
-    return surface
-}
-
-/**
  * Page masthead used on every top-level screen.
  *
  * When the page has a back affordance or actions, they live in a floating translucent capsule
@@ -205,7 +153,9 @@ fun XfMasthead(
                         ambientColor = scheme.primary.copy(alpha = 0.20f),
                         spotColor = scheme.primary.copy(alpha = 0.28f),
                     )
-                    .xfGlassSurface(barShape)
+                    .clip(barShape)
+                    .background(scheme.surface.copy(alpha = 0.72f))
+                    .border(1.dp, scheme.primary.copy(alpha = 0.16f), barShape)
                     .padding(horizontal = 6.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
@@ -338,7 +288,9 @@ fun XfStatTile(
                 ambientColor = scheme.primary.copy(alpha = 0.16f),
                 spotColor = scheme.primary.copy(alpha = 0.22f),
             )
-            .xfGlassSurface(shape)
+            .clip(shape)
+            .background(scheme.surface.copy(alpha = 0.68f))
+            .border(width = 1.dp, color = scheme.primary.copy(alpha = 0.13f), shape = shape)
             .then(
                 if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier,
             )
@@ -441,7 +393,9 @@ fun XfSearchBar(
         modifier = modifier
             .fillMaxWidth()
             .height(52.dp)
-            .xfGlassSurface(shape)
+            .clip(shape)
+            .background(scheme.surface.copy(alpha = 0.70f))
+            .border(1.dp, scheme.primary.copy(alpha = 0.16f), shape)
             .padding(start = 16.dp, end = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -488,64 +442,91 @@ fun XfSearchBar(
 }
 
 /**
- * Floating liquid-glass dock (WCX / Liquid Glass language).
- *
- * Instead of painting a solid gradient pill, [FloatingBottomBar] samples the page behind the bar
- * through a refraction lens and renders the selected tab as a second glass pill that travels with
- * the drag. The container stays violet-tinted so the module keeps its purple identity, and the
- * label only appears on the selected tab.
+ * Floating violet capsule dock. The bar itself is a gradient pill lifted off the page; the
+ * selected tab grows into a lighter inner capsule and reveals its label. Cheap to draw: one
+ * gradient plus a cached highlight, animated tint/background only.
  */
 @Composable
 fun XfTabBar(
     tabs: List<XfTab>,
     selectedIndex: Int,
     onSelected: (Int) -> Unit,
-    backdrop: Backdrop,
     modifier: Modifier = Modifier,
 ) {
     if (tabs.isEmpty()) return
     val scheme = MaterialTheme.colorScheme
-
-    FloatingBottomBar(
-        items = tabs,
-        selectedIndex = { selectedIndex },
-        onSelected = onSelected,
-        backdrop = backdrop,
+    val shape = RoundedCornerShape(50)
+    Row(
         modifier = modifier
+            .fillMaxWidth()
+            .padding(horizontal = 20.dp)
             .navigationBarsPadding()
-            .padding(bottom = 12.dp),
-        mode = FloatingBottomBarMode.LiquidGlass,
-        colors = FloatingBottomBarDefaults.colors(
-            containerColor = scheme.primaryContainer,
-            indicatorColor = scheme.primary,
-            contentColor = scheme.onSurfaceVariant,
-            activeContentColor = scheme.primary,
-        ),
-        liquidGlassBlurRadius = 4.dp,
-        iconContent = { tab, index, previewSelected ->
-            Icon(
-                imageVector = if (index == selectedIndex || previewSelected) {
-                    tab.selectedIcon
-                } else {
-                    tab.icon
-                },
-                contentDescription = tab.label,
-                modifier = Modifier.size(23.dp),
+            .padding(bottom = 10.dp)
+            .height(64.dp)
+            .shadow(
+                elevation = 22.dp,
+                shape = shape,
+                ambientColor = scheme.primary.copy(alpha = 0.42f),
+                spotColor = scheme.primary.copy(alpha = 0.52f),
             )
-        },
-        labelContent = { tab, index ->
-            if (index == selectedIndex) {
-                Text(
-                    text = tab.label,
-                    fontSize = 10.sp,
-                    lineHeight = 12.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    maxLines = 1,
-                    softWrap = false,
+            .clip(shape)
+            .background(
+                Brush.horizontalGradient(listOf(scheme.primary, scheme.primary, scheme.tertiary)),
+            )
+            .drawWithCache {
+                val glow = Brush.radialGradient(
+                    colors = listOf(Color.White.copy(alpha = 0.22f), Color.Transparent),
+                    center = Offset(size.width * 0.5f, 0f),
+                    radius = size.width * 0.9f,
                 )
+                onDrawBehind { drawRect(brush = glow) }
             }
-        },
-    )
+            .border(1.dp, Color.White.copy(alpha = 0.20f), shape)
+            .padding(6.dp),
+        horizontalArrangement = Arrangement.spacedBy(4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        tabs.forEachIndexed { index, tab ->
+            val selected = index == selectedIndex
+            val tint by animateColorAsState(
+                targetValue = if (selected) Color.White else Color.White.copy(alpha = 0.72f),
+                label = "tabTint",
+            )
+            val inner by animateColorAsState(
+                targetValue = if (selected) Color.White.copy(alpha = 0.20f) else Color.Transparent,
+                label = "tabInner",
+            )
+            Row(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxHeight()
+                    .clip(RoundedCornerShape(50))
+                    .background(inner)
+                    .clickable(role = Role.Tab, onClick = { onSelected(index) }),
+                horizontalArrangement = Arrangement.Center,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Icon(
+                    imageVector = if (selected) tab.selectedIcon else tab.icon,
+                    contentDescription = tab.label,
+                    tint = tint,
+                    modifier = Modifier.size(22.dp),
+                )
+                if (selected) {
+                    Spacer(Modifier.width(7.dp))
+                    Text(
+                        text = tab.label,
+                        fontSize = 11.sp,
+                        lineHeight = 13.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        maxLines = 1,
+                        softWrap = false,
+                        color = tint,
+                    )
+                }
+            }
+        }
+    }
 }
 
 /**
@@ -566,7 +547,9 @@ fun XfPanel(
                 ambientColor = scheme.primary.copy(alpha = 0.16f),
                 spotColor = scheme.primary.copy(alpha = 0.22f),
             )
-            .xfGlassSurface(shape),
+            .clip(shape)
+            .background(scheme.surface.copy(alpha = 0.70f))
+            .border(width = 1.dp, color = scheme.primary.copy(alpha = 0.13f), shape = shape),
         content = content,
     )
 }

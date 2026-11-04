@@ -86,8 +86,6 @@ import com.xiao.feng.ui.animation.predictiveback.xiaoFengNavTransition
 import com.xiao.feng.utils.WeLogger
 import kotlinx.coroutines.launch
 import kotlinx.serialization.Serializable
-import top.yukonga.miuix.kmp.blur.layerBackdrop
-import top.yukonga.miuix.kmp.blur.rememberLayerBackdrop
 import top.yukonga.miuix.kmp.nav.core.NavDisplay
 import top.yukonga.miuix.kmp.nav.core.NavKey
 import top.yukonga.miuix.kmp.nav.core.rememberNavBackStack
@@ -248,15 +246,11 @@ private fun MainPagerScreen(
             selectedIcon = it.filled,
         )
     }
-    // The dock samples this layer, so the page's aurora wash and cards refract through it.
-    val dockBackdrop = rememberLayerBackdrop()
 
     Box(modifier = Modifier.fillMaxSize()) {
         HorizontalPager(
             state = pagerState,
-            modifier = Modifier
-                .fillMaxSize()
-                .layerBackdrop(dockBackdrop),
+            modifier = Modifier.fillMaxSize(),
             key = { it },
         ) { page ->
             when (page) {
@@ -273,7 +267,6 @@ private fun MainPagerScreen(
             tabs = tabs,
             selectedIndex = pagerState.targetPage,
             onSelected = { scope.launch { pagerState.animateScrollToPage(it) } },
-            backdrop = dockBackdrop,
             modifier = Modifier.align(Alignment.BottomCenter),
         )
     }
