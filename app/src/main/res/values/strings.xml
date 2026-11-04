@@ -1,6 +1,6 @@
 <resources>
-    <string name="app_name" translatable="false">XiaoFeng</string>
-    <string name="app_description">WeChat, now with superpowers\nXiaoFeng@github</string>
+    <string name="app_name" translatable="false">微信增强</string>
+    <string name="app_description">WeChat enhancement module\nAuthor: 小枫</string>
     <string name="res_inject_success" translatable="false">Resources injection success</string>
 
     <string name="settings_title">Settings</string>
@@ -60,10 +60,10 @@
     <string name="module_app_root_required_title">Root access not granted</string>
     <string name="module_app_root_required_message">Grant root access to perform this operation.</string>
     <string name="module_app_operation_failed_title">Operation failed</string>
-    <string name="module_app_about_description">%1$s is a free and open-source Xposed module for WeChat.</string>
+    <string name="module_app_about_description">微信增强模块</string>
     <string name="module_app_about_version">Version: %1$s</string>
     <string name="module_app_about_version_code">Version code: %1$d</string>
-    <string name="module_app_about_authors">Authors: XiaoFeng@github, cwuom@github</string>
+    <string name="module_app_about_authors">Author: 小枫</string>
     <string name="contact_filter_all">All</string>
     <string name="contact_filter_friends">Friends</string>
     <string name="contact_filter_groups">Groups</string>
@@ -323,6 +323,13 @@
     <string name="settings_clear_config_summary">Delete all module data, scripts, extensions and caches</string>
     <string name="settings_cleanup_legacy_title">Clean up old data</string>
     <string name="settings_cleanup_legacy_summary">Delete files kept in the old storage locations after migration</string>
+    <string name="settings_section_announcement">Announcements</string>
+    <string name="settings_announcement_title">Announcements</string>
+    <string name="settings_announcement_summary">See what changed in past updates</string>
+    <string name="announcement_dialog_title">Update announcements</string>
+    <string name="announcement_notes_20261104">• Conversation folder import/export backup\n• Scheduled messages show a compact one-line summary; tap to edit\n• Auto-add newly joined groups to a chosen folder\n• Auto-clean scheduled messages and folder membership after being removed from a group\n• Group mute now really silences @me, @all and group announcements\n• Red packet grabbing is immediate (0 ms delay)</string>
+    <string name="announcement_notes_20261103">• Batch mute and auto-mute on group join now silence notifications completely\n• Updated settings and home UI</string>
+    <string name="announcement_notes_20261031">• First release of the enhanced build</string>
     <string name="settings_section_update">Updates</string>
     <string name="settings_check_update_title">Check for updates</string>
     <string name="settings_check_update_summary">Check for a new module version and download it automatically</string>

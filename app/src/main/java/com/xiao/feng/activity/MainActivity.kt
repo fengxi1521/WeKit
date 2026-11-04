@@ -30,7 +30,6 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ElevatedCard
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
@@ -49,11 +48,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.core.content.edit
-import androidx.core.net.toUri
 import com.composables.icons.materialsymbols.MaterialSymbols
 import com.composables.icons.materialsymbols.outlined.Open_in_new
 import com.composables.icons.materialsymbols.outlined.Settings
@@ -74,8 +71,6 @@ import com.xiao.feng.ui.content.DefaultColumn
 import com.xiao.feng.ui.content.IconButton
 import com.xiao.feng.ui.content.TextButton
 import com.xiao.feng.ui.content.m3.xfPageBackground
-import com.xiao.feng.ui.utils.GitHubIcon
-import com.xiao.feng.ui.utils.TelegramIcon
 import com.xiao.feng.ui.utils.theme.ModuleAppTheme
 import com.xiao.feng.utils.WeLogger
 import com.xiao.feng.utils.android.androidUserId
@@ -84,7 +79,6 @@ import com.xiao.feng.utils.android.setEnabled
 import com.xiao.feng.utils.android.showToast
 import com.xiao.feng.utils.formatEpoch
 import com.xiao.feng.utils.hook_status.HookStatus
-import com.xiao.feng.utils.openInSystem
 import com.xiao.feng.utils.registerBshSnapshotDecompileLaunchers
 import com.xiao.feng.utils.serialization.DefaultJson
 
@@ -170,12 +164,7 @@ class MainActivity : ComponentActivity() {
         Shell.getShell()
         setContent {
             ModuleAppTheme {
-                AppContent(
-                    selectFileLauncher,
-                    onUrlClick = { url ->
-                        url.toUri().openInSystem(this, true)
-                    }
-                )
+                AppContent(selectFileLauncher)
             }
         }
     }
@@ -313,12 +302,11 @@ class MainActivity : ComponentActivity() {
     )
 
     @Composable
-    private fun AppContent(resultLauncher: ActivityResultLauncher<String>, onUrlClick: (String) -> Unit) {
+    private fun AppContent(resultLauncher: ActivityResultLauncher<String>) {
         val localizedContext by rememberUpdatedState(LocalXiaoFengLocalizedContext.current)
         val scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior()
 
         var showMenu by remember { mutableStateOf(false) }
-        var showAboutDialog by remember { mutableStateOf(false) }
         var showConfirmDeleteTinkerDialog by remember { mutableStateOf(false) }
         var showConfirmDeleteModuleDataDialog by remember { mutableStateOf(false) }
         var showNoRootDialog by remember { mutableStateOf(false) }
@@ -446,13 +434,6 @@ class MainActivity : ComponentActivity() {
                                     val newState = !isLauncherIconEnabled
                                     componentName.setEnabled(this@MainActivity, newState)
                                     isLauncherIconEnabled = newState
-                                }
-                            )
-                            DropdownMenuItem(
-                                text = { Text(stringResource(R.string.module_app_about_title)) },
-                                onClick = {
-                                    showMenu = false
-                                    showAboutDialog = true
                                 }
                             )
                         }
@@ -809,47 +790,6 @@ class MainActivity : ComponentActivity() {
                             }) { Text(stringResource(R.string.dialog_confirm)) }
                         })
                 }
-
-                HorizontalDivider(
-                    modifier = Modifier
-                        .padding(vertical = 4.dp)
-                        .alpha(0.1f),
-                    color = MaterialTheme.colorScheme.onSurface
-                )
-
-                LinkCard(
-                    icon = GitHubIcon,
-                    title = stringResource(R.string.brand_github),
-                    subtitle = "XiaoFeng/XiaoFeng",
-                    onClick = { onUrlClick("https://github.com/XiaoFeng/XiaoFeng") }
-                )
-                LinkCard(
-                    icon = TelegramIcon,
-                    title = stringResource(R.string.brand_telegram),
-                    subtitle = "https://t.me/+7j5dJ6g16B43OWVl",
-                    onClick = { onUrlClick("https://t.me/+7j5dJ6g16B43OWVl") }
-                )
-            }
-
-            if (showAboutDialog) {
-                AlertDialog(
-                    onDismissRequest = { showAboutDialog = false },
-                    title = { Text(text = stringResource(R.string.module_app_about_title)) },
-                    text = {
-                        Column {
-                            Text(stringResource(R.string.module_app_about_description, BuildConfig.TAG))
-                            Spacer(modifier = Modifier.height(8.dp))
-                            Text(stringResource(R.string.module_app_about_version, BuildConfig.VERSION_NAME))
-                            Text(stringResource(R.string.module_app_about_version_code, BuildConfig.VERSION_CODE))
-                            Text(stringResource(R.string.module_app_about_authors))
-                        }
-                    },
-                    confirmButton = {
-                        TextButton(onClick = { showAboutDialog = false }) {
-                            Text(stringResource(R.string.dialog_confirm))
-                        }
-                    },
-                )
             }
         }
     }
@@ -867,40 +807,6 @@ class MainActivity : ComponentActivity() {
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
-        }
-    }
-
-    @Composable
-    private fun LinkCard(icon: ImageVector, title: String, subtitle: String, onClick: () -> Unit) {
-        ElevatedCard(
-            onClick = onClick,
-            modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(24.dp),
-        ) {
-            Row(
-                modifier = Modifier.padding(16.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Icon(
-                    imageVector = icon,
-                    contentDescription = null,
-                    modifier = Modifier.size(24.dp),
-                    tint = MaterialTheme.colorScheme.primary
-                )
-                Spacer(modifier = Modifier.width(16.dp))
-                Column {
-                    Text(
-                        text = title,
-                        style = MaterialTheme.typography.titleMedium,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-                    Text(
-                        text = subtitle,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-            }
         }
     }
 }

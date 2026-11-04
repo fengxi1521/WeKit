@@ -29,7 +29,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -92,14 +91,6 @@ fun HomePager(onOpenFeatures: () -> Unit = {}) {
         }
         item { DeviceInformation(modifier = Modifier.padding(horizontal = 20.dp)) }
 
-        item { Spacer(Modifier.height(10.dp)) }
-        item {
-            SectionLabel(
-                text = stringResource(R.string.home_learn_more_title),
-                modifier = Modifier.padding(horizontal = 20.dp),
-            )
-        }
-        item { LearnMore(modifier = Modifier.padding(horizontal = 20.dp)) }
         item { Spacer(Modifier.height(CONTENT_BOTTOM_INSET)) }
     }
 }
@@ -283,57 +274,4 @@ private fun SpecDivider() {
         modifier = Modifier.padding(horizontal = 16.dp),
         color = MaterialTheme.colorScheme.outline.copy(alpha = 0.16f),
     )
-}
-
-@Composable
-private fun LearnMore(modifier: Modifier = Modifier) {
-    val uriHandler = LocalUriHandler.current
-    XfPanel(
-        modifier = modifier
-            .fillMaxWidth()
-            .clickable { uriHandler.openUri("https://docs.xfeng.dev") },
-    ) {
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 16.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Box(
-                Modifier
-                    .size(36.dp)
-                    .clip(RoundedCornerShape(10.dp))
-                    .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.09f)),
-                contentAlignment = Alignment.Center,
-            ) {
-                Icon(
-                    imageVector = MaterialSymbols.Outlined.Code,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(20.dp),
-                )
-            }
-            Spacer(Modifier.width(12.dp))
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = stringResource(R.string.home_learn_more_item_title),
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.SemiBold,
-                    color = MaterialTheme.colorScheme.onSurface,
-                )
-                Text(
-                    text = stringResource(R.string.home_learn_more_item_summary),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    lineHeight = 16.sp,
-                )
-            }
-            Spacer(Modifier.width(10.dp))
-            Text(
-                text = "docs.xfeng.dev",
-                style = MaterialTheme.typography.labelSmall,
-                fontFamily = FontFamily.Monospace,
-                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
-                maxLines = 1,
-            )
-        }
-    }
 }

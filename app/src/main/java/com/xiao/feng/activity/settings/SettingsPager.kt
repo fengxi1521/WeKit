@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -58,8 +59,6 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.DialogProperties
-import androidx.core.net.toUri
-import androidx.lifecycle.lifecycleScope
 import coil3.compose.AsyncImage
 import com.composables.icons.materialsymbols.MaterialSymbols
 import com.composables.icons.materialsymbols.outlined.Account_circle
@@ -119,21 +118,14 @@ import com.xiao.feng.ui.content.m3.XfMasthead
 import com.xiao.feng.ui.content.m3.XfPanel
 import com.xiao.feng.ui.content.m3.XfSearchBar
 import com.xiao.feng.ui.content.m3.xfPageBackground
-import com.xiao.feng.ui.utils.GitHubIcon
-import com.xiao.feng.ui.utils.TelegramIcon
 import com.xiao.feng.ui.utils.theme.AppColorSpec
 import com.xiao.feng.ui.utils.theme.AppPaletteStyle
 import com.xiao.feng.ui.utils.theme.AppThemeMode
 import com.xiao.feng.ui.utils.theme.PageTransitionAnimation
 import com.xiao.feng.ui.utils.theme.SettingsUiEngine
 import com.xiao.feng.ui.utils.theme.ThemeSettings
-import com.xiao.feng.utils.AppUpdater
-import com.xiao.feng.utils.UpdateResult
-import com.xiao.feng.utils.WeLogger
 import com.xiao.feng.utils.android.showToastSuspend
 import com.xiao.feng.utils.formatEpoch
-import com.xiao.feng.utils.openInSystem
-import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -146,22 +138,14 @@ import android.graphics.Color as AndroidColor
 
 @Composable
 fun SettingsPager(onOpenLicense: () -> Unit) {
-    val context = LocalComponentActivity.current
     val platformContext = LocalContext.current
     val currentLocalizedContext = rememberUpdatedState(LocalXiaoFengLocalizedContext.current)
 
     var showClearConfirm by remember { mutableStateOf(false) }
-    var showLegacyCleanupConfirm by remember { mutableStateOf(false) }
-    var updateInfo by remember { mutableStateOf<UpdateResult.UpdateAvailable?>(null) }
-    var updateError by remember { mutableStateOf<String?>(null) }
+    var showAnnouncements by remember { mutableStateOf(false) }
 
     ClearConfigDialog(show = showClearConfirm, onDismiss = { showClearConfirm = false })
-    LegacyCleanupDialog(
-        show = showLegacyCleanupConfirm,
-        onDismiss = { showLegacyCleanupConfirm = false },
-    )
-    UpdateAvailableDialog(info = updateInfo, onDismiss = { updateInfo = null }, context = context)
-    UpdateErrorDialog(message = updateError, onDismiss = { updateError = null })
+    AnnouncementDialog(show = showAnnouncements, onDismiss = { showAnnouncements = false })
 
     SettingsListScaffold(title = stringResource(R.string.settings_title)) {
         // Account info card.
@@ -272,32 +256,18 @@ fun SettingsPager(onOpenLicense: () -> Unit) {
                         onClick = { showClearConfirm = true },
                     )
                 }
-                item {
-                    PrefArrow(
-                        title = stringResource(R.string.settings_cleanup_legacy_title),
-                        summary = stringResource(R.string.settings_cleanup_legacy_summary),
-                        icon = MaterialSymbols.Outlined.Delete_sweep,
-                        onClick = { showLegacyCleanupConfirm = true },
-                    )
-                }
             }
         }
 
-        // 更新
+        // 公告
         item {
-            SegmentedColumn(title = stringResource(R.string.settings_section_update)) {
+            SegmentedColumn(title = stringResource(R.string.settings_section_announcement)) {
                 item {
                     PrefArrow(
-                        title = stringResource(R.string.settings_check_update_title),
-                        summary = stringResource(R.string.settings_check_update_summary),
-                        icon = MaterialSymbols.Outlined.Update,
-                        onClick = {
-                            checkForUpdate(
-                                context = { currentLocalizedContext.value },
-                                onAvailable = { updateInfo = it },
-                                onError = { updateError = it },
-                            )
-                        },
+                        title = stringResource(R.string.settings_announcement_title),
+                        summary = stringResource(R.string.settings_announcement_summary),
+                        icon = MaterialSymbols.Outlined.Notifications,
+                        onClick = { showAnnouncements = true },
                     )
                 }
                 item {
@@ -332,43 +302,6 @@ fun SettingsPager(onOpenLicense: () -> Unit) {
                         summary = formatEpoch(BuildConfig.BUILD_TIMESTAMP, true),
                         icon = MaterialSymbols.Outlined.Build_circle,
                     )
-                }
-                item {
-                    PrefArrow(
-                        title = stringResource(R.string.settings_donate_title),
-                        summary = stringResource(R.string.settings_donate_summary),
-                        icon = MaterialSymbols.Outlined.Volunteer_activism,
-                        onClick = {
-//                        context.startActivity(Intent().apply {
-//                            setClassName(HostInfo.packageName, "${PackageNames.WECHAT}.plugin.collect.reward.ui.QrRewardSelectMoneyUI")
-//                            putExtra("key_qrcode_url", "m0n#Z7LGW*s4AVH!z'd(?)")
-//                            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-//                        })
-                            "https://ifdian.net/a/xfeng".toUri().openInSystem(context, true)
-                        },
-                    )
-                }
-                item {
-                    PrefArrow(
-                        title = stringResource(R.string.settings_open_source_licenses_title),
-                        summary = stringResource(R.string.settings_open_source_licenses_summary),
-                        icon = MaterialSymbols.Outlined.License,
-                        onClick = onOpenLicense,
-                    )
-                }
-                item {
-                    PrefArrow(
-                        title = stringResource(R.string.brand_github),
-                        summary = "XiaoFeng/XiaoFeng",
-                        icon = GitHubIcon,
-                        onClick = { "https://github.com/XiaoFeng/XiaoFeng".toUri().openInSystem(context, true) })
-                }
-                item {
-                    PrefArrow(
-                        title = stringResource(R.string.brand_telegram),
-                        summary = "https://t.me/+7j5dJ6g16B43OWVl",
-                        icon = TelegramIcon,
-                        onClick = { "https://t.me/+7j5dJ6g16B43OWVl".toUri().openInSystem(context, true) })
                 }
             }
         }
@@ -553,17 +486,6 @@ private fun ThemeSection() {
     SegmentedColumn(title = stringResource(R.string.settings_section_interface)) {
         item {
             DropDownMenuWidget(
-                title = stringResource(R.string.settings_language_title),
-                description = languageSummary,
-                value = selectedLanguage,
-                options = languageLabels.map { DropdownOption(it.key, it.value) },
-                onValueChange = XiaoFengLocaleController::updateSelection,
-                icon = MaterialSymbols.Outlined.Language,
-            )
-        }
-
-        item {
-            DropDownMenuWidget(
                 title = stringResource(R.string.settings_ui_engine_title),
                 description = null,
                 value = ThemeSettings.uiEngine,
@@ -572,6 +494,17 @@ private fun ThemeSection() {
                 },
                 onValueChange = ThemeSettings::updateUiEngine,
                 icon = MaterialSymbols.Outlined.Style,
+            )
+        }
+
+        item {
+            DropDownMenuWidget(
+                title = stringResource(R.string.settings_language_title),
+                description = languageSummary,
+                value = selectedLanguage,
+                options = languageLabels.map { DropdownOption(it.key, it.value) },
+                onValueChange = XiaoFengLocaleController::updateSelection,
+                icon = MaterialSymbols.Outlined.Language,
             )
         }
 
@@ -877,28 +810,6 @@ private fun SecuritySwitch(context: Context) {
     )
 }
 // ---------------------------------------------------------------------------
-//  Update checks
-// ---------------------------------------------------------------------------
-
-private fun checkForUpdate(
-    context: () -> Context,
-    onAvailable: (UpdateResult.UpdateAvailable) -> Unit,
-    onError: (String) -> Unit,
-) {
-    CoroutineScope(Dispatchers.Main).launch {
-        showToastSuspend(context().getString(R.string.update_checking))
-        when (val result = AppUpdater.checkForUpdate()) {
-            UpdateResult.UpToDate -> showToastSuspend(context().getString(R.string.update_up_to_date))
-            is UpdateResult.UpdateAvailable -> onAvailable(result)
-            is UpdateResult.Error -> {
-                WeLogger.e("AppUpdater", "failed to check for updates", result.cause)
-                onError(result.cause.message ?: context().getString(R.string.error_unknown))
-            }
-        }
-    }
-}
-
-// ---------------------------------------------------------------------------
 //  Dialogs (Material 3 AlertDialog)
 // ---------------------------------------------------------------------------
 
@@ -923,78 +834,36 @@ private fun ClearConfigDialog(show: Boolean, onDismiss: () -> Unit) {
 }
 
 @Composable
-private fun LegacyCleanupDialog(show: Boolean, onDismiss: () -> Unit) {
-    val localizedContext by rememberUpdatedState(LocalXiaoFengLocalizedContext.current)
-    ConfirmDialog(
-        show = show,
-        title = stringResource(R.string.cleanup_legacy_dialog_title),
-        message = stringResource(R.string.cleanup_legacy_dialog_message),
-        confirmText = stringResource(R.string.action_clear),
-        onDismiss = onDismiss,
-        onConfirm = {
-            onDismiss()
-            CoroutineScope(Dispatchers.IO).launch {
-                showToastSuspend(localizedContext.getString(R.string.config_clearing))
-                SettingsConfigActions.clearLegacyData()
-                showToastSuspend(localizedContext.getString(R.string.cleanup_legacy_success))
-            }
-        },
-    )
-}
-
-@Composable
-private fun UpdateAvailableDialog(
-    info: UpdateResult.UpdateAvailable?,
-    onDismiss: () -> Unit,
-    context: ComponentActivity,
-) {
-    val currentLocalizedContext = rememberUpdatedState(LocalXiaoFengLocalizedContext.current)
-    ConfirmDialog(
-        show = info != null,
-        title = stringResource(R.string.update_available_title),
-        message = if (info != null) {
-            stringResource(
-                R.string.update_available_message,
-                BuildConfig.VERSION_NAME,
-                info.info.versionName,
-            )
-        } else "",
-        confirmText = stringResource(R.string.dialog_confirm),
-        onDismiss = onDismiss,
-        onConfirm = {
-            val target = info ?: return@ConfirmDialog
-            onDismiss()
-            // The activity's scope, so closing settings mid-download cancels the download wait
-            // (and with it the BroadcastReceiver it keeps registered on this activity).
-            // This UI is proxied into WeChat's process: an escaping exception here would take
-            // WeChat down with it, so nothing may leave this coroutine.
-            context.lifecycleScope.launch(Dispatchers.Default) {
-                runCatching { AppUpdater.downloadAndInstall(context, target.info) }
-                    .onFailure { e ->
-                        if (e is CancellationException) throw e
-                        WeLogger.e("AppUpdater", "failed to download update", e)
-                        val localizedContext = currentLocalizedContext.value
-                        showToastSuspend(
-                            context,
-                            localizedContext.getString(
-                                R.string.update_download_failed,
-                                e.message ?: localizedContext.getString(R.string.error_unknown),
-                            ),
+private fun AnnouncementDialog(show: Boolean, onDismiss: () -> Unit) {
+    if (!show) return
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.announcement_dialog_title)) },
+        text = {
+            LazyColumn(
+                modifier = Modifier.heightIn(max = 420.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp),
+            ) {
+                items(announcementHistory, key = { it.version }) { entry ->
+                    Column {
+                        Text(
+                            text = entry.version,
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.SemiBold,
+                            color = MaterialTheme.colorScheme.onSurface,
+                        )
+                        Text(
+                            text = stringResource(entry.notesRes),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
+                }
             }
         },
-    )
-}
-
-@Composable
-private fun UpdateErrorDialog(message: String?, onDismiss: () -> Unit) {
-    MessageDialog(
-        show = message != null,
-        title = stringResource(R.string.update_check_failed_title),
-        message = stringResource(R.string.update_error_message, message.orEmpty()),
-        dismissText = stringResource(R.string.dialog_close),
-        onDismiss = onDismiss,
+        confirmButton = {
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.dialog_close)) }
+        },
     )
 }
 
@@ -1019,26 +888,6 @@ private fun ConfirmDialog(
         },
         dismissButton = {
             TextButton(onClick = onDismiss) { Text(dismissText ?: stringResource(R.string.dialog_cancel)) }
-        },
-    )
-}
-
-/** Single-button (dismiss only) dialog. */
-@Composable
-private fun MessageDialog(
-    show: Boolean,
-    title: String,
-    message: String,
-    dismissText: String,
-    onDismiss: () -> Unit,
-) {
-    if (!show) return
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(title) },
-        text = { Text(message) },
-        confirmButton = {
-            TextButton(onClick = onDismiss) { Text(dismissText) }
         },
     )
 }

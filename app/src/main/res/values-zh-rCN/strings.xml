@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_description">微信增强模块\nXiaoFeng@github</string>
+    <string name="app_description">微信增强模块\n作者：小枫</string>
     <string name="settings_title">设置</string>
     <string name="settings_section_interface">界面</string>
     <string name="settings_general_title">通用设置</string>
@@ -47,10 +47,10 @@
     <string name="module_app_root_required_title">未授予 Root 权限</string>
     <string name="module_app_root_required_message">请授予 Root 权限以执行此操作</string>
     <string name="module_app_operation_failed_title">操作失败</string>
-    <string name="module_app_about_description">%1$s 是一款基于 Xposed 框架的开源免费微信模块</string>
+    <string name="module_app_about_description">微信增强模块</string>
     <string name="module_app_about_version">版本: %1$s</string>
     <string name="module_app_about_version_code">版本号: %1$d</string>
-    <string name="module_app_about_authors">作者：XiaoFeng@github, cwuom@github</string>
+    <string name="module_app_about_authors">作者：小枫</string>
     <string name="contact_filter_all">全部</string>
     <string name="contact_filter_friends">好友</string>
     <string name="contact_filter_groups">群聊</string>
@@ -294,6 +294,13 @@
     <string name="settings_clear_config_summary">删除模块数据库、脚本、扩展包、缓存和临时文件</string>
     <string name="settings_cleanup_legacy_title">清理旧数据</string>
     <string name="settings_cleanup_legacy_summary">删除迁移后旧存储位置中保留的文件</string>
+    <string name="settings_section_announcement">公告</string>
+    <string name="settings_announcement_title">公告</string>
+    <string name="settings_announcement_summary">查看历次更新的内容</string>
+    <string name="announcement_dialog_title">更新公告</string>
+    <string name="announcement_notes_20261104">• 归拢文件夹支持导入/导出备份\n• 定时消息列表改为单行摘要，点击进入编辑\n• 新进群可自动加入指定归拢文件夹\n• 被移出群聊后自动清理定时消息与归拢文件夹\n• 修复群聊静音不生效，彻底关闭 @我/@所有人/群公告\n• 自动抢红包改为 0 延迟立即领取</string>
+    <string name="announcement_notes_20261103">• 批量免打扰、进群自动免打扰改为完全静音\n• 更新设置页与主页界面</string>
+    <string name="announcement_notes_20261031">• 增强版首个版本</string>
     <string name="settings_section_update">更新</string>
     <string name="settings_check_update_title">检查更新</string>
     <string name="settings_check_update_summary">立即检查模块是否有新版本并自动下载</string>
