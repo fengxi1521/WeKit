@@ -138,6 +138,7 @@ import android.graphics.Color as AndroidColor
 
 @Composable
 fun SettingsPager(onOpenLicense: () -> Unit) {
+    val context = LocalComponentActivity.current
     val platformContext = LocalContext.current
     val currentLocalizedContext = rememberUpdatedState(LocalXiaoFengLocalizedContext.current)
 
