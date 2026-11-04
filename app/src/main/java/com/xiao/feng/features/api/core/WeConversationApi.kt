@@ -541,11 +541,10 @@ object WeConversationApi : ApiFeature(), IResolveDex {
      * this dispatches on the talker — see [setChatRoomDnd] for why the contact path cannot be used
      * for a group.
      */
-    fun setDnd(convId: String, dnd: Boolean) {
+    fun setDnd(convId: String, dnd: Boolean): Boolean {
         if (convId.isGroupChatWxId) {
             // Suppress 「以下消息仍通知」 (@我/@所有人/群公告) so a muted group is fully silent.
-            setChatRoomDnd(convId, dnd, if (dnd) STILL_NOTIFY_SUPPRESS_ALL else 0)
-            return
+            return setChatRoomDnd(convId, dnd, if (dnd) STILL_NOTIFY_SUPPRESS_ALL else 0)
         }
         val stub = methodSetDnd.method.parameterTypes[0].createInstance(convId)
         if (dnd) {
@@ -553,6 +552,7 @@ object WeConversationApi : ApiFeature(), IResolveDex {
         } else {
             methodSetNoDnd.method.invoke(null, stub, true)
         }
+        return true
     }
 
     /**
@@ -572,37 +572,75 @@ object WeConversationApi : ApiFeature(), IResolveDex {
      * Both `@chatroom` and OpenIM `@im.chatroom` rooms are covered: the room service is picked by
      * the room id's suffix, and each implementation builds its own flavour of the operation.
      */
-    private fun setChatRoomDnd(roomId: String, dnd: Boolean, stillNotifyFlags: Int) {
+    private fun setChatRoomDnd(roomId: String, dnd: Boolean, stillNotifyFlags: Int): Boolean {
         if (methodGetRoomService.isPlaceholder || methodRoomOpLogRequest.isPlaceholder) {
             WeLogger.w(TAG, "room notify oplog unavailable on this build, cannot set dnd for $roomId")
-            return
+            return false
         }
-        try {
-            val serviceFactory = methodGetRoomService.method.declaringClass
-            val roomService = methodGetRoomService.method
-                .invoke(WeServiceApi.getServiceByClass(serviceFactory.interfaces[0]), roomId)!!
-            // RoomService.modChatRoomNotify(roomId, notifyMsg, notifyFlag): notifyMsg is the
-            // ChatRoomNotify value to set (1 = notify, 0 = muted) and notifyFlag is the
-            // 「以下消息仍通知」 bitmask (see STILL_NOTIFY_NONE). WeChat's own main mute switch
-            // always sends notifyFlag = 0, so silencing a group this way is exactly what the host
-            // does; the three switches stay off until the user re-enables them in group settings.
-            val operation = roomService.reflekt()
+        val serviceMethod = methodGetRoomService.method
+        val roomService = runCatching {
+            serviceMethod.declaringClass.interfaces.firstNotNullOfOrNull { serviceInterface ->
+                runCatching { serviceMethod.invoke(WeServiceApi.getServiceByClass(serviceInterface), roomId) }
+                    .getOrNull()
+            }
+        }.getOrElse {
+            WeLogger.w(TAG, "failed to obtain room service for $roomId", it)
+            null
+        }
+        if (roomService == null) {
+            WeLogger.w(TAG, "no room service instance for $roomId, dnd=$dnd not applied")
+            return false
+        }
+
+        // RoomService.modChatRoomNotify(roomId, notifyMsg, notifyFlag): notifyMsg is the
+        // ChatRoomNotify value to set (1 = notify, 0 = muted) and notifyFlag is the
+        // 「以下消息仍通知」 bitmask (see STILL_NOTIFY_SUPPRESS_ALL). WeChat's own main mute switch
+        // always sends notifyFlag = 0, which leaves the three options enabled; the module sends the
+        // suppression mask so muting really silences @我/@所有人/群公告.
+        val operation = runCatching {
+            roomService.reflekt()
                 .firstMethod {
                     parameters(BString, int, int)
                     returnType(methodRoomOpLogRequest.method.declaringClass.superclass!!)
                 }
                 .invoke(roomId, if (dnd) 0 else 1, stillNotifyFlags)
-            // An unknown room suffix yields WeChat's no-op room service, whose operation object is
-            // not the oplog-backed one — sending it is impossible, and silently doing nothing here
-            // would look exactly like the bug this replaced.
-            if (operation == null || !methodRoomOpLogRequest.method.declaringClass.isInstance(operation)) {
-                WeLogger.w(TAG, "no room oplog service for $roomId, dnd=$dnd not applied")
-                return
+        }.getOrElse {
+            // The typed return-type probe can miss on builds whose room service proxy reports a
+            // different operation type; fall back to the only three-argument notify method.
+            runCatching {
+                roomService.reflekt()
+                    .firstMethod { parameters(BString, int, int) }
+                    .invoke(roomId, if (dnd) 0 else 1, stillNotifyFlags)
+            }.getOrElse { fallbackError ->
+                WeLogger.w(TAG, "no modChatRoomNotify on room service for $roomId", fallbackError)
+                null
             }
-            methodRoomOpLogRequest.method.invoke(operation)
-        } catch (ex: Exception) {
-            WeLogger.w(TAG, "exception while setting chat room dnd=$dnd for $roomId", ex)
         }
+        if (operation == null) {
+            WeLogger.w(TAG, "room notify operation is null for $roomId, dnd=$dnd not applied")
+            return false
+        }
+
+        // Send the operation to the oplog queue. An unknown room suffix yields WeChat's no-op room
+        // service whose operation cannot be requested; report that instead of silently doing
+        // nothing, but still make one attempt so a merely repackaged operation class works.
+        return runCatching {
+            methodRoomOpLogRequest.method.invoke(operation)
+        }.fold(
+            onSuccess = {
+                WeLogger.d(TAG, "room notify oplog sent: room=$roomId dnd=$dnd flags=$stillNotifyFlags")
+                true
+            },
+            onFailure = {
+                WeLogger.w(
+                    TAG,
+                    "failed to request room notify oplog for $roomId " +
+                        "(operation=${operation.javaClass.name}, dnd=$dnd)",
+                    it,
+                )
+                false
+            },
+        )
     }
 
     /**

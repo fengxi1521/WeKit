@@ -2562,6 +2562,7 @@
     <plurals name="chat_aggregation_current_match_count"><item quantity="one">Currently matches %1$d conversation</item><item quantity="other">Currently matches %1$d conversations</item></plurals>
     <string name="chat_aggregation_sql_help" formatted="false">Data sources: rcontact r, img_flag i, rconversation c\nExample: c.unReadCount &gt; 0 AND r.username LIKE \'%@chatroom\'</string>
     <string name="chat_aggregation_saved">Saved</string>
+    <string name="batch_mute_failed">Failed to mute %1$d conversations; check XiaoFeng logs</string>
     <string name="chat_aggregation_transfer_export">Export backup</string>
     <string name="chat_aggregation_transfer_import">Import backup</string>
     <string name="chat_aggregation_transfer_nothing">No folders to export</string>

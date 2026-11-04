@@ -95,19 +95,28 @@ object BatchMuteConversations : ClickableFeature() {
             showToastSuspend(
                 localizedBatchQuantity(R.plurals.batch_mute_progress, wxIds.size, wxIds.size),
             )
+            var failures = 0
             wxIds.forEach { wxId ->
-                runCatching { WeConversationApi.setDnd(wxId, mute) }
+                val applied = runCatching { WeConversationApi.setDnd(wxId, mute) }
                     .onFailure { WeLogger.e(TAG, "failed to set mute=$mute for $wxId", it) }
+                    .getOrDefault(false)
+                if (!applied) failures++
                 delay(100.milliseconds)
             }
             WeConversationApi.reloadConversations()
-            showToastSuspend(
-                localizedBatchQuantity(
-                    if (mute) R.plurals.batch_mute_enabled else R.plurals.batch_mute_disabled,
-                    wxIds.size,
-                    wxIds.size,
+            if (failures > 0) {
+                showToastSuspend(
+                    context.localizedBatchString(R.string.batch_mute_failed, failures)
                 )
-            )
+            } else {
+                showToastSuspend(
+                    localizedBatchQuantity(
+                        if (mute) R.plurals.batch_mute_enabled else R.plurals.batch_mute_disabled,
+                        wxIds.size,
+                        wxIds.size,
+                    )
+                )
+            }
         }
     }
 }
