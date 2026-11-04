@@ -87,6 +87,7 @@ object FabricateChatHistoryMessage : ClickableFeature(), WeChatInputBarMenuApi.I
     override val descriptionRes = R.string.feature_fabricate_chat_history_message_description
 
     override val noSwitchWidget = true
+    override val alwaysEnabled = true
 
     override fun onEnable() {
         WeChatInputBarMenuApi.addProvider(this)
