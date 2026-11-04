@@ -490,7 +490,7 @@
     <string name="nuke_update_check_again">Check again</string>
     <string name="nuke_download_install">Download and install</string>
     <string name="nuke_about_project">Project</string>
-    <string name="nuke_about_description_one">XiaoFeng is a free and open-source Xposed module.</string>
+    <string name="nuke_about_description_one">WeChat enhancement module. Author: 小枫.</string>
     <string name="nuke_about_description_two">It provides optional feature enhancements and interface improvements for WeChat.</string>
     <string name="nuke_about_developers">Developers</string>
     <string name="nuke_about_links">Links</string>

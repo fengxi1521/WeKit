@@ -554,11 +554,6 @@ private fun NukeAboutPage(
     onOpenDestination: (NukeDestination, Offset) -> Unit,
 ) {
     val context = LocalContext.current
-    val contributors by produceState(
-        initialValue = NukeGitHubContributors.fallbackContributors,
-    ) {
-        value = NukeGitHubContributors.fetchOrFallback()
-    }
     NukePageScaffold(title = stringResource(R.string.nuke_about_title), onBack = onBack) {
         item(key = "avatar") { NukeAboutIcon() }
         item(key = "project") {
@@ -582,50 +577,6 @@ private fun NukeAboutPage(
                         lineHeight = 19,
                     )
                 }
-            }
-        }
-        item(key = "developers") {
-            NukeSettingGroup(title = stringResource(R.string.nuke_about_developers)) {
-                contributors.forEachIndexed { index, contributor ->
-                    NukeDeveloperRow(
-                        contributor = contributor,
-                        onClick = {
-                            contributor.profileUrl.toUri().openInSystem(context, true)
-                        },
-                    )
-                    if (index < contributors.lastIndex) NukeDivider()
-                }
-            }
-        }
-        item(key = "links") {
-            NukeSettingGroup(title = stringResource(R.string.nuke_about_links)) {
-                NukePreferenceRow(
-                    title = stringResource(R.string.brand_github),
-                    description = "XiaoFeng/XiaoFeng",
-                    leading = { NukeVectorCategoryIcon(GitHubIcon) },
-                    trailing = { NukeCountAndChevron(text = null) },
-                    onClick = {
-                        "https://github.com/XiaoFeng/XiaoFeng".toUri().openInSystem(context, true)
-                    },
-                )
-                NukeDivider()
-                NukePreferenceRow(
-                    title = stringResource(R.string.brand_telegram),
-                    description = "https://t.me/+7j5dJ6g16B43OWVl",
-                    leading = { NukeVectorCategoryIcon(TelegramIcon) },
-                    trailing = { NukeCountAndChevron(text = null) },
-                    onClick = {
-                        "https://t.me/+7j5dJ6g16B43OWVl".toUri().openInSystem(context, true)
-                    },
-                )
-                NukeDivider()
-                NukePreferenceRow(
-                    title = stringResource(R.string.settings_open_source_licenses_title),
-                    description = stringResource(R.string.settings_open_source_licenses_summary),
-                    leading = { NukeVectorCategoryIcon(MaterialSymbols.Outlined.License) },
-                    trailing = { NukeCountAndChevron(text = null) },
-                    onClick = { origin -> onOpenDestination(NukeDestination.Licenses, origin) },
-                )
             }
         }
     }

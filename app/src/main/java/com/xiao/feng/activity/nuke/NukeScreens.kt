@@ -223,11 +223,6 @@ private fun NukeHomePage(
     }
     val secondaryEntries = listOf(
         NukeRootEntry(
-            stringResource(R.string.nuke_update_title),
-            imageVector = MaterialSymbols.Outlined.Update,
-            destination = NukeDestination.Update,
-        ),
-        NukeRootEntry(
             stringResource(R.string.nuke_general_settings_title),
             imageVector = MaterialSymbols.Outlined.Settings,
             destination = NukeDestination.GeneralSettings,
@@ -241,13 +236,6 @@ private fun NukeHomePage(
             stringResource(R.string.nuke_about_title),
             imageVector = MaterialSymbols.Outlined.Info,
             destination = NukeDestination.About,
-        ),
-        NukeRootEntry(
-            title = stringResource(R.string.nuke_support_us_title),
-            imageVector = MaterialSymbols.Outlined.Volunteer_activism,
-            action = {
-                "https://ifdian.net/a/xfeng".toUri().openInSystem(context, true)
-            },
         ),
     )
 

@@ -457,7 +457,7 @@
     <string name="nuke_update_check_again">重新检测</string>
     <string name="nuke_download_install">下载并安装</string>
     <string name="nuke_about_project">项目</string>
-    <string name="nuke_about_description_one">XiaoFeng 是一个免费的开源 Xposed 模块。</string>
+    <string name="nuke_about_description_one">微信增强模块，作者：小枫。</string>
     <string name="nuke_about_description_two">它为微信提供可选的功能增强与界面优化。</string>
     <string name="nuke_about_developers">开发者</string>
     <string name="nuke_about_links">链接</string>
