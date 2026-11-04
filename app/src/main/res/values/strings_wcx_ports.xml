@@ -1,0 +1,84 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="feature_april_fools_name">April Fools easter egg</string>
+    <string name="feature_april_fools_description">Automatically enabled on April 1: avatars spin and text turns into a moving rainbow</string>
+
+    <string name="feature_block_qr_login_name">Block QR code login</string>
+    <string name="feature_block_qr_login_description">Close the login-confirmation page immediately when another device signs in by QR code (your own sign-in is blocked too; turn this off first)</string>
+    <string name="block_qr_login_blocked">Blocked a QR code login attempt</string>
+
+    <string name="feature_finder_layout_guard_name">Channels layout crash guard</string>
+    <string name="feature_finder_layout_guard_description">Clamp the negative layout width that crashes WeChat while scrolling Channels comments (Layout: -42 &lt; 0)</string>
+
+    <string name="feature_hide_discover_moments_entry_name">Hide Moments entry on Discover</string>
+    <string name="feature_hide_discover_moments_entry_description">The Moments row on the Discover page is no longer shown (Moments data and other entries are unaffected)</string>
+    <string name="feature_hide_moments_group_tag_name">Hide Moments group tags</string>
+    <string name="feature_hide_moments_group_tag_description">Groups (tags) inside the Moments audience selector are no longer shown</string>
+
+    <string name="feature_open_moments_messages_name">Moments messages entry</string>
+    <string name="feature_open_moments_messages_description">Add a home-screen menu item that opens the Moments messages list directly (opening it clears the red dot)</string>
+    <string name="home_menu_moments_messages">Moments messages</string>
+    <string name="open_moments_messages_failed">Failed to open Moments messages</string>
+
+    <string name="feature_quick_hide_conversations_name">Hide conversations at once</string>
+    <string name="feature_quick_hide_conversations_description">Add a home-screen menu entry to hide conversations in bulk; records are kept and the chat reappears on a new message</string>
+    <string name="home_menu_quick_hide_conversations">Hide conversations</string>
+    <string name="quick_hide_select_title">Select conversations to hide</string>
+    <string name="quick_hide_select_empty">Select at least one conversation</string>
+    <string name="quick_hide_dialog_title">Hide conversations</string>
+    <string name="quick_hide_selected_summary">%1$d conversation(s) selected. Hidden chats are removed from the list (records are kept) and reappear when a new message arrives.</string>
+    <string name="quick_hide_schedule">Run on a schedule</string>
+    <string name="quick_hide_delay">Delay</string>
+    <string name="quick_hide_today">Today</string>
+    <string name="quick_hide_days">%1$d day(s)</string>
+    <string name="quick_hide_time">Time</string>
+    <string name="quick_hide_hour">%1$d h</string>
+    <string name="quick_hide_minute">%1$d min</string>
+    <string name="quick_hide_runs_at">Runs at %1$s</string>
+    <string name="quick_hide_cancel">Cancel</string>
+    <string name="quick_hide_now">Hide now</string>
+    <string name="quick_hide_schedule_action">Schedule</string>
+    <string name="quick_hide_hiding">Hiding %1$d conversation(s)…</string>
+    <string name="quick_hide_done">Hidden %1$d/%2$d conversation(s)</string>
+    <string name="quick_hide_scheduled_toast">Scheduled; will run at %1$s</string>
+    <string name="quick_hide_time_passed">The selected time has passed; hiding now</string>
+    <string name="quick_hide_schedule_triggered">Scheduled task triggered; hiding %1$d conversation(s)…</string>
+
+    <string name="feature_immersive_status_bar_name">Immersive chat status bar</string>
+    <string name="feature_immersive_status_bar_description">Make the chat status bar fully transparent and extend the chat background up into the status bar area</string>
+
+    <string name="feature_group_member_block_name">Block members in groups</string>
+    <string name="feature_group_member_block_description">Drop messages from selected members in selected groups on this device only; supports full hide and silent modes</string>
+    <string name="group_member_block_title">Block group members</string>
+    <string name="group_member_block_add_rule">Add or edit group rule</string>
+    <string name="group_member_block_logs">Block log (%1$d)</string>
+    <string name="group_member_block_export">Export rules</string>
+    <string name="group_member_block_import">Import rules</string>
+    <string name="group_member_block_close">Close</string>
+    <string name="group_member_block_back">Back</string>
+    <string name="group_member_block_rule_summary">%1$s · %2$d members · %3$s</string>
+    <string name="group_member_block_mode_hide">Fully hidden</string>
+    <string name="group_member_block_mode_silent">Silent (logged)</string>
+    <string name="group_member_block_edit_members">Edit members (%1$d)</string>
+    <string name="group_member_block_switch_mode">Switch mode (%1$s)</string>
+    <string name="group_member_block_delete_rule">Delete this group rule</string>
+    <string name="group_member_block_pick_group">Select a group</string>
+    <string name="group_member_block_pick_members">Select members to block</string>
+    <string name="group_member_block_no_groups">No groups found (the WeChat database may not be ready)</string>
+    <string name="group_member_block_no_members">This group has no members (database not ready or group dissolved)</string>
+    <string name="group_member_block_no_logs">No blocked messages yet</string>
+    <string name="group_member_block_saved_members">Blocked %1$d member(s)</string>
+    <string name="group_member_block_cleared_members">Cleared this group's block list</string>
+    <string name="group_member_block_deleted">Deleted this group rule</string>
+    <string name="group_member_block_mode_switched">Switched to %1$s</string>
+    <string name="group_member_block_rules_copied">Rules copied to clipboard</string>
+    <string name="group_member_block_import_empty">Clipboard is empty</string>
+    <string name="group_member_block_import_invalid">Import failed: invalid format</string>
+    <string name="group_member_block_import_empty_content">Imported content is empty</string>
+    <string name="group_member_block_imported">Imported %1$d group rule(s)</string>
+    <string name="group_member_block_save_failed">Save failed: %1$s</string>
+    <string name="group_member_block_log_title">Block log (latest %1$d)</string>
+    <string name="group_member_block_log_copy">Copy</string>
+    <string name="group_member_block_log_entry">%1$s  %2$s  %3$s  [type %4$d]</string>
+    <string name="group_member_block_empty_rules">No rules yet. Tap "Add or edit group rule" to create one.</string>
+</resources>
