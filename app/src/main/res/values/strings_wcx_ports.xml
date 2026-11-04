@@ -69,7 +69,7 @@
     <string name="group_member_block_no_members">This group has no members (database not ready or group dissolved)</string>
     <string name="group_member_block_no_logs">No blocked messages yet</string>
     <string name="group_member_block_saved_members">Blocked %1$d member(s)</string>
-    <string name="group_member_block_cleared_members">Cleared this group's block list</string>
+    <string name="group_member_block_cleared_members">Cleared this group\'s block list</string>
     <string name="group_member_block_deleted">Deleted this group rule</string>
     <string name="group_member_block_mode_switched">Switched to %1$s</string>
     <string name="group_member_block_rules_copied">Rules copied to clipboard</string>
