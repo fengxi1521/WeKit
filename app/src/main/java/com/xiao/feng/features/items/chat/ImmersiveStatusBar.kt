@@ -8,10 +8,10 @@ import android.view.ViewGroup
 import android.view.Window
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
-import com.tencent.mm.ui.chatting.ChattingUI
-import dev.ujhhgtg.reflekt.reflekt
 import com.xiao.feng.features.core.FeatureCategoryIds
 import com.xiao.feng.features.core.SwitchFeature
+import dev.ujhhgtg.reflekt.reflekt
+import dev.ujhhgtg.reflekt.utils.toClass
 
 private const val TAG_ORIGINAL_BG_LP = 0x7F000001
 private const val TAG_ORIGINAL_TOOLBAR_TOP = 0x7F000002
@@ -31,13 +31,14 @@ object ImmersiveStatusBar : SwitchFeature() {
     private val trackedActivities = mutableSetOf<Activity>()
 
     override fun onEnable() {
-        ChattingUI::class.reflekt().firstMethod { name = "onCreate" }.hookAfter {
+        val chattingUi = "com.tencent.mm.ui.chatting.ChattingUI".toClass()
+        chattingUi.reflekt().firstMethod { name = "onCreate" }.hookAfter {
             applyImmersiveStatusBar(thisObject as Activity)
         }
-        ChattingUI::class.reflekt().firstMethod { name = "onResume" }.hookAfter {
+        chattingUi.reflekt().firstMethod { name = "onResume" }.hookAfter {
             applyImmersiveStatusBar(thisObject as Activity)
         }
-        ChattingUI::class.reflekt().firstMethod { name = "onDestroy" }.hookBefore {
+        chattingUi.reflekt().firstMethod { name = "onDestroy" }.hookBefore {
             trackedActivities.remove(thisObject as Activity)
         }
     }

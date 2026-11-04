@@ -7,6 +7,7 @@ import com.xiao.feng.features.core.SwitchFeature
 import com.xiao.feng.i18n.HostLocalizedStrings
 import com.xiao.feng.utils.WeLogger
 import com.xiao.feng.utils.android.showToast
+import dev.ujhhgtg.reflekt.reflekt
 import dev.ujhhgtg.reflekt.utils.toClass
 
 /**
