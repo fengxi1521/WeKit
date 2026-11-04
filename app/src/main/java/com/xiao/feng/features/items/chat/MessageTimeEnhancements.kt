@@ -196,6 +196,9 @@ object MessageTimeEnhancements : ClickableFeature(),
         readReceiptCount: Int? = null,
     ) {
         val enhancementActive = isActive
+        // WeChat draws a translucent rounded pill behind the timestamp once a chat wallpaper is
+        // set. The enhanced time is already recolored, so drop the box to keep the wallpaper clean.
+        if (enhancementActive) time.background = null
         if (!enhancementActive && !forceVisible) return
         if (!forceVisible && !isAlwaysVisible && !time.isVisible) return
 
