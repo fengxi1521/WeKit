@@ -1,5 +1,6 @@
 package com.xiao.feng.features.items.chat
 
+import android.content.Context
 import androidx.activity.ComponentActivity
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -105,14 +106,7 @@ object FabricateChatHistoryMessage : ClickableFeature(), WeChatInputBarMenuApi.I
                 id = "fabricate_chat_history_in_group",
                 icon = MaterialSymbols.Outlined.History,
                 label = localizedChatInputString(R.string.chat_fabricate_record_in_group_action),
-                onClick = { context, _ ->
-                    val activity = context as? ComponentActivity
-                    if (activity == null) {
-                        WeLogger.w("FabricateChatHistoryMessage", "input bar context is not an activity")
-                    } else {
-                        openForChat(activity, groupId)
-                    }
-                },
+                onClick = { context, _ -> openForChat(context, groupId) },
             )
         )
     }
@@ -129,7 +123,7 @@ object FabricateChatHistoryMessage : ClickableFeature(), WeChatInputBarMenuApi.I
     }
 
     /** Opens the generator with senders restricted to the members of [groupId]. */
-    private fun openForChat(context: ComponentActivity, groupId: String) {
+    private fun openForChat(context: Context, groupId: String) {
         val allContacts = WeDatabaseApi.getContacts()
         val members = WeDatabaseApi.getGroupMembers(groupId)
         val self = allContacts.firstOrNull { it.wxId == WeApi.selfWxId }
