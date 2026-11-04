@@ -25,6 +25,7 @@
     <string name="home_menu_quick_hide_conversations">Hide conversations</string>
     <string name="quick_hide_select_title">Select conversations to hide</string>
     <string name="quick_hide_select_empty">Select at least one conversation</string>
+    <string name="quick_hide_no_conversations">No conversations found (the WeChat database may not be ready)</string>
     <string name="quick_hide_dialog_title">Hide conversations</string>
     <string name="quick_hide_selected_summary">%1$d conversation(s) selected. Hidden chats are removed from the list (records are kept) and reappear when a new message arrives.</string>
     <string name="quick_hide_schedule">Run on a schedule</string>

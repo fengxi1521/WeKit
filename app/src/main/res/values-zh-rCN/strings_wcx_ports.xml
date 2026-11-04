@@ -25,6 +25,7 @@
     <string name="home_menu_quick_hide_conversations">隐藏对话</string>
     <string name="quick_hide_select_title">选择要隐藏的对话</string>
     <string name="quick_hide_select_empty">请选择至少一个对话</string>
+    <string name="quick_hide_no_conversations">未读取到对话列表（微信数据库可能未就绪）</string>
     <string name="quick_hide_dialog_title">隐藏对话</string>
     <string name="quick_hide_selected_summary">已选择 %1$d 个对话，隐藏后将从列表移除（聊天记录保留），重新收到消息时对话会再次出现。</string>
     <string name="quick_hide_schedule">定时执行</string>

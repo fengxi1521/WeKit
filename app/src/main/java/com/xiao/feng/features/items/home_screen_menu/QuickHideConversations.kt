@@ -64,7 +64,7 @@ object QuickHideConversations : SwitchFeature(), WeHomeScreenPopupMenuApi.IMenuI
             emptyList()
         }
         if (conversations.isEmpty()) {
-            showToast(HostLocalizedStrings.get(R.string.group_member_block_no_groups))
+            showToast(HostLocalizedStrings.get(R.string.quick_hide_no_conversations))
             finish()
             return
         }
