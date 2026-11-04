@@ -3,8 +3,27 @@ package com.xiao.feng.dexkit.cache
 import com.xiao.feng.data.XiaoFengDatabase
 import com.xiao.feng.dexkit.abc.IResolveDex
 import com.xiao.feng.features.core.BaseFeature
+import com.xiao.feng.utils.HostInfo
 import com.xiao.feng.utils.WeLogger
 import com.xiao.feng.utils.unreachable
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
+
+@Serializable
+private data class FeaturePointsExport(
+    val versionName: String,
+    val versionCode: Long,
+    val isGooglePlay: Boolean,
+    val features: List<ExportedFeature>,
+)
+
+@Serializable
+private data class ExportedFeature(
+    val technicalId: String,
+    val methodHash: String,
+    val descriptors: Map<String, String>,
+)
 
 /** Host-versioned Dex descriptors stored inside the shared Room database. */
 object DexCacheManager {
@@ -103,6 +122,39 @@ object DexCacheManager {
         if (hash.isNullOrBlank()) error("failed to retrieve method hash for item ${item.technicalId}")
         return hash
     }
+
+    /** Serializes every resolved descriptor of the current host version as a portable JSON table. */
+    fun exportAll(): String {
+        val descriptorsByFeature = LinkedHashMap<String, LinkedHashMap<String, String>>()
+        val hashesByFeature = LinkedHashMap<String, String>()
+        database().query(
+            "SELECT e.technicalId, e.methodHash, d.descriptorKey, d.descriptorValue " +
+                    "FROM dex_cache_entries e LEFT JOIN dex_cache_descriptors d " +
+                    "ON d.hostVersion = e.hostVersion AND d.technicalId = e.technicalId " +
+                    "WHERE e.hostVersion = ?",
+            arrayOf(hostVersion),
+        ).use { cursor ->
+            while (cursor.moveToNext()) {
+                val technicalId = cursor.getString(0)
+                hashesByFeature[technicalId] = cursor.getString(1)
+                if (!cursor.isNull(2)) {
+                    descriptorsByFeature.getOrPut(technicalId) { LinkedHashMap() }[cursor.getString(2)] =
+                        cursor.getString(3)
+                }
+            }
+        }
+        val export = FeaturePointsExport(
+            versionName = HostInfo.versionName,
+            versionCode = HostInfo.versionCode,
+            isGooglePlay = HostInfo.isHostGooglePlay,
+            features = hashesByFeature.map { (technicalId, methodHash) ->
+                ExportedFeature(technicalId, methodHash, descriptorsByFeature[technicalId].orEmpty())
+            },
+        )
+        return EXPORT_JSON.encodeToString(export)
+    }
+
+    private val EXPORT_JSON = Json { prettyPrint = true }
 
     private data class CacheRecord(val methodHash: String, val descriptors: Map<String, String>)
 

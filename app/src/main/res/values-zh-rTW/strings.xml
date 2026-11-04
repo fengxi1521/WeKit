@@ -4052,4 +4052,8 @@
     <string name="theme_label_home_tabs_discovery_title">發現標籤文字</string>
     <string name="theme_label_home_tabs_me_title">我標籤文字</string>
     <string name="theme_label_chat_input_hint">輸入框提示</string>
+    <string name="feature_export_feature_points_name">匯出特徵點映射</string>
+    <string name="feature_export_feature_points_description">把目前微信版本已解析的 Dex 特徵點匯出為 JSON 到下載目錄。</string>
+    <string name="debug_export_feature_points_success">已匯出到 %1$s</string>
+    <string name="debug_export_feature_points_failed">匯出失敗</string>
 </resources>
