@@ -35,9 +35,15 @@ import com.xiao.feng.utils.WeLogger
 import com.xiao.feng.utils.android.getTopMostActivity
 import com.xiao.feng.utils.android.showToast
 import com.xiao.feng.utils.strings.isGroupChatWxId
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import org.json.JSONObject
 import java.util.concurrent.ConcurrentHashMap
-import kotlin.concurrent.thread
 
 @SuppressLint("DiscouragedApi")
 object AutoOpenRedPackets : ClickableFeature(), WeDatabaseListenerApi.IInsertListener,
@@ -106,6 +112,8 @@ object AutoOpenRedPackets : ClickableFeature(), WeDatabaseListenerApi.IInsertLis
 
     private val currentRedPacketMap = ConcurrentHashMap<String, RedPacketInfo>()
 
+    private var scope = newScope()
+
     private data class RedPacketInfo(
         val sendId: String,
         val nativeUrl: String,
@@ -127,6 +135,7 @@ object AutoOpenRedPackets : ClickableFeature(), WeDatabaseListenerApi.IInsertLis
 
     override fun onEnable() {
         RedPacketSettings.requireReady()
+        if (scope.coroutineContext[Job]?.isActive != true) scope = newScope()
         WeDatabaseListenerApi.addListener(this)
 
         WePaymentApi.methodReceiveLuckyMoneyOnGYNetEnd.hookAfter {
@@ -241,11 +250,11 @@ object AutoOpenRedPackets : ClickableFeature(), WeDatabaseListenerApi.IInsertLis
             val delayTime = settings.delayMillis()
             WeLogger.i(TAG, "resolved delay: ${delayTime}ms (sendId=$sendId)")
 
-            thread(name = "ReceiveRedPacketThread") {
+            scope.launch {
                 try {
                     if (delayTime > 0) {
                         WeLogger.i(TAG, "started delaying for ${delayTime}ms (sendId=$sendId)")
-                        Thread.sleep(delayTime)
+                        delay(delayTime)
                     }
 
                     WeLogger.i(
@@ -256,7 +265,7 @@ object AutoOpenRedPackets : ClickableFeature(), WeDatabaseListenerApi.IInsertLis
                     if (info.receiveMode == ReceiveMode.CLICK) {
                         WeLogger.i(TAG, "click receive mode: launching host receive UI (sendId=$sendId)")
                         launchClickReceiveUi(info)
-                        return@thread
+                        return@launch
                     }
 
                     val req = if (sceneId == UNION_SCENE_ID) {
@@ -340,7 +349,7 @@ object AutoOpenRedPackets : ClickableFeature(), WeDatabaseListenerApi.IInsertLis
             return
         }
 
-        thread(name = "OpenRedPacketThread") {
+        scope.launch {
             try {
                 val openReq = if (info.sceneId == UNION_SCENE_ID) {
                     WeLogger.i(TAG, "using union open request (sendId=$sendId)")
@@ -429,8 +438,11 @@ object AutoOpenRedPackets : ClickableFeature(), WeDatabaseListenerApi.IInsertLis
 
     override fun onDisable() {
         WeDatabaseListenerApi.removeListener(this)
+        scope.cancel()
         currentRedPacketMap.clear()
     }
+
+    private fun newScope() = CoroutineScope(Dispatchers.IO + SupervisorJob())
 
     override fun onClick(context: ComponentActivity) {
         RedPacketSettings.showMainDialog(context)

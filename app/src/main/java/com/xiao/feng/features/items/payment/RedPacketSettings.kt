@@ -36,6 +36,7 @@ import com.xiao.feng.features.items.AutomationToggleRule
 import com.xiao.feng.features.items.automationKeywordSummary
 import com.xiao.feng.features.items.formatAutomationMinute
 import com.xiao.feng.data.KvStore
+import com.xiao.feng.data.KvStore.prefOption
 import com.xiao.feng.ui.content.AlertDialogContent
 import com.xiao.feng.ui.content.Button
 import com.xiao.feng.ui.content.TextButton
@@ -66,9 +67,9 @@ object RedPacketSettings {
 
     @Serializable
     data class DelayRule(
-        val enabled: Boolean = true,
-        val baseMs: String = "500",
-        val randomRangeMs: String = "300"
+        val enabled: Boolean = false,
+        val baseMs: String = "0",
+        val randomRangeMs: String = "0"
     )
 
     @Serializable
@@ -161,7 +162,40 @@ object RedPacketSettings {
     @Volatile
     private var cachedConfig: StoredConfig? = null
 
-    fun requireReady() { loadConfig() }
+    private var legacyDelayReset by prefOption("red_packet_legacy_delay_reset", false)
+
+    fun requireReady() {
+        loadConfig()
+        resetUntouchedLegacyDelay()
+    }
+
+    /**
+     * Old builds shipped a 500ms ±300ms random delay as the default. Grab requests should go out
+     * immediately, so an untouched global delay is reset once; custom values are left alone.
+     */
+    private fun resetUntouchedLegacyDelay() {
+        if (legacyDelayReset) return
+        val config = loadConfig()
+        val delay = config.global.delay
+        if (!delay.enabled || delay.baseMs != "500" || delay.randomRangeMs != "300") {
+            legacyDelayReset = true
+            return
+        }
+        runBlocking(Dispatchers.IO) {
+            try {
+                val updated = config.global
+                    .copy(delay = DelayRule())
+                    .asOverrides()
+                XiaoFengDatabase.instance.automationDao().putRedPacketRule("GLOBAL", "", "", updated)
+                legacyDelayReset = true
+                WeLogger.i(TAG, "reset untouched legacy 500±300ms delay to immediate grab")
+            } catch (error: Exception) {
+                WeLogger.w(TAG, "failed to reset legacy red packet delay", error)
+            } finally {
+                cachedConfig = null
+            }
+        }
+    }
 
     fun resolve(talker: String, sender: String?): RuleSet {
         val config = loadConfig()
