@@ -197,10 +197,15 @@ object MessageTimeEnhancements : ClickableFeature(),
     ) {
         val enhancementActive = isActive
         // WeChat draws a translucent rounded pill behind the timestamp once a chat wallpaper is
-        // set, and re-applies that drawable while the list scrolls. Clearing the background
-        // discarded the padding the pill contributes, so the text kept jumping between the
-        // native metrics and ours. Keep the drawable and only hide it; the padding stays intact.
-        if (enhancementActive) time.background?.mutate()?.alpha = 0
+        // set. Hiding it with alpha is not enough: the drawable also contributes a minimum size
+        // and padding, so the rows that had the pill were measured differently from the rows that
+        // did not, which is what made a few timestamps sit higher. Drop the drawable and reset the
+        // minimum sizes so every row uses the exact same metrics.
+        if (enhancementActive) {
+            time.background = null
+            time.minimumHeight = 0
+            time.minimumWidth = 0
+        }
         if (!enhancementActive && !forceVisible) return
         if (!forceVisible && !isAlwaysVisible && !time.isVisible) return
 
@@ -236,9 +241,14 @@ object MessageTimeEnhancements : ClickableFeature(),
             context.resources.displayMetrics
         ).toInt()
 
-        // The wallpaper pill contributes its own padding. Overriding it here made the text sit
-        // at a different height on the rows where WeChat re-applied that drawable later, so the
-        // padding is left entirely to the host.
+        // Pad only vertically and from a fixed zero base: recycled views may still carry the
+        // horizontal padding of the removed pill, which is another source of drift.
+        val verticalPaddingPx = TypedValue.applyDimension(
+            TypedValue.COMPLEX_UNIT_DIP,
+            2f,
+            context.resources.displayMetrics
+        ).toInt()
+        time.setPadding(0, verticalPaddingPx, 0, verticalPaddingPx)
 
         val lp = time.layoutParams as? RelativeLayout.LayoutParams
         if (lp != null) {
