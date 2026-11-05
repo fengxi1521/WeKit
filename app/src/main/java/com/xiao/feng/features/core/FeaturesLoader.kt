@@ -55,6 +55,10 @@ object FeaturesLoader {
         }
         val allDexItems = featuresToStart.filterIsInstance<IResolveDex>()
 
+        // A bundled table for this host version replaces DexKit entirely: seed the cache first,
+        // then never resolve through DexKit even if an entry is missing.
+        val bundledTableAvailable = TargetProcesses.isInMain &&
+                DexCacheManager.seedBundledTable(allDexItems, HostInfo.application.assets)
         val outdatedItems = DexCacheManager.getOutdatedItems(allDexItems)
         val validItems = allDexItems - outdatedItems.toSet()
 
@@ -66,8 +70,18 @@ object FeaturesLoader {
         val cacheFailedItems = loadDescriptorsFromCache(validItems)
         val allBrokenItems = (outdatedItems + cacheFailedItems).distinct()
 
-        if (allBrokenItems.isNotEmpty())
-            handleBrokenItems(allBrokenItems)
+        if (allBrokenItems.isNotEmpty()) {
+            if (bundledTableAvailable) {
+                WeLogger.e(
+                    TAG,
+                    "bundled feature points are incomplete for " +
+                            allBrokenItems.map { (it as BaseFeature).technicalPath } +
+                            "; DexKit scanning is disabled for this host"
+                )
+            } else {
+                handleBrokenItems(allBrokenItems)
+            }
+        }
 
         val elapsed = measureTime {
             featuresToStart.forEach { feature ->

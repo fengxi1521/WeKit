@@ -1,11 +1,14 @@
 package com.xiao.feng.dexkit.cache
 
+import android.content.res.AssetManager
 import com.xiao.feng.data.XiaoFengDatabase
 import com.xiao.feng.dexkit.abc.IResolveDex
 import com.xiao.feng.features.core.BaseFeature
 import com.xiao.feng.utils.HostInfo
 import com.xiao.feng.utils.WeLogger
 import com.xiao.feng.utils.unreachable
+import java.io.FileNotFoundException
+import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
@@ -28,6 +31,7 @@ private data class ExportedFeature(
 /** Host-versioned Dex descriptors stored inside the shared Room database. */
 object DexCacheManager {
     private const val TAG = "DexCacheManager"
+    private const val BUNDLED_TABLE_DIR = "feature_points"
     private lateinit var hostVersion: String
 
     fun init(currentVer: String) {
@@ -99,6 +103,68 @@ object DexCacheManager {
 
     fun getOutdatedItems(items: List<IResolveDex>): List<IResolveDex> =
         items.filter { !isItemCacheValid(it) }
+
+    /**
+     * Seeds the cache from the bundled feature-point table of the current host version.
+     *
+     * Returns true when such a table exists; callers must then never fall back to DexKit,
+     * because resolving would load `libdexkit.so` into the WeChat process and expose an
+     * unnecessary detection surface.
+     */
+    fun seedBundledTable(items: List<IResolveDex>, assets: AssetManager): Boolean {
+        val table = loadBundledTable(assets) ?: return false
+        val outdatedItems = items.filter { !isItemCacheValid(it) }
+        if (outdatedItems.isEmpty()) return true
+
+        val entries = table.features.associateBy { it.technicalId }
+        var seeded = 0
+        var skipped = 0
+        outdatedItems.forEach { item ->
+            if (item !is BaseFeature) return@forEach
+            val entry = entries[item.technicalId]
+            if (entry == null || item.dexDelegates.any { entry.descriptors[it.key].isNullOrEmpty() }) {
+                WeLogger.w(TAG, "bundled table lacks a complete entry for ${item.technicalPath}")
+                skipped++
+                return@forEach
+            }
+            writeCache(item.technicalId, methodHash(item), entry.descriptors)
+            seeded++
+        }
+        WeLogger.i(TAG, "seeded $seeded bundled entries for $hostVersion, skipped $skipped")
+        return true
+    }
+
+    private fun loadBundledTable(assets: AssetManager): FeaturePointsExport? = try {
+        val text = assets.open("$BUNDLED_TABLE_DIR/$hostVersion.json").bufferedReader().use { it.readText() }
+        val table = EXPORT_JSON.decodeFromString<FeaturePointsExport>(text)
+        if (table.versionCode == HostInfo.versionCode && table.isGooglePlay == HostInfo.isHostGooglePlay) {
+            table
+        } else {
+            WeLogger.e(TAG, "bundled feature points do not match the current host: $hostVersion")
+            null
+        }
+    } catch (e: FileNotFoundException) {
+        WeLogger.d(TAG, "no bundled feature points for $hostVersion")
+        null
+    } catch (e: Exception) {
+        WeLogger.e(TAG, "failed to read bundled feature points for $hostVersion", e)
+        null
+    }
+
+    private fun writeCache(technicalId: String, methodHash: String, descriptors: Map<String, String>) {
+        val db = database()
+        db.beginTransaction()
+        try {
+            db.execSQL("DELETE FROM dex_cache_descriptors WHERE hostVersion = ? AND technicalId = ?", arrayOf<Any?>(hostVersion, technicalId))
+            db.execSQL("INSERT OR REPLACE INTO dex_cache_entries(hostVersion, technicalId, methodHash, timestamp) VALUES (?, ?, ?, ?)", arrayOf<Any?>(hostVersion, technicalId, methodHash, System.currentTimeMillis()))
+            descriptors.forEach { (key, value) ->
+                db.execSQL("INSERT OR REPLACE INTO dex_cache_descriptors(hostVersion, technicalId, descriptorKey, descriptorValue) VALUES (?, ?, ?, ?)", arrayOf<Any?>(hostVersion, technicalId, key, value))
+            }
+            db.setTransactionSuccessful()
+        } finally {
+            db.endTransaction()
+        }
+    }
 
     fun importCloudCaches(entries: List<CloudDexCacheEntry>) {
         val db = database()
