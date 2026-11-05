@@ -236,13 +236,9 @@ object MessageTimeEnhancements : ClickableFeature(),
             context.resources.displayMetrics
         ).toInt()
 
-        // 2. Make the paddings above and below the time smaller (2dp)
-        val verticalPaddingPx = TypedValue.applyDimension(
-            TypedValue.COMPLEX_UNIT_DIP,
-            2f,
-            context.resources.displayMetrics
-        ).toInt()
-        time.setPadding(time.paddingLeft, verticalPaddingPx, time.paddingRight, verticalPaddingPx)
+        // The wallpaper pill contributes its own padding. Overriding it here made the text sit
+        // at a different height on the rows where WeChat re-applied that drawable later, so the
+        // padding is left entirely to the host.
 
         val lp = time.layoutParams as? RelativeLayout.LayoutParams
         if (lp != null) {
