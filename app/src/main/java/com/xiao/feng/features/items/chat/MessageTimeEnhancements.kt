@@ -5,6 +5,8 @@ import android.graphics.Color
 import android.util.TypedValue
 import android.view.Gravity
 import android.view.View
+import android.view.ViewGroup
+import android.widget.LinearLayout
 import android.widget.RelativeLayout
 import android.widget.TextView
 import androidx.activity.ComponentActivity
@@ -299,36 +301,71 @@ object MessageTimeEnhancements : ClickableFeature(),
                 }
             }
 
-            // Anchor the timestamp to the avatar so the vertical gap is identical on every row
-            // instead of depending on whatever spacing the host left behind.
-            val anchor = avatar ?: time.getTag(TIME_AVATAR_TAG) as? View
-            val isSystem = msgInfo.type?.isSystem == true
-            if (!isSystem && anchor != null && anchor.parent === time.parent &&
-                anchor.visibility != View.GONE
-            ) {
-                if (anchor.id == View.NO_ID) anchor.id = View.generateViewId()
-                lp.removeRule(RelativeLayout.ALIGN_PARENT_TOP)
-                lp.removeRule(RelativeLayout.ALIGN_PARENT_BOTTOM)
-                lp.removeRule(RelativeLayout.ABOVE)
-                lp.removeRule(RelativeLayout.BELOW)
-                if (timeAnchor == "below") {
-                    lp.addRule(RelativeLayout.BELOW, anchor.id)
-                    lp.topMargin = anchorGapPx
-                    lp.bottomMargin = 0
-                } else {
-                    // Pinning to the row top keeps every timestamp at the same place; anchoring
-                    // it above the avatar instead would push it into the nickname line.
-                    lp.addRule(RelativeLayout.ALIGN_PARENT_TOP)
-                    lp.topMargin = anchorGapPx
-                    lp.bottomMargin = 0
-                }
-            } else {
-                lp.removeRule(RelativeLayout.ABOVE)
-                lp.removeRule(RelativeLayout.BELOW)
-            }
-
             time.layoutParams = lp
         }
+
+        if (msgInfo.type?.isSystem != true) {
+            placeTimeSlot(time, avatar ?: time.getTag(TIME_AVATAR_TAG) as? View, anchorGapPx)
+        }
+    }
+
+    /**
+     * Moves the timestamp slot above or below the row that holds the avatar and bubble.
+     *
+     * The host keeps both the time slot and the avatar/bubble row inside one parent container, but
+     * that container is a [LinearLayout] on some item types and a [RelativeLayout] on others, so
+     * both cases are handled. When the anchor view cannot be located the timestamp keeps the
+     * native position instead of being moved to a random place.
+     */
+    private fun placeTimeSlot(time: TextView, avatar: View?, gapPx: Int) {
+        val parent = time.parent as? ViewGroup ?: return
+        val contentRow = contentRowOf(parent, time, avatar)
+
+        if (parent is LinearLayout) {
+            if (contentRow == null) return
+            val below = timeAnchor == "below"
+            val timeIndex = parent.indexOfChild(time)
+            val contentIndex = parent.indexOfChild(contentRow)
+            val alreadyPlaced = if (below) timeIndex > contentIndex else timeIndex < contentIndex
+            if (!alreadyPlaced) {
+                parent.removeView(time)
+                val index = parent.indexOfChild(contentRow) + if (below) 1 else 0
+                parent.addView(time, index.coerceIn(0, parent.childCount))
+            }
+            return
+        }
+
+        if (parent is RelativeLayout) {
+            val lp = time.layoutParams as? RelativeLayout.LayoutParams ?: return
+            lp.removeRule(RelativeLayout.ALIGN_PARENT_TOP)
+            lp.removeRule(RelativeLayout.ALIGN_PARENT_BOTTOM)
+            lp.removeRule(RelativeLayout.ABOVE)
+            lp.removeRule(RelativeLayout.BELOW)
+            if (timeAnchor == "below") {
+                if (contentRow == null) {
+                    lp.addRule(RelativeLayout.ALIGN_PARENT_BOTTOM)
+                    lp.bottomMargin = gapPx
+                } else {
+                    if (contentRow.id == View.NO_ID) contentRow.id = View.generateViewId()
+                    lp.addRule(RelativeLayout.BELOW, contentRow.id)
+                    lp.topMargin = gapPx
+                }
+            } else {
+                lp.addRule(RelativeLayout.ALIGN_PARENT_TOP)
+                lp.topMargin = gapPx
+            }
+            time.layoutParams = lp
+        }
+    }
+
+    /** Finds the sibling that contains the avatar, which is the row the timestamp belongs to. */
+    private fun contentRowOf(parent: ViewGroup, time: View, avatar: View?): View? {
+        if (avatar == null) return null
+        var child: View = avatar
+        while (child.parent !== parent) {
+            child = child.parent as? View ?: return null
+        }
+        return child.takeIf { it !== time }
     }
 
     @SuppressLint("SetTextI18n")
