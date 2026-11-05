@@ -2426,6 +2426,8 @@
     <string name="chat_message_time_center">Center time</string>
     <string name="chat_message_time_always_show_summary">Force the time to appear on every message</string>
     <string name="chat_message_time_always_show">Show time on every message</string>
+    <string name="chat_message_time_anchor_above">Above the avatar</string>
+    <string name="chat_message_time_anchor_below">Below the avatar</string>
     <string name="chat_message_time_invalid_number">Invalid number</string>
     <string name="chat_floating_header_title">Floating header</string>
     <string name="chat_floating_header_restart_hint">Changes apply immediately</string>

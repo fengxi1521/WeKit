@@ -42,6 +42,7 @@ import com.xiao.feng.ui.content.TextButton
 import com.xiao.feng.ui.content.m3.BaseSupportingWidget
 import com.xiao.feng.ui.content.m3.ColorPickerWidget
 import com.xiao.feng.ui.content.m3.PlaceholderChips
+import com.xiao.feng.ui.content.m3.RadioButtonWidget
 import com.xiao.feng.ui.content.m3.SegmentedColumn
 import com.xiao.feng.ui.content.m3.SwitchWidget
 import com.xiao.feng.ui.utils.showComposeDialog
@@ -57,6 +58,9 @@ const val READ_RECEIPTS_MESSAGE_ID_TAG = 0x7E000010
 const val READ_RECEIPTS_BINDING_GENERATION_TAG = 0x7E000011
 const val READ_RECEIPTS_COUNT_TAG = 0x7E000012
 const val READ_RECEIPTS_NATIVE_TEXT_TAG = 0x7E000013
+
+/** Avatar view of the item that owns the time view, reused when a later render has no holder. */
+private const val TIME_AVATAR_TAG = 0x7E000014
 
 data class ReadReceiptCountState(val count: Int?)
 
@@ -81,6 +85,9 @@ object MessageTimeEnhancements : ClickableFeature(),
     private var displayFormat by prefOption("msg_time_display_format", $$"$time | $type")
     private var isAlwaysCentered by prefOption("msg_time_always_centered", false)
     private var isAlwaysVisible by prefOption("msg_time_always_visible", false)
+
+    /** "above" keeps the timestamp above the avatar, "below" moves it under the avatar. */
+    private var timeAnchor by prefOption("msg_time_anchor", "above")
     private var textColorLight by prefOption("msg_time_color_light", "gray")
     private var textColorDark by prefOption("msg_time_color_dark", "gray")
 
@@ -194,6 +201,7 @@ object MessageTimeEnhancements : ClickableFeature(),
         time: TextView,
         forceVisible: Boolean = false,
         readReceiptCount: Int? = null,
+        avatar: View? = null,
     ) {
         val enhancementActive = isActive
         // WeChat draws a translucent rounded pill behind the timestamp once a chat wallpaper is
@@ -250,6 +258,12 @@ object MessageTimeEnhancements : ClickableFeature(),
         ).toInt()
         time.setPadding(0, verticalPaddingPx, 0, verticalPaddingPx)
 
+        val anchorGapPx = TypedValue.applyDimension(
+            TypedValue.COMPLEX_UNIT_DIP,
+            2f,
+            context.resources.displayMetrics
+        ).toInt()
+
         val lp = time.layoutParams as? RelativeLayout.LayoutParams
         if (lp != null) {
             // System messages are always centered, regardless of user config or sender
@@ -285,6 +299,34 @@ object MessageTimeEnhancements : ClickableFeature(),
                 }
             }
 
+            // Anchor the timestamp to the avatar so the vertical gap is identical on every row
+            // instead of depending on whatever spacing the host left behind.
+            val anchor = avatar ?: time.getTag(TIME_AVATAR_TAG) as? View
+            val isSystem = msgInfo.type?.isSystem == true
+            if (!isSystem && anchor != null && anchor.parent === time.parent &&
+                anchor.visibility != View.GONE
+            ) {
+                if (anchor.id == View.NO_ID) anchor.id = View.generateViewId()
+                lp.removeRule(RelativeLayout.ALIGN_PARENT_TOP)
+                lp.removeRule(RelativeLayout.ALIGN_PARENT_BOTTOM)
+                lp.removeRule(RelativeLayout.ABOVE)
+                lp.removeRule(RelativeLayout.BELOW)
+                if (timeAnchor == "below") {
+                    lp.addRule(RelativeLayout.BELOW, anchor.id)
+                    lp.topMargin = anchorGapPx
+                    lp.bottomMargin = 0
+                } else {
+                    // Pinning to the row top keeps every timestamp at the same place; anchoring
+                    // it above the avatar instead would push it into the nickname line.
+                    lp.addRule(RelativeLayout.ALIGN_PARENT_TOP)
+                    lp.topMargin = anchorGapPx
+                    lp.bottomMargin = 0
+                }
+            } else {
+                lp.removeRule(RelativeLayout.ABOVE)
+                lp.removeRule(RelativeLayout.BELOW)
+            }
+
             time.layoutParams = lp
         }
     }
@@ -298,6 +340,8 @@ object MessageTimeEnhancements : ClickableFeature(),
         val msgInfo = WeChatMessageViewApi.getMsgInfoFromParam(param)
 
         val time = tag.cachedField("timeTV").get(tag) as? TextView? ?: return
+        val avatar = tag.cachedField("avatarIV").get(tag) as? View
+        avatar?.let { time.setTag(TIME_AVATAR_TAG, it) }
 
         val nextGeneration = ((time.getTag(READ_RECEIPTS_BINDING_GENERATION_TAG) as? Long) ?: 0L) + 1L
         time.setTag(READ_RECEIPTS_BINDING_GENERATION_TAG, nextGeneration)
@@ -314,7 +358,7 @@ object MessageTimeEnhancements : ClickableFeature(),
         } else {
             null
         }
-        renderMessageTime(msgInfo, time, forceVisible = tracked, readReceiptCount = count)
+        renderMessageTime(msgInfo, time, forceVisible = tracked, readReceiptCount = count, avatar = avatar)
     }
 
     override fun onClick(context: ComponentActivity) {
@@ -325,6 +369,7 @@ object MessageTimeEnhancements : ClickableFeature(),
             var textSizeInputRaw by remember { mutableStateOf(textSize.toString()) }
             var isAlwaysCenteredInput by remember { mutableStateOf(isAlwaysCentered) }
             var isAlwaysVisibleInput by remember { mutableStateOf(isAlwaysVisible) }
+            var anchorInput by remember { mutableStateOf(timeAnchor) }
             var textColorLightInput by remember { mutableStateOf(textColorLight) }
             var textColorDarkInput by remember { mutableStateOf(textColorDark) }
             var isFocused by remember { mutableStateOf(false) }
@@ -433,6 +478,23 @@ object MessageTimeEnhancements : ClickableFeature(),
                                     onCheckedChange = { isAlwaysVisibleInput = it },
                                 )
                             }
+                            item {
+                                RadioButtonWidget(
+                                    iconPlaceholder = false,
+                                    title = stringResource(R.string.chat_message_time_anchor_above),
+                                    selected = anchorInput == "above",
+                                    trailingDivider = true,
+                                    onClick = { anchorInput = "above" },
+                                )
+                            }
+                            item {
+                                RadioButtonWidget(
+                                    iconPlaceholder = false,
+                                    title = stringResource(R.string.chat_message_time_anchor_below),
+                                    selected = anchorInput == "below",
+                                    onClick = { anchorInput = "below" },
+                                )
+                            }
                         }
                     }
                 },
@@ -449,6 +511,7 @@ object MessageTimeEnhancements : ClickableFeature(),
                         textSize = textSizeInput
                         isAlwaysCentered = isAlwaysCenteredInput
                         isAlwaysVisible = isAlwaysVisibleInput
+                        timeAnchor = anchorInput
                         textColorLight = textColorLightInput
                         textColorDark = textColorDarkInput
                         onDismiss()

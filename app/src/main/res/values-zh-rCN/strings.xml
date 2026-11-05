@@ -2383,6 +2383,8 @@
     <string name="chat_message_time_center">时间居中显示</string>
     <string name="chat_message_time_always_show_summary">是否强制显示每条消息的时间</string>
     <string name="chat_message_time_always_show">显示每条消息时间</string>
+    <string name="chat_message_time_anchor_above">时间在头像上方</string>
+    <string name="chat_message_time_anchor_below">时间在头像下方</string>
     <string name="chat_message_time_invalid_number">数字格式不正确</string>
     <string name="chat_floating_header_title">悬浮标题栏</string>
     <string name="chat_floating_header_restart_hint">改动即时生效</string>
