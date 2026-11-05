@@ -64,6 +64,9 @@ const val READ_RECEIPTS_NATIVE_TEXT_TAG = 0x7E000013
 /** Avatar view of the item that owns the time view, reused when a later render has no holder. */
 private const val TIME_AVATAR_TAG = 0x7E000014
 
+/** Marks the content row whose native "below the time" rule we reversed for the below anchor. */
+private const val TIME_SWAPPED_TAG = 0x7E000015
+
 data class ReadReceiptCountState(val count: Int?)
 
 object MessageTimeEnhancements : ClickableFeature(),
@@ -337,22 +340,58 @@ object MessageTimeEnhancements : ClickableFeature(),
 
         if (parent is RelativeLayout) {
             val lp = time.layoutParams as? RelativeLayout.LayoutParams ?: return
-            lp.removeRule(RelativeLayout.ALIGN_PARENT_TOP)
-            lp.removeRule(RelativeLayout.ALIGN_PARENT_BOTTOM)
-            lp.removeRule(RelativeLayout.ABOVE)
-            lp.removeRule(RelativeLayout.BELOW)
-            if (timeAnchor == "below") {
-                if (contentRow == null) {
-                    lp.addRule(RelativeLayout.ALIGN_PARENT_BOTTOM)
-                    lp.bottomMargin = gapPx
-                } else {
-                    if (contentRow.id == View.NO_ID) contentRow.id = View.generateViewId()
+            val below = timeAnchor == "below"
+            val contentLp = contentRow?.layoutParams as? RelativeLayout.LayoutParams
+
+            if (contentRow != null && contentLp != null) {
+                if (time.id == View.NO_ID) time.id = View.generateViewId()
+                if (contentRow.id == View.NO_ID) contentRow.id = View.generateViewId()
+                if (below) {
+                    // Reverse the native "content below time" chain instead of pointing both views
+                    // at each other; RelativeLayout throws on a circular dependency.
+                    contentRow.setTag(TIME_SWAPPED_TAG, true)
+                    contentLp.removeRule(RelativeLayout.BELOW)
+                    contentLp.removeRule(RelativeLayout.ABOVE)
+                    contentLp.removeRule(RelativeLayout.ALIGN_TOP)
+                    contentLp.removeRule(RelativeLayout.ALIGN_BOTTOM)
+                    contentLp.addRule(RelativeLayout.ALIGN_PARENT_TOP)
+
+                    lp.removeRule(RelativeLayout.ALIGN_PARENT_TOP)
+                    lp.removeRule(RelativeLayout.ALIGN_PARENT_BOTTOM)
+                    lp.removeRule(RelativeLayout.ABOVE)
+                    lp.removeRule(RelativeLayout.BELOW)
+                    lp.removeRule(RelativeLayout.ALIGN_TOP)
+                    lp.removeRule(RelativeLayout.ALIGN_BOTTOM)
                     lp.addRule(RelativeLayout.BELOW, contentRow.id)
                     lp.topMargin = gapPx
+                    lp.bottomMargin = 0
+                } else {
+                    lp.removeRule(RelativeLayout.ALIGN_PARENT_BOTTOM)
+                    lp.removeRule(RelativeLayout.ABOVE)
+                    lp.removeRule(RelativeLayout.BELOW)
+                    lp.removeRule(RelativeLayout.ALIGN_TOP)
+                    lp.removeRule(RelativeLayout.ALIGN_BOTTOM)
+                    lp.addRule(RelativeLayout.ALIGN_PARENT_TOP)
+                    lp.topMargin = gapPx
+                    lp.bottomMargin = 0
+
+                    if (contentRow.getTag(TIME_SWAPPED_TAG) == true) {
+                        contentLp.removeRule(RelativeLayout.ALIGN_PARENT_TOP)
+                        contentLp.removeRule(RelativeLayout.ABOVE)
+                        contentLp.removeRule(RelativeLayout.ALIGN_TOP)
+                        contentLp.removeRule(RelativeLayout.ALIGN_BOTTOM)
+                        contentLp.addRule(RelativeLayout.BELOW, time.id)
+                        contentRow.setTag(TIME_SWAPPED_TAG, null)
+                    }
                 }
+                contentRow.layoutParams = contentLp
             } else {
+                lp.removeRule(RelativeLayout.ABOVE)
+                lp.removeRule(RelativeLayout.BELOW)
+                lp.removeRule(RelativeLayout.ALIGN_BOTTOM)
                 lp.addRule(RelativeLayout.ALIGN_PARENT_TOP)
                 lp.topMargin = gapPx
+                lp.bottomMargin = 0
             }
             time.layoutParams = lp
         }
