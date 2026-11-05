@@ -17,7 +17,6 @@ local.properties
 
 /target
 /.xfeng/
-/dex-test-results/
 /monet-test-results/
 
 # Project exclude paths

@@ -83,8 +83,8 @@ import com.tencent.mm.pluginsdk.ui.chat.ChatFooter
 import dev.ujhhgtg.reflekt.reflekt
 import dev.ujhhgtg.reflekt.utils.createInstance
 import com.xiao.feng.R
-import com.xiao.feng.dexkit.abc.IResolveDex
-import com.xiao.feng.dexkit.dsl.dexMethod
+import com.xiao.feng.featurepoints.abc.IResolveDex
+import com.xiao.feng.featurepoints.dsl.dexMethod
 import com.xiao.feng.features.api.agent.WeAgentService
 import com.xiao.feng.features.api.core.WeMessageApi
 import com.xiao.feng.features.api.ui.WeChatInputBarMenuApi
@@ -167,21 +167,8 @@ object ChatToolbar : ClickableFeature(), IResolveDex {
     private const val QUICK_REPLY_NAME = "快捷回复"
     private const val WEAGENT_NAME = "WeAgent"
 
-    private val methodAppPanelInitAppGrid by dexMethod {
-        matcher {
-            declaredClass = "com.tencent.mm.pluginsdk.ui.chat.AppPanel"
-            usingEqStrings("MicroMsg.AppPanel", "initAppGrid()")
-        }
-    }
-    private val methodAppPanelOnMeasure by dexMethod {
-        searchPackages("com.tencent.mm.pluginsdk.ui.chat")
-        matcher {
-            usingEqStrings(
-                "MicroMsg.AppPanel",
-                "onMeasure width: %d, heigth:%d, isMeasured:%b, gridWidth:%d, gridHeight:%d"
-            )
-        }
-    }
+    private val methodAppPanelInitAppGrid by dexMethod()
+    private val methodAppPanelOnMeasure by dexMethod()
 
     private data class MenuItem(
         val name: String,

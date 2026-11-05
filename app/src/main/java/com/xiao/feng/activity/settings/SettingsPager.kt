@@ -101,7 +101,6 @@ import com.xiao.feng.BuildConfig
 import com.xiao.feng.R
 import com.xiao.feng.constants.Preferences
 import com.xiao.feng.features.api.core.WeApi
-import com.xiao.feng.features.items.debug.ResetDexCache
 import com.xiao.feng.features.items.system.SafeMode
 import com.xiao.feng.i18n.LanguageSelection
 import com.xiao.feng.i18n.LocalXiaoFengLocalizedContext
@@ -190,36 +189,6 @@ fun SettingsPager(onOpenLicense: () -> Unit) {
                         summary = stringResource(R.string.settings_generic_wxid_summary),
                         icon = MaterialSymbols.Outlined.Rule_settings,
                         default = true,
-                    )
-                }
-            }
-        }
-
-        // 兼容
-        item {
-            SegmentedColumn(title = stringResource(R.string.settings_section_compatibility)) {
-                item {
-                    PrefSwitch(
-                        key = Preferences.NO_DEX_RESOLVE,
-                        title = stringResource(R.string.settings_disable_resolution_title),
-                        summary = stringResource(R.string.settings_disable_resolution_summary),
-                        icon = MaterialSymbols.Outlined.Block,
-                    )
-                }
-                item {
-                    PrefArrow(
-                        title = stringResource(R.string.settings_reset_resolution_title),
-                        summary = stringResource(R.string.settings_reset_resolution_summary),
-                        icon = MaterialSymbols.Outlined.Build_circle,
-                        onClick = { ResetDexCache.onClick(context) },
-                    )
-                }
-                item {
-                    PrefSwitch(
-                        key = Preferences.RESET_DEX_ON_HOT_UPDATE,
-                        title = stringResource(R.string.settings_hot_update_resolution_title),
-                        summary = stringResource(R.string.settings_hot_update_resolution_summary),
-                        icon = MaterialSymbols.Outlined.Auto_delete,
                     )
                 }
             }

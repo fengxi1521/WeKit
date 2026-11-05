@@ -29,8 +29,8 @@ import dev.ujhhgtg.reflekt.reflekt
 import dev.ujhhgtg.reflekt.utils.toClass
 import com.xiao.feng.R
 import com.xiao.feng.activity.TransparentActivity
-import com.xiao.feng.dexkit.abc.IResolveDex
-import com.xiao.feng.dexkit.dsl.dexMethod
+import com.xiao.feng.featurepoints.abc.IResolveDex
+import com.xiao.feng.featurepoints.dsl.dexMethod
 import com.xiao.feng.features.core.ClickableFeature
 import com.xiao.feng.features.core.FeatureCategoryIds
 import com.xiao.feng.data.KvStore.prefOption
@@ -108,17 +108,9 @@ object VirtualVoipVideo : ClickableFeature(), IResolveDex {
 
     private val camera2HookBypass = ThreadLocal.withInitial { false }
 
-    private val methodLaunchVoipPage by dexMethod {
-        matcher {
-            usingEqStrings("MicroMsg.VoIPMP.Launcher", "launch page ")
-        }
-    }
+    private val methodLaunchVoipPage by dexMethod()
 
-    private val methodStartCamera by dexMethod {
-        matcher {
-            usingEqStrings("MicroMsg.ILinkVoIPCameraHelper", "old startCamera abandon")
-        }
-    }
+    private val methodStartCamera by dexMethod()
 
     private val isVideoPortrait: Boolean
         get() {

@@ -83,30 +83,7 @@
     <string name="clipboard_copied">已复制</string>
     <string name="clipboard_label_link">链接</string>
     <string name="restart_wechat">重启微信</string>
-    <string name="restart_wechat_to_apply">重启微信后生效</string>
-    <string name="dex_cache_status_resolving">正在解析...</string>
-    <string name="dex_cache_status_completed">已完成: %1$s</string>
-    <string name="dex_cache_status_failed">失败: %1$s</string>
-    <string name="dex_cache_resolution_error">解析过程中发生错误: %1$s</string>
-    <string name="dex_cache_update_title">DEX 缓存更新</string>
-    <string name="dex_cache_update_required_message">检测到 %1$d 个功能需要更新 DEX 缓存，可从云端解析或在本机解析。若直接关闭对话框，相关功能将不会被加载</string>
-    <string name="dex_cache_resolution_success">解析完成！所有功能已成功更新 DEX 缓存</string>
-    <string name="dex_cache_resolution_partial_failure">解析完成，但有 %1$d 个功能失败（不影响其他功能使用）</string>
-    <string name="dex_cache_cloud_downloading">正在下载并校验云端解析报告…</string>
-    <string name="dex_cache_cloud_complete">云端解析完成，请重启微信以加载已解析的功能</string>
-    <string name="dex_cache_cloud_partial">云端已解析 %1$d 个功能，仍有 %2$d 个功能需要本地解析</string>
-    <string name="dex_cache_cloud_not_found">云端暂无当前微信版本的解析报告，可继续本地解析</string>
-    <string name="dex_cache_cloud_network_failure">无法下载云端解析报告：%1$s。可继续本地解析</string>
-    <string name="dex_cache_cloud_invalid_report">云端解析报告无效或不兼容：%1$s。可继续本地解析</string>
-    <string name="dex_cache_cloud_write_failure">无法保存云端解析缓存：%1$s。现有缓存已保留</string>
-    <string name="dex_cache_cloud_no_matches">云端报告中没有可用于当前版本的解析结果，可继续本地解析</string>
-    <string name="dex_cache_total_progress">总进度: %1$d/%2$d</string>
-    <string name="dex_cache_cloud_resolution">云端解析</string>
-    <string name="dex_cache_start_local_resolution">开始解析</string>
-    <string name="dex_cache_continue_local_resolution">继续解析</string>
-    <string name="dex_cache_failure_detail">%1$d. %2$s\n   错误: %3$s\n\n</string>
-    <string name="dex_cache_copy_error_information">复制错误信息</string>
-    <string name="dex_error_report_title">=== XiaoFeng DEX 扫描错误报告 ===</string>
+    <string name="restart_wechat_to_apply">重启微信后生效</string>    <string name="dex_error_report_title">=== XiaoFeng DEX 扫描错误报告 ===</string>
     <string name="dex_error_report_entry">%1$d. %2$s\n   错误信息: %3$s\n   堆栈跟踪:\n%4$s\n\n</string>
     <string name="location_picker_instruction">点击地图或下方坐标以选择虚拟位置</string>
     <string name="location_picker_title">地图选点</string>
@@ -278,13 +255,6 @@
     <string name="settings_startup_toast_summary">全部功能加载完成后显示 Toast 提示</string>
     <string name="settings_generic_wxid_title">清理消息内容微信 ID 前缀时允许非标准 ID</string>
     <string name="settings_generic_wxid_summary">允许处理不带 wxid_ 前缀的微信 ID，可能导致误伤消息原始内容（实验性）</string>
-    <string name="settings_section_compatibility">兼容</string>
-    <string name="settings_disable_resolution_title">禁用 DEX 解析</string>
-    <string name="settings_disable_resolution_summary">不弹出 DEX 解析对话框，未解析功能将不会被加载</string>
-    <string name="settings_reset_resolution_title">重置解析缓存</string>
-    <string name="settings_reset_resolution_summary">清除 DEX 缓存，等待下次启动时重新解析</string>
-    <string name="settings_hot_update_resolution_title">宿主热更新时重新解析</string>
-    <string name="settings_hot_update_resolution_summary">宿主热更新时是否重置 DEX 缓存，可能导致频繁重新解析（实验性）</string>
     <string name="settings_section_configuration">配置</string>
     <string name="settings_export_config_title">导出完整备份</string>
     <string name="settings_export_config_summary">导出 Room 数据库、脚本文件和 Python 数据</string>

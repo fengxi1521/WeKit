@@ -15,8 +15,8 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.TextFieldValue
 import dev.ujhhgtg.reflekt.reflekt
 import com.xiao.feng.R
-import com.xiao.feng.dexkit.abc.IResolveDex
-import com.xiao.feng.dexkit.dsl.dexMethod
+import com.xiao.feng.featurepoints.abc.IResolveDex
+import com.xiao.feng.featurepoints.dsl.dexMethod
 import com.xiao.feng.features.api.core.WeDatabaseListenerApi
 import com.xiao.feng.features.api.core.models.MessageInfo
 import com.xiao.feng.features.api.core.models.MessageType
@@ -59,11 +59,7 @@ object CustomChatInputBarPlaceholderText : ClickableFeature(), IResolveDex, WeDa
         $$"$fileCount"
     )
 
-    private val methodChatFooterCanSend by dexMethod {
-        matcher {
-            usingEqStrings("MicroMsg.ChatFooter", "canSend true ! sendBtn is visible")
-        }
-    }
+    private val methodChatFooterCanSend by dexMethod()
 
     override fun onEnable() {
         WeDatabaseListenerApi.addListener(this)

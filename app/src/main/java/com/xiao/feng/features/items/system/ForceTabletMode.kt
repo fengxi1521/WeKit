@@ -7,15 +7,14 @@ import androidx.compose.ui.res.stringResource
 import androidx.core.view.isGone
 import androidx.core.view.isVisible
 import com.xiao.feng.R
-import com.xiao.feng.dexkit.abc.IResolveDex
-import com.xiao.feng.dexkit.dsl.dexMethod
+import com.xiao.feng.featurepoints.abc.IResolveDex
+import com.xiao.feng.featurepoints.dsl.dexMethod
 import com.xiao.feng.features.core.FeatureCategoryIds
 import com.xiao.feng.features.core.SwitchFeature
 import com.xiao.feng.ui.content.AlertDialogContent
 import com.xiao.feng.ui.content.Button
 import com.xiao.feng.ui.content.TextButton
 import com.xiao.feng.ui.utils.showComposeDialog
-import org.luckypray.dexkit.DexKitBridge
 
 object ForceTabletMode : SwitchFeature(), IResolveDex {
 
@@ -30,43 +29,13 @@ object ForceTabletMode : SwitchFeature(), IResolveDex {
 //            usingEqStrings("MicroMsg.UIUtils", "isRoyoleFoldableDevice!!!")
 //        }
 //    }
-    private val methodOtherDeviceLoginButtonIsVisible by dexMethod {
-        matcher {
-            usingEqStrings("loginAsOtherDeviceBtn")
-        }
-    }
+    private val methodOtherDeviceLoginButtonIsVisible by dexMethod()
 //    private val methodCgiCheckLoginAsPad by dexMethod {
 //        matcher {
 //            usingEqStrings("MicroMsg.CgiCheckLoginAsPad", "/cgi-bin/micromsg-bin/checkloginaspad")
 //        }
 //    }
 
-    override fun resolveDex(dexKit: DexKitBridge) {
-        val modernTabletMethods = dexKit.findMethod {
-            matcher {
-                returnType = "boolean"
-                usingEqStrings(
-                    "MicroMsg.UIUtils",
-                    "inTabletEnv, no tablet condition matched, return false",
-                )
-            }
-        }
-
-        when (modernTabletMethods.size) {
-            1 -> methodIsTablet.setDescriptor(modernTabletMethods.single())
-            0 -> methodIsTablet.find(dexKit) {
-                matcher {
-                    returnType = "boolean"
-                    usingEqStrings("Lenovo TB-9707F", "eebbk")
-                }
-            }
-
-            else -> error(
-                "multiple modern tablet environment methods found: " +
-                    modernTabletMethods.joinToString { it.descriptor }
-            )
-        }
-    }
 
     override fun onEnable() {
         methodIsTablet.hookAfter {

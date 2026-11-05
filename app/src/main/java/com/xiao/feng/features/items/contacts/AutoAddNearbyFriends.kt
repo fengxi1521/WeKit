@@ -4,8 +4,8 @@ import android.view.MenuItem
 import androidx.activity.ComponentActivity
 import com.xiao.feng.R
 import dev.ujhhgtg.reflekt.reflekt
-import com.xiao.feng.dexkit.abc.IResolveDex
-import com.xiao.feng.dexkit.dsl.dexMethod
+import com.xiao.feng.featurepoints.abc.IResolveDex
+import com.xiao.feng.featurepoints.dsl.dexMethod
 import com.xiao.feng.features.api.net.models.protobuf.NearbyFriendProto
 import com.xiao.feng.features.api.net.models.protobuf.WeProto
 import com.xiao.feng.features.core.ClickableFeature
@@ -20,18 +20,9 @@ object AutoAddNearbyFriends : ClickableFeature(), IResolveDex {
     override val categoryIds = listOf(FeatureCategoryIds.CONTACTS_GROUPS)
     override val descriptionRes = R.string.feature_auto_add_nearby_friends_description
 
-    private val methodCreateMenu by dexMethod {
-        matcher {
-            usingEqStrings("NearbyPersonUIC", "showLiveBottomSheet create menu.")
-        }
-    }
+    private val methodCreateMenu by dexMethod()
 
-    private val methodMenuOnClick by dexMethod {
-        matcher {
-            usingEqStrings("com.tencent.mm.plugin.nearby.ui.NearbySayHiListUI")
-            name = "onMMMenuItemSelected"
-        }
-    }
+    private val methodMenuOnClick by dexMethod()
 
     override fun onEnable() {
         methodCreateMenu.hookBefore {

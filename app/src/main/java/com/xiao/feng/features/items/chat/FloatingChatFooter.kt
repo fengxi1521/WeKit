@@ -38,8 +38,8 @@ import com.tencent.mm.pluginsdk.ui.chat.ChattingUILayout
 import dev.ujhhgtg.reflekt.reflekt
 import dev.ujhhgtg.reflekt.utils.fastJavaMethod
 import com.xiao.feng.R
-import com.xiao.feng.dexkit.abc.IResolveDex
-import com.xiao.feng.dexkit.dsl.dexMethod
+import com.xiao.feng.featurepoints.abc.IResolveDex
+import com.xiao.feng.featurepoints.dsl.dexMethod
 import com.xiao.feng.features.core.ClickableFeature
 import com.xiao.feng.features.core.FeatureCategoryIds
 import com.xiao.feng.features.items.chat.FloatingChatFooter.PANEL_TOP_RESERVE_DP
@@ -169,81 +169,44 @@ object FloatingChatFooter : ClickableFeature(), IResolveDex {
      * Locates ChatFooter.refreshBottomHeight() by the unique log string WeChat emits at the
      * start of the method. The intentional typo "keyborPx" is WeChat's own, copied faithfully.
      */
-    private val methodRefreshBottomHeight by dexMethod {
-        searchPackages("com.tencent.mm.pluginsdk.ui.chat")
-        matcher {
-            usingEqStrings("MicroMsg.ChatFooter", "[refreshBottomHeight] keyborPx:%d")
-        }
-    }
+    private val methodRefreshBottomHeight by dexMethod()
 
     /**
      * ChatFooter.switchPanel(int state, boolean, int) —— 底部面板状态机。
      * state: 0=收起 1=键盘 2=表情面板 3=工具面板 4=语音。
      */
-    private val methodSwitchPanel by dexMethod {
-        searchPackages("com.tencent.mm.pluginsdk.ui.chat")
-        matcher {
-            usingEqStrings("MicroMsg.ChatFooter", "switchPanel: %s, %s")
-        }
-    }
+    private val methodSwitchPanel by dexMethod()
 
     /**
      * ChattingScrollLayout.scrollContentTo(int y, boolean, int, int) —— 微信展开面板的方式:
      * 对除消息列表宿主外的所有子 View 做 translationY(-y)。
      */
-    private val methodScrollContentTo by dexMethod {
-        searchPackages("com.tencent.mm.pluginsdk.ui.chat")
-        matcher {
-            usingEqStrings(
-                "MicroMsg.ChattingScrollLayout",
-                "scrollContentTo: y:%s, targetScroll:%s, alwaysScroll:%s"
-            )
-        }
-    }
+    private val methodScrollContentTo by dexMethod()
 
     /**
      * ChatFooter.configPanel(int state, boolean, int) —— switchPanel 的外层包装。
      * 负责在切换前后开关软键盘: 切到 state 1 且键盘未开时 post 一个 showSoftInput,
      * 切到非 1 且键盘已开时 hideVKB。竖屏下它还会把 switchPanel 推迟到键盘收起回调里补跑。
      */
-    private val methodConfigPanel by dexMethod {
-        searchPackages("com.tencent.mm.pluginsdk.ui.chat")
-        matcher {
-            usingEqStrings("MicroMsg.ChatFooter", "configPanel: %s, %s, %s, %s, %s")
-        }
-    }
+    private val methodConfigPanel by dexMethod()
 
     /**
      * ChatFooter.enterKeyboardState() —— 无参, 内部就是 configPanel(1, true, -1)。
      * 表情键与「+」键在面板已展开时都调它来"关面板", 顺带把键盘弹出来。
      */
-    private val methodEnterKeyboardState by dexMethod {
-        searchPackages("com.tencent.mm.pluginsdk.ui.chat")
-        matcher {
-            usingEqStrings("MicroMsg.ChatFooter", "isScrolling!! pass this event!")
-        }
-    }
+    private val methodEnterKeyboardState by dexMethod()
 
     /**
      * FullScreenEditHelper.updateFullScreenEdtLayoutHeight() —— 全屏编辑器的高度
      * = `ChatFooterBottom 的屏幕 Y` 减去顶部锚点的屏幕 Y。它拿面板当下边界。
      */
-    private val methodUpdateFullScreenEditHeight by dexMethod {
-        searchPackages("com.tencent.mm.pluginsdk.ui.chat")
-        matcher {
-            usingEqStrings("updateFullScreenEdtLayoutHeight:")
-        }
-    }
+    private val methodUpdateFullScreenEditHeight by dexMethod()
 
     /**
      * EmojiPanelDragIndicator.determineExtent(parentHeight, collapsedHeight, inputHeight)
      * —— 算出表情面板把手最多能往上拖出多少 (maxExtendedHeight)。
      */
-    private val methodDetermineExtent by dexMethod {
-        matcher {
-            usingEqStrings("MicroMsg.EmojiPanelDragIndicator", "determineExtent: parentHeight=")
-        }
-    }
+    private val methodDetermineExtent by dexMethod()
 
     override fun onEnable() {
         val reflekt = ChatFooter::class.reflekt()

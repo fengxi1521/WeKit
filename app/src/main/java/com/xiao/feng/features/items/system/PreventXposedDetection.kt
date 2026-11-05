@@ -4,8 +4,8 @@ import android.content.Context
 import androidx.compose.material3.Text
 import androidx.compose.ui.res.stringResource
 import com.xiao.feng.R
-import com.xiao.feng.dexkit.abc.IResolveDex
-import com.xiao.feng.dexkit.dsl.dexMethod
+import com.xiao.feng.featurepoints.abc.IResolveDex
+import com.xiao.feng.featurepoints.dsl.dexMethod
 import com.xiao.feng.features.core.FeatureCategoryIds
 import com.xiao.feng.features.core.SwitchFeature
 import com.xiao.feng.i18n.HostLocalizedStrings
@@ -22,15 +22,7 @@ object PreventXposedDetection : SwitchFeature(), IResolveDex {
     override val categoryIds = listOf(FeatureCategoryIds.SYSTEM_PRIVACY)
     override val descriptionRes = R.string.feature_prevent_xposed_detection_description
 
-    private val methodCheckStackTraceElements by dexMethod(allowFailure = true) {
-        searchPackages("com.tencent.mm.app")
-        matcher {
-            usingEqStrings(
-                "de.robv.android.xposed.XposedBridge",
-                "com.zte.heartyservice.SCC.FrameworkBridge"
-            )
-        }
-    }
+    private val methodCheckStackTraceElements by dexMethod()
 
     override fun onEnable() {
         if (HostInfo.isHostGooglePlay) {

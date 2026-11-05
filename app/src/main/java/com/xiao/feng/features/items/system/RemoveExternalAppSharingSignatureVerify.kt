@@ -1,8 +1,8 @@
 package com.xiao.feng.features.items.system
 
 import com.xiao.feng.R
-import com.xiao.feng.dexkit.abc.IResolveDex
-import com.xiao.feng.dexkit.dsl.dexMethod
+import com.xiao.feng.featurepoints.abc.IResolveDex
+import com.xiao.feng.featurepoints.dsl.dexMethod
 import com.xiao.feng.features.core.FeatureCategoryIds
 import com.xiao.feng.features.core.SwitchFeature
 
@@ -13,12 +13,7 @@ object RemoveExternalAppSharingSignatureVerify : SwitchFeature(), IResolveDex {
     override val categoryIds = listOf(FeatureCategoryIds.SYSTEM_PRIVACY)
     override val descriptionRes = R.string.feature_remove_external_app_sharing_signature_verify_description
 
-    private val methodSignCheck by dexMethod {
-        searchPackages("com.tencent.mm.pluginsdk.model.app")
-        matcher {
-            usingEqStrings("checkAppSignature get local signature failed")
-        }
-    }
+    private val methodSignCheck by dexMethod()
 
     override fun onEnable() {
         methodSignCheck.hookBefore {

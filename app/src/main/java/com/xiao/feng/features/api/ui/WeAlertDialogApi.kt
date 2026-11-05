@@ -3,8 +3,8 @@ package com.xiao.feng.features.api.ui
 import android.content.Context
 import android.content.DialogInterface
 import com.xiao.feng.R
-import com.xiao.feng.dexkit.abc.IResolveDex
-import com.xiao.feng.dexkit.dsl.dexClass
+import com.xiao.feng.featurepoints.abc.IResolveDex
+import com.xiao.feng.featurepoints.dsl.dexClass
 import com.xiao.feng.features.core.ApiFeature
 import com.xiao.feng.features.core.FeatureCategoryIds
 import com.xiao.feng.utils.reflection.BString
@@ -16,11 +16,7 @@ object WeAlertDialogApi : ApiFeature(), IResolveDex {
     override val categoryIds = listOf(FeatureCategoryIds.API)
     override val descriptionRes = R.string.feature_we_alert_dialog_api_description
 
-    private val classMmAlert by dexClass {
-        matcher {
-            usingEqStrings("MicroMsg.MMAlert")
-        }
-    }
+    private val classMmAlert by dexClass()
 
     /**
      * NEVER use this API except for the TrollBan feature.

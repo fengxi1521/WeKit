@@ -17,8 +17,8 @@ import androidx.compose.ui.unit.dp
 import com.tencent.mm.ui.halfscreen.HalfScreenTransparentActivity
 import dev.ujhhgtg.reflekt.reflekt
 import com.xiao.feng.R
-import com.xiao.feng.dexkit.abc.IResolveDex
-import com.xiao.feng.dexkit.dsl.dexClass
+import com.xiao.feng.featurepoints.abc.IResolveDex
+import com.xiao.feng.featurepoints.dsl.dexClass
 import com.xiao.feng.features.core.ClickableFeature
 import com.xiao.feng.features.core.FeatureCategoryIds
 import com.xiao.feng.data.KvStore
@@ -44,34 +44,9 @@ object ApplyDialogBackgroundBlur : ClickableFeature(), IResolveDex {
     const val KEY_BLUR_RADIUS = "blur_radius"
     const val DEFAULT_BLUR_RADIUS = 20
 
-    private val classMmAlertDialog by dexClass {
-        matcher {
-            usingEqStrings("MicroMsg.MMAlertDialog", "dialog dismiss error!")
-        }
-    }
-    private val classMmProgressDialog by dexClass {
-        matcher {
-            usingEqStrings($$"com/tencent/mm/ui/widget/dialog/MMProgressDialog$Builder", "show")
-        }
-    }
-    private val classMmQuickDialog by dexClass {
-        matcher {
-            superClass("android.app.Dialog")
-            addField {
-                type = "int"
-                modifiers(Modifier.STATIC or Modifier.FINAL)
-            }
-            addFieldForType("android.widget.TextView")
-            addFieldForType("com.tencent.mm.ui.widget.imageview.WeImageView")
-            addFieldForType("android.widget.ProgressBar")
-            addFieldForType("android.view.View")
-            addFieldForType("int")
-            addField {
-                type = "boolean"
-                modifiers(Modifier.FINAL)
-            }
-        }
-    }
+    private val classMmAlertDialog by dexClass()
+    private val classMmProgressDialog by dexClass()
+    private val classMmQuickDialog by dexClass()
 
     override fun onEnable() {
         listOf(

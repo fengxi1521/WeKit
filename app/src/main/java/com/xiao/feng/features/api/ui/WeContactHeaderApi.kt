@@ -10,8 +10,8 @@ import android.widget.LinearLayout
 import android.widget.TextView
 import dev.ujhhgtg.reflekt.reflekt
 import com.xiao.feng.R
-import com.xiao.feng.dexkit.abc.IResolveDex
-import com.xiao.feng.dexkit.dsl.dexMethod
+import com.xiao.feng.featurepoints.abc.IResolveDex
+import com.xiao.feng.featurepoints.dsl.dexMethod
 import com.xiao.feng.features.core.ApiFeature
 import com.xiao.feng.features.core.FeatureCategoryIds
 import com.xiao.feng.ui.utils.findViewsWhich
@@ -31,22 +31,9 @@ object WeContactHeaderApi : ApiFeature(), IResolveDex {
     private val providers = CopyOnWriteArrayList<Provider>()
     private const val ROW_TAG = "xfeng_contact_header_row"
 
-    private val bindHeader by dexMethod {
-        matcher {
-            declaredClass = "com.tencent.mm.plugin.profile.ui.NormalProfileHeaderPreference"
-            paramTypes(View::class.java)
-            returnType = "void"
-            usingStrings("[onBindView] never attach!")
-        }
-    }
+    private val bindHeader by dexMethod()
 
-    private val bindBizHeader by dexMethod {
-        matcher {
-            declaredClass = "com.tencent.mm.plugin.profile.ui.BizInfoHeaderPreference"
-            paramTypes(View::class.java)
-            returnType = "void"
-        }
-    }
+    private val bindBizHeader by dexMethod()
 
     fun addProvider(provider: Provider) {
         providers.addIfAbsent(provider)

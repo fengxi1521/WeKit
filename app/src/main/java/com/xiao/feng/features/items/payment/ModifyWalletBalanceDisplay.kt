@@ -28,8 +28,8 @@ import dev.ujhhgtg.reflekt.reflekt
 import dev.ujhhgtg.reflekt.utils.isSubclassOf
 import dev.ujhhgtg.reflekt.utils.toClass
 import com.xiao.feng.R
-import com.xiao.feng.dexkit.abc.IResolveDex
-import com.xiao.feng.dexkit.dsl.dexMethod
+import com.xiao.feng.featurepoints.abc.IResolveDex
+import com.xiao.feng.featurepoints.dsl.dexMethod
 import com.xiao.feng.features.core.ClickableFeature
 import com.xiao.feng.features.core.FeatureCategoryIds
 import com.xiao.feng.data.KvStore
@@ -87,14 +87,7 @@ object ModifyWalletBalanceDisplay : ClickableFeature(), IResolveDex {
     private const val VALUE_VARIABLE = "value"
     private const val TAG = "ModifyWalletBalanceDisplay"
 
-    private val tickerSetTextAnimated by dexMethod {
-        matcher {
-            declaredClass = "com.robinhood.ticker.TickerView"
-            paramTypes(BString, bool)
-            returnType = "void"
-            usingEqStrings("Need to call #setCharacterLists first.")
-        }
-    }
+    private val tickerSetTextAnimated by dexMethod()
 
     private var balanceExpression by prefOption(KEY_EXPRESSION_BALANCE, "value")
     private var lqtExpression by prefOption(KEY_EXPRESSION_LQT, "value")

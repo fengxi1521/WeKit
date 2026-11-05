@@ -14,9 +14,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.core.view.isGone
-import com.xiao.feng.dexkit.abc.IResolveDex
+import com.xiao.feng.featurepoints.abc.IResolveDex
 import com.xiao.feng.R
-import com.xiao.feng.dexkit.dsl.dexMethod
+import com.xiao.feng.featurepoints.dsl.dexMethod
 import com.xiao.feng.features.core.ClickableFeature
 import com.xiao.feng.features.core.FeatureCategoryIds
 import com.xiao.feng.data.KvStore
@@ -42,12 +42,7 @@ object HideMeTabPageItems : ClickableFeature(), IResolveDex {
     private var hideCards by KvStore.prefOption("hide_me_cards", false)
     private var hideEmoji by KvStore.prefOption("hide_me_emoji", false)
 
-    private val methodOnViewCreated by dexMethod {
-        matcher {
-            declaredClass = "com.tencent.mm.ui.MoreTabUI"
-            name = "onViewCreated"
-        }
-    }
+    private val methodOnViewCreated by dexMethod()
 
     override fun onEnable() {
         methodOnViewCreated.hookAfter {

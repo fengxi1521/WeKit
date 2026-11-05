@@ -1,8 +1,8 @@
 package com.xiao.feng.features.items.contacts.hidecontacts
 
 import com.xiao.feng.R
-import com.xiao.feng.dexkit.abc.IResolveDex
-import com.xiao.feng.dexkit.dsl.dexMethod
+import com.xiao.feng.featurepoints.abc.IResolveDex
+import com.xiao.feng.featurepoints.dsl.dexMethod
 import com.xiao.feng.features.core.ApiFeature
 import com.xiao.feng.features.core.FeatureCategoryIds
 import com.xiao.feng.features.items.contacts.HideContacts
@@ -98,20 +98,10 @@ object HideContactsNotifications : ApiFeature(), IResolveDex {
      * talker further down (`"... talker: %s, tipsFlag: %s "`).
      *
      * The anchor occurs exactly once per tree, and in both cases the target method is the last
-     * declaration before it, so the string is inside the method DexKit will return — which is what
-     * makes this matcher safe, not `allowFailure`. `allowFailure` covers **only the 0-hit case**:
-     * `DexMethodDelegate.find` (`dexkit/dsl/DexDelegates.kt`) `error()`s on a multi-hit regardless of
-     * it. It is set here purely for the 0-hit case: only 8.0.76 and 8.0.69 could be inspected, and on
-     * an unverified 8.0.6x build a 0-hit would mark this feature broken and pop the dex-repair dialog
-     * on every launch — worse than losing the LightPush bypass while [methodDealNotify] keeps working.
+     * declaration before it. Descriptors are now selected offline, so ambiguity cannot occur at
+     * runtime.
      */
-    private val methodNotifyForLightPush by dexMethod(allowFailure = true) {
-        searchPackages("com.tencent.mm.booter.notification")
-        matcher {
-            paramCount(7)
-            usingEqStrings("notifyForLightPush push:isShake: %B, isSound: %B ctrlFlag:%s")
-        }
-    }
+    private val methodNotifyForLightPush by dexMethod()
 
     /** `CoreService` — and therefore both notification paths — lives in `:push`, not in main. */
     override val targetProcesses = setOf(TargetProcess.MAIN, TargetProcess.PUSH)

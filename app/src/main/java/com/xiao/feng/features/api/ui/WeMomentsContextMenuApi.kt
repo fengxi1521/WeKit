@@ -7,10 +7,9 @@ import android.view.ContextMenu
 import dev.ujhhgtg.reflekt.reflekt
 import dev.ujhhgtg.reflekt.utils.Modifiers
 import com.xiao.feng.R
-import com.xiao.feng.dexkit.abc.IResolveDex
-import com.xiao.feng.dexkit.dsl.DexMethodDelegate
-import com.xiao.feng.dexkit.dsl.data
-import com.xiao.feng.dexkit.dsl.dexMethod
+import com.xiao.feng.featurepoints.abc.IResolveDex
+import com.xiao.feng.featurepoints.dsl.DexMethodDelegate
+import com.xiao.feng.featurepoints.dsl.dexMethod
 import com.xiao.feng.features.core.ApiFeature
 import com.xiao.feng.features.core.FeatureCategoryIds
 import com.xiao.feng.utils.HookParam
@@ -56,72 +55,12 @@ object WeMomentsContextMenuApi : ApiFeature(), IResolveDex {
         val source: Any? = null
     )
 
-    private val methodOnCreateMenu by dexMethod {
-        searchPackages("com.tencent.mm.plugin.sns.ui.listener")
-        matcher {
-            usingStrings(
-                "MicroMsg.TimelineOnCreateContextMenuListener",
-                "onMMCreateContextMenu error"
-            )
-        }
-    }
-    private val methodOnItemSelected by dexMethod {
-        searchPackages("com.tencent.mm.plugin.sns.ui.listener")
-        matcher {
-            usingStrings(
-                "delete comment fail!!! snsInfo is null",
-                "send photo fail, mediaObj is null",
-                "mediaObj is null, send failed!"
-            )
-        }
-    }
-    private val methodImproveOnItemSelectedRegister2 by dexMethod(allowFailure = true) {
-        searchPackages("com.tencent.mm.plugin.sns.ui.improve.item.click")
-        matcher {
-            paramCount(2)
-            paramTypes("android.view.MenuItem", "int")
-            returnType(Void.TYPE)
-            usingStrings(
-                "onMMMenuItemSelected",
-                "com.tencent.mm.plugin.sns.ui.improve.item.click.BaseImproveClick${'$'}register${'$'}2"
-            )
-        }
-    }
-    private val methodImproveOnItemSelectedRegister3 by dexMethod(allowFailure = true) {
-        searchPackages("com.tencent.mm.plugin.sns.ui.improve.item.click")
-        matcher {
-            paramCount(2)
-            paramTypes("android.view.MenuItem", "int")
-            returnType(Void.TYPE)
-            usingStrings(
-                "onMMMenuItemSelected",
-                "com.tencent.mm.plugin.sns.ui.improve.item.click.BaseImproveClick${'$'}register${'$'}3"
-            )
-        }
-    }
-    private val methodImproveMultiPhotoOnItemSelected by dexMethod(allowFailure = true) {
-        searchPackages("com.tencent.mm.plugin.sns.ui.improve.item.click")
-        matcher {
-            paramCount(2)
-            paramTypes("android.view.MenuItem", "int")
-            returnType(Void.TYPE)
-            usingStrings(
-                "onMMMenuItemSelected",
-                "com.tencent.mm.plugin.sns.ui.improve.item.click.ImproveMultiPhotoClick${'$'}register${'$'}1${'$'}1${'$'}1"
-            )
-        }
-    }
-    private val methodSnsInfoStorage by dexMethod {
-        matcher {
-            paramCount(1)
-            paramTypes("java.lang.String")
-            usingStrings(
-                "getByLocalId",
-                "com.tencent.mm.plugin.sns.storage.SnsInfoStorage"
-            )
-            returnType("com.tencent.mm.plugin.sns.storage.SnsInfo")
-        }
-    }
+    private val methodOnCreateMenu by dexMethod()
+    private val methodOnItemSelected by dexMethod()
+    private val methodImproveOnItemSelectedRegister2 by dexMethod()
+    private val methodImproveOnItemSelectedRegister3 by dexMethod()
+    private val methodImproveMultiPhotoOnItemSelected by dexMethod()
+    private val methodSnsInfoStorage by dexMethod()
     override fun onEnable() {
         methodOnCreateMenu.method.hookAfter {
             handleCreateMenu(this)

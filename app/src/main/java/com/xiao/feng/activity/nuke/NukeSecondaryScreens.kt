@@ -67,7 +67,6 @@ import com.xiao.feng.features.core.BaseFeature
 import com.xiao.feng.features.core.ClickableFeature
 import com.xiao.feng.features.core.FeaturesProvider
 import com.xiao.feng.features.core.SwitchFeature
-import com.xiao.feng.features.items.debug.ResetDexCache
 import com.xiao.feng.i18n.LanguageSelection
 import com.xiao.feng.i18n.XiaoFengLocaleController
 import com.xiao.feng.i18n.LocalXiaoFengLocalizedContext
@@ -310,31 +309,6 @@ private fun NukeGeneralSettingsPage(onBack: (Offset) -> Unit) {
                     description = stringResource(R.string.settings_generic_wxid_summary),
                     imageVector = MaterialSymbols.Outlined.Rule_settings,
                     default = true,
-                )
-            }
-        }
-        item(key = "compatibility") {
-            NukeSettingGroup(title = stringResource(R.string.settings_section_compatibility)) {
-                NukeBooleanPreference(
-                    key = Preferences.NO_DEX_RESOLVE,
-                    title = stringResource(R.string.settings_disable_resolution_title),
-                    description = stringResource(R.string.settings_disable_resolution_summary),
-                    imageVector = MaterialSymbols.Outlined.Block,
-                )
-                NukeDivider()
-                NukePreferenceRow(
-                    title = stringResource(R.string.settings_reset_resolution_title),
-                    description = stringResource(R.string.settings_reset_resolution_summary),
-                    leading = { NukeVectorCategoryIcon(MaterialSymbols.Outlined.Build_circle) },
-                    trailing = { NukeCountAndChevron(text = null) },
-                    onClick = { ResetDexCache.onClick(activity) },
-                )
-                NukeDivider()
-                NukeBooleanPreference(
-                    key = Preferences.RESET_DEX_ON_HOT_UPDATE,
-                    title = stringResource(R.string.settings_hot_update_resolution_title),
-                    description = stringResource(R.string.settings_hot_update_resolution_summary),
-                    imageVector = MaterialSymbols.Outlined.Auto_delete,
                 )
             }
         }

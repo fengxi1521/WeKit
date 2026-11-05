@@ -8,10 +8,9 @@ import com.tencent.wcdb.database.SQLiteDatabase
 import dev.ujhhgtg.reflekt.reflekt
 import com.xiao.feng.R
 import com.xiao.feng.constants.Preferences
-import com.xiao.feng.dexkit.abc.IResolveDex
-import com.xiao.feng.dexkit.dsl.data
-import com.xiao.feng.dexkit.dsl.dexClass
-import com.xiao.feng.dexkit.dsl.dexMethod
+import com.xiao.feng.featurepoints.abc.IResolveDex
+import com.xiao.feng.featurepoints.dsl.dexClass
+import com.xiao.feng.featurepoints.dsl.dexMethod
 import com.xiao.feng.features.api.core.models.ChatroomSyncStateReadResult
 import com.xiao.feng.features.api.core.models.SelfProfileField
 import com.xiao.feng.features.api.core.models.WeChatroomSyncState
@@ -41,46 +40,12 @@ object WeDatabaseApi : ApiFeature(), IResolveDex {
     override val categoryIds = listOf(FeatureCategoryIds.API)
     override val descriptionRes = R.string.feature_we_database_api_description
 
-    val classMmKernel by dexClass {
-        matcher {
-            usingEqStrings("MicroMsg.MMKernel", "Kernel not null, has initialized.")
-        }
-    }
-    val methodGetStorage by dexMethod {
-        matcher {
-            declaredClass(classMmKernel.data.name)
-            modifiers = Modifier.PUBLIC or Modifier.STATIC
-            paramCount = 0
-            usingStrings("mCoreStorage not initialized!")
-        }
-    }
-    private val classCoreStorage by dexClass {
-        matcher {
-            usingEqStrings(
-                "MMKernel.CoreStorage",
-                "CheckData path[%s] blocksize:%s blockcount:%s availcount:%s"
-            )
-        }
-    }
-    private val classConfigStorage by dexClass {
-        searchPackages("com.tencent.mm.storage")
-        matcher {
-            usingEqStrings("MicroMsg.ConfigStorage", "shouldProcessEvent db is close :%s")
-        }
-    }
-    private val classSqliteDbWrapper by dexClass {
-        matcher {
-            usingEqStrings("MicroMsg.SqliteDB", "sql is null ")
-        }
-    }
-    val methodSqliteWrapperRawQuery by dexMethod(allowFailure = true) {
-        matcher {
-            modifiers = Modifier.PUBLIC
-            usingEqStrings("sql is null ", "DB IS CLOSED ! {%s}")
-            paramTypes("java.lang.String", "java.lang.String[]", "int")
-            returnType("android.database.Cursor")
-        }
-    }
+    val classMmKernel by dexClass()
+    val methodGetStorage by dexMethod()
+    private val classCoreStorage by dexClass()
+    private val classConfigStorage by dexClass()
+    private val classSqliteDbWrapper by dexClass()
+    val methodSqliteWrapperRawQuery by dexMethod()
 
     lateinit var db: SQLiteDatabase
 

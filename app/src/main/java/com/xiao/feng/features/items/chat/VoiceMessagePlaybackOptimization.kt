@@ -11,9 +11,9 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import dev.ujhhgtg.reflekt.reflekt
 import com.xiao.feng.R
-import com.xiao.feng.dexkit.abc.IResolveDex
-import com.xiao.feng.dexkit.dsl.dexClass
-import com.xiao.feng.dexkit.dsl.dexMethod
+import com.xiao.feng.featurepoints.abc.IResolveDex
+import com.xiao.feng.featurepoints.dsl.dexClass
+import com.xiao.feng.featurepoints.dsl.dexMethod
 import com.xiao.feng.features.core.ClickableFeature
 import com.xiao.feng.features.core.FeatureCategoryIds
 import com.xiao.feng.features.items.chat.VoiceMessagePlaybackOptimization.MODE_DISABLE
@@ -67,59 +67,22 @@ object VoiceMessagePlaybackOptimization : ClickableFeature(), IResolveDex {
      * AutoPlay 语音播放控制器: 日志锚点 `MicroMsg.AutoPlay` + 传感器回调内的
      * `onSensorEvent, isON:` 组合定位, 各版本唯一。
      */
-    private val classAutoPlay by dexClass {
-        matcher {
-            usingEqStrings("MicroMsg.AutoPlay", "onSensorEvent, isON:")
-        }
-    }
+    private val classAutoPlay by dexClass()
 
     /**
      * AutoPlay 的距离传感器回调 (boolean: false=贴近耳朵 true=离开耳朵)。
      * 方法名各版本不同, 用方法体内日志常量 `onSensorEvent, isON:` 锚定。
      */
-    private val methodSensorCallback by dexMethod {
-        matcher {
-            declaredClass {
-                usingEqStrings("MicroMsg.AutoPlay", "onSensorEvent, isON:")
-            }
-            usingEqStrings("onSensorEvent, isON:")
-            paramTypes(bool)
-            returnType("void")
-        }
-    }
+    private val methodSensorCallback by dexMethod()
 
     /** 切换任务入口 `onTimerExpired()`: 无参 boolean 返回, 方法名跨版本稳定。 */
-    private val methodSwitchTask by dexMethod {
-        matcher {
-            declaredClass {
-                usingEqStrings("speaker true", "speaker off")
-            }
-            paramCount = 0
-            returnType("boolean")
-        }
-    }
+    private val methodSwitchTask by dexMethod()
 
     /** AutoPlay.setSpeakerOn(boolean) (8.0.65-74 G / 8.0.76 H): 记录当前扬声器状态。 */
-    private val methodSetSpeakerOn by dexMethod {
-        matcher {
-            declaredClass {
-                usingEqStrings("MicroMsg.AutoPlay", "onSensorEvent, isON:")
-            }
-            usingEqStrings("speakerOn has been set %s")
-            paramTypes(bool)
-        }
-    }
+    private val methodSetSpeakerOn by dexMethod()
 
     /** AutoPlay.switchSpeaker() (8.0.65-74 K / 8.0.76 L): 无参切换, 内部继承播放位置。 */
-    private val methodSwitchSpeaker by dexMethod {
-        matcher {
-            declaredClass {
-                usingEqStrings("MicroMsg.AutoPlay", "onSensorEvent, isON:")
-            }
-            usingEqStrings("switchSpeaker, isSpeakerOn: %b, isPlaying: %b")
-            paramCount = 0
-        }
-    }
+    private val methodSwitchSpeaker by dexMethod()
 
     override fun onEnable() {
         // 完全禁用: 传感器事件直接丢弃, AutoPlay 不会进入任何切换逻辑。

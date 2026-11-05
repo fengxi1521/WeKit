@@ -14,8 +14,8 @@ import androidx.core.view.children
 import dev.ujhhgtg.reflekt.reflekt
 import dev.ujhhgtg.reflekt.utils.toClass
 import com.xiao.feng.R
-import com.xiao.feng.dexkit.abc.IResolveDex
-import com.xiao.feng.dexkit.dsl.dexMethod
+import com.xiao.feng.featurepoints.abc.IResolveDex
+import com.xiao.feng.featurepoints.dsl.dexMethod
 import com.xiao.feng.features.api.ui.WeChatInputBarMenuApi
 import com.xiao.feng.features.core.ClickableFeature
 import com.xiao.feng.features.core.FeatureCategoryIds
@@ -46,24 +46,9 @@ object FakeLocation : ClickableFeature(), IResolveDex {
     override val descriptionRes = R.string.feature_fake_location_description
     override val targetProcesses = setOf(TargetProcess.MAIN, TargetProcess.APPBRAND)
 
-    private val methodListener by dexMethod {
-        matcher {
-            name = "onLocationChanged"
-            usingEqStrings("MicroMsg.SLocationListener")
-        }
-    }
-    private val methodListenerWgs84 by dexMethod {
-        matcher {
-            name = "onLocationChanged"
-            usingEqStrings("MicroMsg.SLocationListenerWgs84")
-        }
-    }
-    private val methodDefaultManager by dexMethod {
-        matcher {
-            name = "onLocationChanged"
-            usingEqStrings("MicroMsg.DefaultTencentLocationManager", "[mlocationListener]error:%d, reason:%s")
-        }
-    }
+    private val methodListener by dexMethod()
+    private val methodListenerWgs84 by dexMethod()
+    private val methodDefaultManager by dexMethod()
 
     private const val KEY_LAT = "fake_lat"
     private const val KEY_LNG = "fake_lng"

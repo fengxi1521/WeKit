@@ -27,9 +27,9 @@ import androidx.core.graphics.toColorInt
 import androidx.core.view.isVisible
 import dev.ujhhgtg.reflekt.reflekt
 import com.xiao.feng.R
-import com.xiao.feng.dexkit.abc.IResolveDex
-import com.xiao.feng.dexkit.dsl.dexConstructor
-import com.xiao.feng.dexkit.dsl.dexMethod
+import com.xiao.feng.featurepoints.abc.IResolveDex
+import com.xiao.feng.featurepoints.dsl.dexConstructor
+import com.xiao.feng.featurepoints.dsl.dexMethod
 import com.xiao.feng.features.api.core.WeDatabaseApi
 import com.xiao.feng.features.api.core.WeMessageApi
 import com.xiao.feng.features.api.core.WeXmlParserApi
@@ -145,24 +145,9 @@ object AntiMessageRecall : ClickableFeature(), IResolveDex, WeXmlParserApi.IAfte
     // this device never parses a revoke sysmsg — the scene rewrites the message row in place at
     // scene end (notice converter, isSend reset, row update), so the XML parser hook never sees it.
     // The constructor receives the target message; capture it for the scene-end hook.
-    private val methodRevokeMsgSceneInit by dexConstructor {
-        matcher {
-            declaredClass {
-                usingEqStrings(REVOKE_INVOKE_MESSAGE_XML)
-            }
-            paramCount = 3
-        }
-    }
+    private val methodRevokeMsgSceneInit by dexConstructor()
 
-    private val methodRevokeMsgSceneEnd by dexMethod {
-        matcher {
-            declaredClass {
-                usingEqStrings(REVOKE_INVOKE_MESSAGE_XML)
-            }
-            name = "onGYNetEnd"
-            paramCount = 6
-        }
-    }
+    private val methodRevokeMsgSceneEnd by dexMethod()
 
     override fun onEnable() {
         recalledKeyCache = recalledRecords

@@ -17,8 +17,8 @@ import bsh.Interpreter
 import com.tencent.mm.pluginsdk.ui.chat.ChatFooter
 import dev.ujhhgtg.reflekt.reflekt
 import com.xiao.feng.R
-import com.xiao.feng.dexkit.abc.IResolveDex
-import com.xiao.feng.dexkit.dsl.dexMethod
+import com.xiao.feng.featurepoints.abc.IResolveDex
+import com.xiao.feng.featurepoints.dsl.dexMethod
 import com.xiao.feng.features.api.core.WeDatabaseApi
 import com.xiao.feng.features.api.core.WeDatabaseListenerApi
 import com.xiao.feng.features.api.core.WeMessageApi
@@ -80,11 +80,7 @@ object JavaScriptingHook : ClickableFeature(), IResolveDex, WeDatabaseListenerAp
         val enabled: Boolean,
     )
 
-    private val methodPayMsg by dexMethod {
-        matcher {
-            usingEqStrings("[onRecv PayerMsg]，newMsg.msgType：%s")
-        }
-    }
+    private val methodPayMsg by dexMethod()
 
     override fun onEnable() {
         val generation = synchronized(lifecycleLock) {

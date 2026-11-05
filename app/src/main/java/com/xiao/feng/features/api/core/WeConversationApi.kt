@@ -3,10 +3,9 @@ package com.xiao.feng.features.api.core
 import dev.ujhhgtg.reflekt.reflekt
 import dev.ujhhgtg.reflekt.utils.createInstance
 import com.xiao.feng.R
-import com.xiao.feng.dexkit.abc.IResolveDex
-import com.xiao.feng.dexkit.dsl.data
-import com.xiao.feng.dexkit.dsl.dexClass
-import com.xiao.feng.dexkit.dsl.dexMethod
+import com.xiao.feng.featurepoints.abc.IResolveDex
+import com.xiao.feng.featurepoints.dsl.dexClass
+import com.xiao.feng.featurepoints.dsl.dexMethod
 import com.xiao.feng.features.api.core.WeConversationApi.hideConversation
 import com.xiao.feng.features.api.core.WeConversationApi.reloadConversations
 import com.xiao.feng.features.core.ApiFeature
@@ -41,31 +40,13 @@ object WeConversationApi : ApiFeature(), IResolveDex {
 //    private const val ATTR_FLAG_8071_8072_RED_PACKET_BITS = 33280
 //    private const val TABLE_RCONVERSATION = "rconversation"
 //    private const val TABLE_ECS_CONVERSATION_RECORD = "EcsConversationRecord"
-    val classConversationStorage by dexClass {
-        searchPackages("com.tencent.mm.storage")
-        matcher {
-            usingEqStrings("rconversation", "PRAGMA table_info( rconversation)")
-        }
-    }
-    val methodUpdateUnreadByTalker by dexMethod {
-        matcher {
-            declaredClass(classConversationStorage.data.name)
-            usingEqStrings("MicroMsg.ConversationStorage", "updateUnreadByTalker %s")
-        }
-    }
+    val classConversationStorage by dexClass()
+    val methodUpdateUnreadByTalker by dexMethod()
 
     // ConversationStorage.k(String) aka `delChatContact`: deletes the rconversation row through the
     // cache-aware storage wrapper and notifies list observers, which is the core of WeChat's native
     // "不显示该聊天" for a normal contact.
-    private val methodDelChatContact by dexMethod {
-        matcher {
-            declaredClass(classConversationStorage.data.name)
-            usingStrings("MicroMsg.ConversationStorage", "delChatContact username:")
-            paramCount = 1
-            paramTypes(String::class.java)
-            returnType(Void.TYPE)
-        }
-    }
+    private val methodDelChatContact by dexMethod()
 
     //    private val methodClearConvRedHintsOnMarkRead by dexMethod(allowFailure = true) {
 //        matcher {
@@ -91,12 +72,7 @@ object WeConversationApi : ApiFeature(), IResolveDex {
 //            )
 //        }
 //    }
-    private val methodHiddenConvParent by dexMethod {
-        matcher {
-            declaredClass(classConversationStorage.data.name)
-            usingEqStrings("Update rconversation set parentRef = '", "' where 1 != 1 ")
-        }
-    }
+    private val methodHiddenConvParent by dexMethod()
 
     //    private val methodGetConvByName by dexMethod {
 //        matcher {
@@ -111,113 +87,41 @@ object WeConversationApi : ApiFeature(), IResolveDex {
 //            paramTypes(methodGetConvByName.method.returnType, String::class.java)
 //        }
 //    }
-    val methodChatroomStorageGetMemberCount by dexMethod {
-        searchPackages("com.tencent.mm.storage")
-        matcher {
-            usingEqStrings("MicroMsg.ChatroomStorage", "[getMemberCount] cost:%sms")
-        }
-    }
-    private val classChatroomMember by dexClass {
-        searchPackages("com.tencent.mm.storage")
-        matcher {
-            usingEqStrings("MicroMsg.ChatRoomMember", "service is null")
-        }
-    }
-    private val methodSetDnd by dexMethod {
-        matcher {
-            usingEqStrings("MicroMsg.OpenImOpLogLogic", "OpenImOpLogLogic OpenIMModContactMuteOplog username:%s switch add")
-        }
-    }
-    private val methodSetNoDnd by dexMethod {
-        matcher {
-            usingEqStrings("MicroMsg.OpenImOpLogLogic", "OpenImOpLogLogic OpenIMModContactMuteOplog username:%s switch cancel")
-        }
-    }
+    val methodChatroomStorageGetMemberCount by dexMethod()
+    private val classChatroomMember by dexClass()
+    private val methodSetDnd by dexMethod()
+    private val methodSetNoDnd by dexMethod()
 
     // RoomServiceFactory.get(roomId) (`ed0.e.hj` on 8.0.76) -> the room service for that room's
     // suffix (`@chatroom`, `@im.chatroom`, ...), which builds the room oplog operations. Anchored
     // on the log it emits for a room id without a suffix.
-    private val methodGetRoomService by dexMethod(allowFailure = true) {
-        matcher {
-            usingEqStrings("MicroMsg.RoomServiceFactory", "get NotNullChatRoom %s")
-        }
-    }
+    private val methodGetRoomService by dexMethod()
 
     // RoomOpLogCallbackFactory.request() (`com.tencent.mm.roomsdk.model.factory.f.b`) — hands the
     // operation built by the room service to the oplog queue, i.e. actually sends it. 8.0.69+ logs
     // "request oplog with result %s" and older builds "request oplog %s", so match the prefix.
-    private val methodRoomOpLogRequest by dexMethod(allowFailure = true) {
-        matcher {
-            usingStrings("MicroMsg.RoomCallbackFactory", "request oplog")
-            paramCount = 0
-        }
-    }
+    private val methodRoomOpLogRequest by dexMethod()
 
     // ConversationStorage.M(String) / isPlacedTop — returns true when the conversation's flag
     // has the "placed top" high bits set. Anchored by the string it logs on a null/empty talker.
-    private val methodIsPlacedTop by dexMethod(allowFailure = true) {
-        matcher {
-            declaredClass(classConversationStorage.data.name)
-            usingStrings("MicroMsg.ConversationStorage", "isPlacedTop failed")
-            paramCount = 1
-            paramTypes(String::class.java)
-            returnType(Boolean::class.javaPrimitiveType!!)
-        }
-    }
+    private val methodIsPlacedTop by dexMethod()
 
     // ConversationStorage.U(String) / setPlacedTop — sets the high bits in rconversation.flag
     // that WeChat uses to sort pinned conversations to the top.
-    private val methodSetPlacedTop by dexMethod(allowFailure = true) {
-        matcher {
-            declaredClass(classConversationStorage.data.name)
-            usingStrings("MicroMsg.ConversationStorage", "setPlacedTop conversation failed")
-            paramCount = 1
-            paramTypes(String::class.java)
-            returnType(Boolean::class.javaPrimitiveType!!)
-        }
-    }
+    private val methodSetPlacedTop by dexMethod()
 
     // ConversationStorage.X(String) / unSetPlacedTop — clears the high bits, unpinning the row.
-    private val methodUnSetPlacedTop by dexMethod(allowFailure = true) {
-        matcher {
-            declaredClass(classConversationStorage.data.name)
-            usingStrings("MicroMsg.ConversationStorage", "unSetPlacedTop conversation failed")
-            paramCount = 1
-            paramTypes(String::class.java)
-            returnType(Boolean::class.javaPrimitiveType!!)
-        }
-    }
+    private val methodUnSetPlacedTop by dexMethod()
 
     // ContactStorageLogic.toModContactOplog(z3) -> the `tn4` modContact proto WeChat sends as
     // oplog cmd 2 to sync a contact's flags (mute/top/...) to the server. Reusing WeChat's own
     // builder guarantees the ~80-field proto (including BitMask/BitVal and remark) is byte-perfect.
-    private val methodBuildModContactOplog by dexMethod {
-        matcher {
-            usingEqStrings(
-                "MicroMsg.ContactStorageLogic",
-                "oplog modContact user:%s remark:%s BitVal:%d BitValue2:%s isInConvBox:%s isTop:%s isMute:%s"
-            )
-        }
-    }
-    val methodNotifyConversationChanged by dexMethod(allowFailure = true) {
-        matcher {
-            declaredClass(classConversationStorage.data.superClass!!.name)
-            paramCount = 3
-            paramTypes("int", classConversationStorage.data.superClass!!.name, "java.lang.Object")
-            returnType(Void.TYPE)
-        }
-    }
+    private val methodBuildModContactOplog by dexMethod()
+    val methodNotifyConversationChanged by dexMethod()
 
     // ConversationStorage.p(String) -> com.tencent.mm.storage.m3 (the rconversation model for a
     // talker), or null. Needed to hand the conversation object to the native delete helper below.
-    private val methodGetConversationByTalker by dexMethod(allowFailure = true) {
-        matcher {
-            declaredClass(classConversationStorage.data.name)
-            usingStrings("MicroMsg.ConversationStorage", "get null with username:")
-            paramCount = 1
-            paramTypes(String::class.java)
-        }
-    }
+    private val methodGetConversationByTalker by dexMethod()
 
     // com.tencent.mm.ui.conversation.s1#d(context, talker, m3, PBool, ProgressDialog, boolean) =
     // doDeleteConv: the work WeChat runs AFTER the user taps 删除 in the "删除该聊天" confirm dialog
@@ -225,13 +129,7 @@ object WeConversationApi : ApiFeature(), IResolveDex {
     // permanent delete with NO confirmation dialog. Its progress callback null-checks the PBool and
     // ProgressDialog, so nulls are safe; the trailing boolean starts a tablet/split-screen
     // EmptyActivity, so we pass false. Anchored by two in-method log strings unique to s1.d.
-    private val methodDoDeleteConversation by dexMethod {
-        searchPackages("com.tencent.mm.ui.conversation")
-        matcher {
-            usingStrings("MicroMsg.ConvDelLogic", "oplog modContact user:%s")
-            paramCount = 6
-        }
-    }
+    private val methodDoDeleteConversation by dexMethod()
 //    private var ecsGiftMsgService: Any? = null
 
     val conversationStorage by lazy {

@@ -15,8 +15,8 @@ import androidx.compose.ui.unit.dp
 import com.xiao.feng.R
 import com.xiao.feng.data.JsonDataMigration
 import com.xiao.feng.data.KvStore.prefOption
-import com.xiao.feng.dexkit.abc.IResolveDex
-import com.xiao.feng.dexkit.dsl.dexMethod
+import com.xiao.feng.featurepoints.abc.IResolveDex
+import com.xiao.feng.featurepoints.dsl.dexMethod
 import com.xiao.feng.features.api.core.WeApi
 import com.xiao.feng.features.api.core.WeDatabaseApi
 import com.xiao.feng.features.api.core.models.ChatroomSyncStateReadResult
@@ -38,7 +38,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
-import org.luckypray.dexkit.DexKitBridge
 import java.util.IdentityHashMap
 import java.util.Locale
 
@@ -65,34 +64,6 @@ object AutoAddJoinedGroupToFolder : ClickableFeature(), IResolveDex {
         val selfWxId: String,
     )
 
-    override fun resolveDex(dexKit: DexKitBridge) {
-        val matches = dexKit.findMethod {
-            matcher {
-                returnType = "boolean"
-                paramCount(10, 11)
-                usingStrings("MicroMsg.ChatroomMembersLogic", "SyncAddChatroomMember")
-            }
-        }.filter { method ->
-            val params = method.paramTypeNames
-            params[0] == "java.lang.String" &&
-                params[1] == "java.lang.String" &&
-                params[3] == "int" &&
-                params[4] == "int" &&
-                params[5] == "int" &&
-                params[6] == "java.lang.String" &&
-                params[8] == "boolean" &&
-                params[9] == "boolean" &&
-                (params.size == 10 || params[10] == "int") &&
-                params[2] !in PRIMITIVE_TYPE_NAMES &&
-                params[7] !in PRIMITIVE_TYPE_NAMES
-        }
-
-        check(matches.size == 1) {
-            "expected one ChatroomMembersLogic sync method, found ${matches.size}: " +
-                matches.joinToString { it.descriptor }
-        }
-        methodSyncChatroomMembers.setDescriptor(matches.single())
-    }
 
     override fun onEnable() {
         registerUnhook(methodSyncChatroomMembers.method.hookDirectly(object : HookCallback() {

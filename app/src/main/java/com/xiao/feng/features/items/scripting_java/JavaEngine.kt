@@ -44,14 +44,10 @@ import com.xiao.feng.utils.fs.asPath
 import com.xiao.feng.utils.reflection.BString
 import com.xiao.feng.utils.reflection.ClassLoaders
 import com.xiao.feng.utils.reflection.any
-import com.xiao.feng.utils.reflection.asClass
-import com.xiao.feng.utils.reflection.asConstructor
-import com.xiao.feng.utils.reflection.asMethod
 import com.xiao.feng.utils.reflection.bool
 import com.xiao.feng.utils.reflection.float
 import com.xiao.feng.utils.reflection.int
 import com.xiao.feng.utils.reflection.long
-import com.xiao.feng.utils.reflection.withDexKit
 import com.xiao.feng.wauxv.data.bean.ContactLabelBean
 import com.xiao.feng.wauxv.data.bean.MsgInfoBean
 import com.xiao.feng.wauxv.data.bean.info.FriendInfo
@@ -1454,41 +1450,6 @@ object JavaEngine {
                     val handle = it[0] as com.xiao.feng.wauxv.hook.HookHandle
                     JavaHookApi.unhook(handle)
                 })
-
-            // === DexKit Search APIs ===
-            setMethod(BshMethod("findClassList", arrayOf(List::class.java)) {
-                @Suppress("UNCHECKED_CAST")
-                val usingStrings = it[0] as List<String>
-                return@BshMethod runCatchingBsh("findClassList") {
-                    withDexKit { dexKit ->
-                        dexKit.findClass {
-                            matcher {
-                                usingStrings(usingStrings)
-                            }
-                        }.map { data -> data.asClass }
-                    }
-                }.getOrDefault(emptyList<Any>())
-            })
-            setMethod(BshMethod("findMemberList", arrayOf(List::class.java)) {
-                @Suppress("UNCHECKED_CAST")
-                val usingStrings = it[0] as List<String>
-                return@BshMethod runCatchingBsh("findMemberList") {
-                    withDexKit { dexKit ->
-                        dexKit.findMethod {
-                            matcher {
-                                usingStrings(usingStrings)
-                            }
-                        }.mapNotNull { data ->
-                            val name = data.name
-                            if (name == "<init>" || name == "<clinit>") {
-                                data.asConstructor
-                            } else {
-                                data.asMethod
-                            }
-                        }
-                    }
-                }.getOrDefault(emptyList<Any>())
-            })
 
             // ===== Extended WAuxv Methods =====
 

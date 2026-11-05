@@ -33,7 +33,6 @@ class ZygiskNativePayload(val apk: File, private val dataDir: File) {
         val libraries = mutableMapOf<String, File>()
         val names = listOf(
             "androidx.graphics.path",
-            "dexkit",
             "mmkv",
             "xfeng_native",
             "invoke_tool",
@@ -45,12 +44,10 @@ class ZygiskNativePayload(val apk: File, private val dataDir: File) {
             libraries[name] = extracted
             // MMKV loads through its callback; executable artifacts must never be dlopen-ed.
             when (name) {
-                "androidx.graphics.path", "dexkit", "xfeng_native" -> System.load(extracted.absolutePath)
+                "androidx.graphics.path", "xfeng_native" -> System.load(extracted.absolutePath)
             }
         }
-        for (name in listOf("dexkit", "xfeng_native")) {
-            require(name in libraries) { "Zygisk payload is missing lib$name.so for $abi" }
-        }
+        require("xfeng_native" in libraries) { "Zygisk payload is missing libxfeng_native.so for $abi" }
         libraries
     }
 

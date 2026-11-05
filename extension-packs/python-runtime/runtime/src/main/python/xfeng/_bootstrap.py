@@ -20,7 +20,6 @@ from typing import Any, TypeVar, cast
 from java import jclass  # ty: ignore[unresolved-import]
 
 from ._types import (
-    DexHost,
     HookHost,
     HookParameter,
     HookToken,
@@ -34,7 +33,6 @@ from ._types import (
     TaskHandle,
     TaskHost,
 )
-from .dexkit import ClassMatcher, DexKitBinding, FieldMatcher, MethodMatcher
 
 _config: RuntimeConfig | None = None
 _instances: dict[str, tuple[str, PluginContext, _Scope]] = {}
@@ -101,7 +99,6 @@ class PluginContext:
         self.host_context: Any = _config.getApplication()
         self.log: _Logger = _Logger(host.logger(self.id))
         self.hooks: _Hooks = _Hooks(host.hooks(self.id), self)
-        self.dex: _Dex = _Dex(host.dex(self.id))
         self.tasks: _Tasks = _Tasks(host.tasks(self.id), self)
         self.jvm: _Jvm = _Jvm(_config.getLookupClassLoader())
         self._scope: _Scope = scope
@@ -283,137 +280,6 @@ class _Hooks:
 
     def unhook(self, token: HookToken) -> None:
         self._delegate.unhook(token)
-
-
-class _Dex:
-    def __init__(self, delegate: DexHost) -> None:
-        self._delegate: DexHost = delegate
-
-    def class_(
-        self,
-        matcher: ClassMatcher,
-        *,
-        search_packages: Sequence[str] = (),
-        exclude_packages: Sequence[str] = (),
-        ignore_packages_case: bool = False,
-    ) -> ResolvedClass:
-        return self._delegate.findClass(
-            self._java(matcher),
-            list(search_packages),
-            list(exclude_packages),
-            ignore_packages_case,
-        )
-
-    def classes(
-        self,
-        matcher: ClassMatcher,
-        *,
-        search_packages: Sequence[str] = (),
-        exclude_packages: Sequence[str] = (),
-        ignore_packages_case: bool = False,
-    ) -> Sequence[ResolvedClass]:
-        return self._delegate.findClasses(
-            self._java(matcher),
-            list(search_packages),
-            list(exclude_packages),
-            ignore_packages_case,
-        )
-
-    def method(
-        self,
-        matcher: MethodMatcher,
-        *,
-        search_packages: Sequence[str] = (),
-        exclude_packages: Sequence[str] = (),
-        ignore_packages_case: bool = False,
-    ) -> ResolvedMember:
-        return self._delegate.findMethod(
-            self._java(matcher),
-            list(search_packages),
-            list(exclude_packages),
-            ignore_packages_case,
-        )
-
-    def methods(
-        self,
-        matcher: MethodMatcher,
-        *,
-        search_packages: Sequence[str] = (),
-        exclude_packages: Sequence[str] = (),
-        ignore_packages_case: bool = False,
-    ) -> Sequence[ResolvedMember]:
-        return self._delegate.findMethods(
-            self._java(matcher),
-            list(search_packages),
-            list(exclude_packages),
-            ignore_packages_case,
-        )
-
-    def constructor(
-        self,
-        matcher: MethodMatcher,
-        *,
-        search_packages: Sequence[str] = (),
-        exclude_packages: Sequence[str] = (),
-        ignore_packages_case: bool = False,
-    ) -> ResolvedMember:
-        return self._delegate.findConstructor(
-            self._java(matcher),
-            list(search_packages),
-            list(exclude_packages),
-            ignore_packages_case,
-        )
-
-    def constructors(
-        self,
-        matcher: MethodMatcher,
-        *,
-        search_packages: Sequence[str] = (),
-        exclude_packages: Sequence[str] = (),
-        ignore_packages_case: bool = False,
-    ) -> Sequence[ResolvedMember]:
-        return self._delegate.findConstructors(
-            self._java(matcher),
-            list(search_packages),
-            list(exclude_packages),
-            ignore_packages_case,
-        )
-
-    def field(
-        self,
-        matcher: FieldMatcher,
-        *,
-        search_packages: Sequence[str] = (),
-        exclude_packages: Sequence[str] = (),
-        ignore_packages_case: bool = False,
-    ) -> ResolvedField:
-        return self._delegate.findField(
-            self._java(matcher),
-            list(search_packages),
-            list(exclude_packages),
-            ignore_packages_case,
-        )
-
-    def fields(
-        self,
-        matcher: FieldMatcher,
-        *,
-        search_packages: Sequence[str] = (),
-        exclude_packages: Sequence[str] = (),
-        ignore_packages_case: bool = False,
-    ) -> Sequence[ResolvedField]:
-        return self._delegate.findFields(
-            self._java(matcher),
-            list(search_packages),
-            list(exclude_packages),
-            ignore_packages_case,
-        )
-
-    @staticmethod
-    def _java(matcher: DexKitBinding) -> object:
-        if not isinstance(matcher, DexKitBinding):
-            raise TypeError("ctx.dex requires a generated DexKit binding")
-        return matcher._to_java()
 
 
 class _Jvm:

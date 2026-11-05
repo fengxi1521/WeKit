@@ -1,4 +1,4 @@
-package com.xiao.feng.dexkit
+package com.xiao.feng.featurepoints
 
 import dev.ujhhgtg.reflekt.utils.isPrivate
 import dev.ujhhgtg.reflekt.utils.isStatic

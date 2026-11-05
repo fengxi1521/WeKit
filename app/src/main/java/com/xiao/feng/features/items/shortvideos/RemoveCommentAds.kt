@@ -5,8 +5,8 @@ import android.view.ViewGroup
 import android.widget.TextView
 import dev.ujhhgtg.reflekt.reflekt
 import com.xiao.feng.R
-import com.xiao.feng.dexkit.abc.IResolveDex
-import com.xiao.feng.dexkit.dsl.dexMethod
+import com.xiao.feng.featurepoints.abc.IResolveDex
+import com.xiao.feng.featurepoints.dsl.dexMethod
 import com.xiao.feng.features.core.FeatureCategoryIds
 import com.xiao.feng.features.core.SwitchFeature
 import com.xiao.feng.utils.WeLogger
@@ -43,13 +43,7 @@ object RemoveCommentAds : SwitchFeature(), IResolveDex {
      * （8.0.65-8.0.76 一致）。该转换器绑定的条目全是广告；
      * 带该字符串的 6 参数 void 方法在全 dex 内唯一，可直接内联命中。
      */
-    private val methodBindAdComment by dexMethod(allowFailure = true) {
-        matcher {
-            usingEqStrings("com/tencent/mm/plugin/finder/convert/comment/FinderAdCommentConvert")
-            returnType("void")
-            paramCount(6)
-        }
-    }
+    private val methodBindAdComment by dexMethod()
 
     /**
      * 旧版评论转换器 `com.tencent.mm.plugin.finder.convert.FinderFeedCommentConvert`
@@ -60,13 +54,7 @@ object RemoveCommentAds : SwitchFeature(), IResolveDex {
      * 足以排除类内同带该字符串的 handleFollowPatBtn
      * （(ViewHolder, View, View, 评论, FinderJumpInfo, String)）。
      */
-    private val methodBindOldComment by dexMethod(allowFailure = true) {
-        matcher {
-            usingEqStrings("com/tencent/mm/plugin/finder/convert/FinderFeedCommentConvert")
-            returnType("void")
-            paramTypes(null, null, "int", "int", "boolean", "java.util.List")
-        }
-    }
+    private val methodBindOldComment by dexMethod()
 
     override fun onEnable() {
         if (!methodBindAdComment.isPlaceholder) {

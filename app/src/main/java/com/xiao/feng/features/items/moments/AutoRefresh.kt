@@ -23,10 +23,9 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import dev.ujhhgtg.reflekt.reflekt
-import com.xiao.feng.dexkit.abc.IResolveDex
-import com.xiao.feng.dexkit.dsl.data
-import com.xiao.feng.dexkit.dsl.dexConstructor
-import com.xiao.feng.dexkit.dsl.dexMethod
+import com.xiao.feng.featurepoints.abc.IResolveDex
+import com.xiao.feng.featurepoints.dsl.dexConstructor
+import com.xiao.feng.featurepoints.dsl.dexMethod
 import com.xiao.feng.features.api.core.WeApi
 import com.xiao.feng.features.core.ClickableFeature
 import com.xiao.feng.features.core.FeatureCategoryIds
@@ -103,44 +102,15 @@ object AutoRefresh : ClickableFeature(), IResolveDex {
     private val pendingRefresh = AtomicReference<RefreshRequest?>()
     private val submittingRefresh = ThreadLocal<RefreshRequest>()
 
-    private val methodGetSnsCore by dexMethod {
-        matcher {
-            usingEqStrings("getCore", "com.tencent.mm.plugin.sns.model.SnsCore")
-        }
-    }
+    private val methodGetSnsCore by dexMethod()
 
-    private val methodDoFpList by dexMethod {
-        matcher {
-            usingEqStrings("doFpList", $$"com.tencent.mm.plugin.sns.model.SnsLogic$SnsServer")
-        }
-    }
+    private val methodDoFpList by dexMethod()
 
-    private val ctorTimelineRequest by dexConstructor {
-        matcher {
-            declaredClass {
-                usingEqStrings("/cgi-bin/micromsg-bin/mmsnstimeline")
-            }
-            paramTypes("long", "long", "int")
-        }
-    }
+    private val ctorTimelineRequest by dexConstructor()
 
-    private val methodHandleNormalResponse by dexMethod {
-        matcher {
-            declaredClass(ctorTimelineRequest.data.declaredClassName)
-            usingEqStrings("handleNormalResp", "com.tencent.mm.plugin.sns.model.NetSceneSnsTimeLine")
-            paramTypes("int", "int", "java.lang.String", null)
-            returnType("void")
-        }
-    }
+    private val methodHandleNormalResponse by dexMethod()
 
-    private val methodTimelineResponseEnd by dexMethod {
-        matcher {
-            declaredClass(ctorTimelineRequest.data.declaredClassName)
-            name = "onGYNetEnd"
-            paramCount = 6
-            returnType("void")
-        }
-    }
+    private val methodTimelineResponseEnd by dexMethod()
 
     override fun onEnable() {
         // The type=1 doFpList branch constructs its scene synchronously before enqueueing it.

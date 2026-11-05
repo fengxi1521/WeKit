@@ -54,8 +54,8 @@ import com.tencent.mm.ui.chatting.view.MMChattingListView
 import dev.ujhhgtg.reflekt.reflekt
 import dev.ujhhgtg.reflekt.utils.toClass
 import com.xiao.feng.R
-import com.xiao.feng.dexkit.abc.IResolveDex
-import com.xiao.feng.dexkit.dsl.dexMethod
+import com.xiao.feng.featurepoints.abc.IResolveDex
+import com.xiao.feng.featurepoints.dsl.dexMethod
 import com.xiao.feng.features.core.ClickableFeature
 import com.xiao.feng.features.core.FeatureCategoryIds
 import com.xiao.feng.data.KvStore.prefOption
@@ -141,88 +141,13 @@ object FloatingChatHeader : ClickableFeature(), IResolveDex {
     /** 置顶消息等提示条的宿主 (ViewStub p2f 展开, s3.xml)。 */
     private const val TIPS_BAR_GROUP_CLASS = "com.tencent.mm.ui.tipsbar.ChatTipsBarGroup"
 
-    private val methodTipsExpandAnimationUpdate by dexMethod {
-        searchPackages("com.tencent.mm.ui.tipsbar")
-        matcher {
-            name = "onAnimationUpdate"
-            paramTypes("android.animation.ValueAnimator")
-            returnType = "void"
-            declaredClass {
-                addInterface {
-                    className = "android.animation.ValueAnimator\$AnimatorUpdateListener"
-                }
-                addFieldForType(TIPS_BAR_GROUP_CLASS)
-                addFieldForType(int)
-                fieldCount(2)
-            }
-            addInvoke {
-                declaredClass = "android.animation.ValueAnimator"
-                name = "getAnimatedFraction"
-                paramTypes()
-            }
-            addInvoke {
-                declaredClass = "android.view.View"
-                name = "setOutlineProvider"
-                paramTypes("android.view.ViewOutlineProvider")
-            }
-            addInvoke {
-                declaredClass = "android.view.View"
-                name = "invalidate"
-                paramTypes()
-            }
-        }
-    }
+    private val methodTipsExpandAnimationUpdate by dexMethod()
 
-    private val methodTipsFoldAnimationUpdate by dexMethod {
-        searchPackages("com.tencent.mm.ui.tipsbar")
-        matcher {
-            name = "onAnimationUpdate"
-            paramTypes("android.animation.ValueAnimator")
-            returnType = "void"
-            declaredClass {
-                addInterface {
-                    className = "android.animation.ValueAnimator\$AnimatorUpdateListener"
-                }
-                addFieldForType(TIPS_BAR_GROUP_CLASS)
-                addFieldForType(int)
-                addFieldForType(int)
-                fieldCount(3)
-            }
-            addInvoke {
-                declaredClass = "android.animation.ValueAnimator"
-                name = "getAnimatedFraction"
-                paramTypes()
-            }
-            addInvoke {
-                declaredClass = "android.view.View"
-                name = "setOutlineProvider"
-                paramTypes("android.view.ViewOutlineProvider")
-            }
-            addInvoke {
-                declaredClass = "android.view.View"
-                name = "invalidate"
-                paramTypes()
-            }
-        }
-    }
+    private val methodTipsFoldAnimationUpdate by dexMethod()
 
-    private val methodTipsToFoldMode by dexMethod {
-        matcher {
-            declaredClass = TIPS_BAR_GROUP_CLASS
-            paramTypes()
-            returnType = "void"
-            usingStrings("toFoldMode")
-        }
-    }
+    private val methodTipsToFoldMode by dexMethod()
 
-    private val methodRemoveItemDecoration by dexMethod {
-        matcher {
-            declaredClass = "androidx.recyclerview.widget.RecyclerView"
-            paramCount(1)
-            returnType = "void"
-            usingStrings("Cannot remove item decoration during a scroll  or layout")
-        }
-    }
+    private val methodRemoveItemDecoration by dexMethod()
 
     private var cornerRadiusDp by prefOption("floating_chat_header_corner_radius", DEFAULT_CORNER_RADIUS)
     private var sideMarginDp by prefOption("floating_chat_header_side_margin", DEFAULT_SIDE_MARGIN)

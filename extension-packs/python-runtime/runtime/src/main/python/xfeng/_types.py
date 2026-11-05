@@ -54,85 +54,6 @@ class HookToken(Protocol):
     def getId(self) -> str: ...
 
 
-class ResolvedClass(Protocol):
-    name: str
-    descriptor: str
-    hostVersion: str
-    hostBuildTag: str
-
-
-class ResolvedMember(Protocol):
-    descriptor: str
-    hostVersion: str
-    hostBuildTag: str
-    kind: object
-
-
-class ResolvedField(Protocol):
-    descriptor: str
-    hostVersion: str
-    hostBuildTag: str
-
-
-class DexHost(Protocol):
-    def findClass(
-        self,
-        matcher: object,
-        search_packages: list[str],
-        exclude_packages: list[str],
-        ignore_packages_case: bool,
-    ) -> ResolvedClass: ...
-    def findClasses(
-        self,
-        matcher: object,
-        search_packages: list[str],
-        exclude_packages: list[str],
-        ignore_packages_case: bool,
-    ) -> Sequence[ResolvedClass]: ...
-    def findMethod(
-        self,
-        matcher: object,
-        search_packages: list[str],
-        exclude_packages: list[str],
-        ignore_packages_case: bool,
-    ) -> ResolvedMember: ...
-    def findMethods(
-        self,
-        matcher: object,
-        search_packages: list[str],
-        exclude_packages: list[str],
-        ignore_packages_case: bool,
-    ) -> Sequence[ResolvedMember]: ...
-    def findConstructor(
-        self,
-        matcher: object,
-        search_packages: list[str],
-        exclude_packages: list[str],
-        ignore_packages_case: bool,
-    ) -> ResolvedMember: ...
-    def findConstructors(
-        self,
-        matcher: object,
-        search_packages: list[str],
-        exclude_packages: list[str],
-        ignore_packages_case: bool,
-    ) -> Sequence[ResolvedMember]: ...
-    def findField(
-        self,
-        matcher: object,
-        search_packages: list[str],
-        exclude_packages: list[str],
-        ignore_packages_case: bool,
-    ) -> ResolvedField: ...
-    def findFields(
-        self,
-        matcher: object,
-        search_packages: list[str],
-        exclude_packages: list[str],
-        ignore_packages_case: bool,
-    ) -> Sequence[ResolvedField]: ...
-
-
 class TaskHandle(Protocol):
     def cancel(self) -> None: ...
     def isDone(self) -> bool: ...
@@ -148,7 +69,6 @@ class TaskHost(Protocol):
 class PluginHost(Protocol):
     def logger(self, plugin_id: str) -> Logger: ...
     def hooks(self, plugin_id: str) -> HookHost: ...
-    def dex(self, plugin_id: str) -> DexHost: ...
     def tasks(self, plugin_id: str) -> TaskHost: ...
     def beginExecution(self, plugin_id: str, phase: str) -> int: ...
     def finishExecution(self, plugin_id: str, token: int) -> None: ...

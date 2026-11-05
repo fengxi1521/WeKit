@@ -25,8 +25,8 @@ import androidx.compose.ui.unit.dp
 import dev.ujhhgtg.reflekt.reflekt
 import dev.ujhhgtg.reflekt.utils.isSubclassOf
 import com.xiao.feng.R
-import com.xiao.feng.dexkit.abc.IResolveDex
-import com.xiao.feng.dexkit.dsl.dexMethod
+import com.xiao.feng.featurepoints.abc.IResolveDex
+import com.xiao.feng.featurepoints.dsl.dexMethod
 import com.xiao.feng.features.api.core.WeMessageApi
 import com.xiao.feng.features.api.core.models.MessageInfo
 import com.xiao.feng.features.core.ApiFeature
@@ -111,58 +111,15 @@ object WeChatMessageContextMenuApi : ApiFeature(), IResolveDex {
     private fun currentMenuItems(): List<MenuItem> =
         providers.flatMap(IMenuItemsProvider::getMenuItems)
 
-    val methodCreateMenu by dexMethod {
-        searchPackages("com.tencent.mm.ui.chatting.viewitems")
-        matcher {
-            usingEqStrings("MicroMsg.ChattingItem", "msg is null!")
-        }
-    }
-    private val methodSelectMenuItem by dexMethod {
-        searchPackages("com.tencent.mm.ui.chatting.viewitems")
-        matcher {
-            usingEqStrings("MicroMsg.ChattingItem", "context item select failed, null dataTag")
-        }
-    }
+    val methodCreateMenu by dexMethod()
+    private val methodSelectMenuItem by dexMethod()
 
     private const val MULTI_SELECT_BAR = "com.tencent.mm.ui.chatting.ChattingFooterMoreBtnBar"
 
-    private val methodMultiSetButtonListener by dexMethod {
-        matcher {
-            declaredClass = MULTI_SELECT_BAR
-            paramTypes("int", $$"android.view.View$OnClickListener")
-            returnType = "void"
-            usingEqStrings("set button listener error button index %d")
-        }
-    }
-    private val methodMultiRebuildButtons by dexMethod {
-        matcher {
-            declaredClass = MULTI_SELECT_BAR
-            paramCount = 0
-            returnType = "void"
-            addInvoke { name = "removeAllViews"; paramCount = 0 }
-        }
-    }
-    private val methodMultiUpdateSelection by dexMethod {
-        matcher {
-            declaredClass = MULTI_SELECT_BAR
-            paramTypes("int")
-            returnType = "void"
-            addInvoke { name = "setEnabled"; paramTypes("boolean") }
-        }
-    }
-    private val methodMultiGetSelectedMessages by dexMethod {
-        searchPackages("com.tencent.mm.ui.chatting.component")
-        matcher {
-            declaredClass { addFieldForType(MULTI_SELECT_BAR) }
-            paramCount = 0
-            returnType = "java.util.List"
-            addInvoke {
-                declaredClass = "java.util.Collections"
-                name = "sort"
-                paramTypes("java.util.List", "java.util.Comparator")
-            }
-        }
-    }
+    private val methodMultiSetButtonListener by dexMethod()
+    private val methodMultiRebuildButtons by dexMethod()
+    private val methodMultiUpdateSelection by dexMethod()
+    private val methodMultiGetSelectedMessages by dexMethod()
 
     // 只弱引用被长按的聊天条目 View：菜单被返回键取消时不会触发选中回调，
     // 强引用会一路把 View → parent → ChattingUI 留到进程结束

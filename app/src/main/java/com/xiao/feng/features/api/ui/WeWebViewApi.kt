@@ -5,8 +5,8 @@ import android.os.Looper
 import android.webkit.ValueCallback
 import dev.ujhhgtg.reflekt.reflekt
 import com.xiao.feng.R
-import com.xiao.feng.dexkit.abc.IResolveDex
-import com.xiao.feng.dexkit.dsl.dexMethod
+import com.xiao.feng.featurepoints.abc.IResolveDex
+import com.xiao.feng.featurepoints.dsl.dexMethod
 import com.xiao.feng.features.api.ui.WeWebViewApi.evaluateJavascript
 import com.xiao.feng.features.api.ui.WeWebViewApi.loadUrl
 import com.xiao.feng.features.api.ui.WeWebViewApi.reload
@@ -14,7 +14,6 @@ import com.xiao.feng.features.api.ui.WeWebViewApi.tracked
 import com.xiao.feng.features.core.ApiFeature
 import com.xiao.feng.features.core.FeatureCategoryIds
 import com.xiao.feng.utils.WeLogger
-import org.luckypray.dexkit.query.enums.StringMatchType
 import java.util.Collections
 import java.util.WeakHashMap
 import java.util.concurrent.CountDownLatch
@@ -56,32 +55,8 @@ object WeWebViewApi : ApiFeature(), IResolveDex {
     /** A snapshot of all currently-live tracked WebViews (dead entries already evicted by GC). */
     fun snapshot(): List<Any> = synchronized(lock) { tracked.filterNotNull() }
 
-    val xwebOnPageFinished by dexMethod {
-        searchPackages("com.tencent.mm.plugin.appbrand.page")
-        matcher {
-            declaredClass {
-                usingEqStrings(
-                    "MicroMsg.AppBrandWebView",
-                    "onReceivedHttpError, WebResourceRequest url = %s, ErrWebResourceResponse mimeType = %s, status = %d"
-                )
-                superClass {
-                    className("com.tencent.xweb", StringMatchType.StartsWith)
-                }
-            }
-            paramTypes("com.tencent.xweb.WebView", "java.lang.String", "android.graphics.Bitmap")
-            returnType = "void"
-        }
-    }
-    val androidOnPageFinished by dexMethod {
-        searchPackages("com.tencent.mm.plugin.appbrand.page")
-        matcher {
-            declaredClass {
-                superClass = "android.webkit.WebViewClient"
-            }
-            paramCount = 2
-            returnType = "void"
-        }
-    }
+    val xwebOnPageFinished by dexMethod()
+    val androidOnPageFinished by dexMethod()
 
     override fun onEnable() {
         xwebOnPageFinished.hookAfter {

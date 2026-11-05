@@ -7,8 +7,8 @@ import dev.ujhhgtg.reflekt.reflekt
 import dev.ujhhgtg.reflekt.utils.toClass
 import com.xiao.feng.R
 import com.xiao.feng.constants.PackageNames
-import com.xiao.feng.dexkit.abc.IResolveDex
-import com.xiao.feng.dexkit.dsl.dexMethod
+import com.xiao.feng.featurepoints.abc.IResolveDex
+import com.xiao.feng.featurepoints.dsl.dexMethod
 import com.xiao.feng.features.core.FeatureCategoryIds
 import com.xiao.feng.features.core.SwitchFeature
 import com.xiao.feng.utils.HookHandle
@@ -63,34 +63,7 @@ object RemoveSignatureLimits : SwitchFeature(), IResolveDex {
         }
     }
 
-    private val methodTextWatcherAfterTextChanged by dexMethod {
-        searchPackages("${PackageNames.WECHAT}.plugin.setting.ui.setting")
-        matcher {
-            declaredClass {
-                addMethod {
-                    name = "<init>"
-                    paramTypes("${PackageNames.WECHAT}.plugin.setting.ui.setting.EditSignatureUI", "java.lang.String")
-                }
-                addInterface { className = "android.text.TextWatcher" }
-            }
+    private val methodTextWatcherAfterTextChanged by dexMethod()
 
-            name = "afterTextChanged"
-        }
-    }
-
-    private val methodConfirmButtonOnClickListenerOnClick by dexMethod {
-        searchPackages("${PackageNames.WECHAT}.plugin.setting.ui.setting")
-        matcher {
-            declaredClass {
-                addMethod {
-                    name = "<init>"
-                    paramTypes("${PackageNames.WECHAT}.plugin.setting.ui.setting.EditSignatureUI")
-                }
-                addInterface { className = $$"android.view.MenuItem$OnMenuItemClickListener" }
-            }
-
-            name = "onMenuItemClick"
-            usingEqStrings(".*[", "].*")
-        }
-    }
+    private val methodConfirmButtonOnClickListenerOnClick by dexMethod()
 }

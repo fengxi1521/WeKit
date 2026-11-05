@@ -256,11 +256,6 @@ androidComponents {
         val kotlinSources = variant.sources.kotlin ?: return@onVariants
 
         kotlinSources.addGeneratedSourceDirectory(
-            generateMethodHashes,
-            GenerateMethodHashesTask::outputDir
-        )
-
-        kotlinSources.addGeneratedSourceDirectory(
             generateNewFeatures,
             GenerateNewFeaturesTask::outputDir
         )
@@ -268,29 +263,6 @@ androidComponents {
 }
 
 // --- tasks ---
-
-val generateMethodHashes = tasks.register<GenerateMethodHashesTask>("generateMethodHashes") {
-    description = "Generate resolveDex() method hashes"
-    group = "xfeng"
-    sourceDir.set(file("src/main/java"))
-    outputDir.set(layout.buildDirectory.dir("generated/source/methodhashes"))
-    namespace.set(libs.versions.namespace.get())
-}
-
-val validateDesktopDexResolvers = tasks.register<ValidateDesktopDexResolversTask>("validateDesktopDexResolvers") {
-    description = "Validate that Dex resolvers can run without a live WeChat host"
-    group = "verification"
-    sourceDir.set(file("src/main/java"))
-    includePaths.set(
-        providers.gradleProperty("dexResolverValidationInclude")
-            .map { it.split(',').map(String::trim).filter(String::isNotEmpty) }
-            .orElse(emptyList()),
-    )
-}
-
-tasks.named("preBuild") {
-    dependsOn(validateDesktopDexResolvers)
-}
 
 val generateNewFeatures = tasks.register<GenerateNewFeaturesTask>("generateNewFeatures") {
     description = "Collect features added within the last 30 days of history"
@@ -398,7 +370,6 @@ dependencies {
     compileOnly(libs.legacyxposed.api)
     compileOnly(libs.libxposed.api)
     implementation(libs.libxposed.service)
-    implementation(libs.dexkit)
     implementation(libs.hiddenapibypass)
     implementation(project(":libs:common:reflekt"))
     implementation(libs.libsu.core)

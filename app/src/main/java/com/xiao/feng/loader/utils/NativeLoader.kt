@@ -72,7 +72,7 @@ object NativeLoader {
             ).also {
                 require(it.isDirectory) { "installed XiaoFeng native-library directory is unavailable: $it" }
             }
-            for (name in listOf("androidx.graphics.path", "dexkit", "xfeng_native")) {
+            for (name in listOf("androidx.graphics.path", "xfeng_native")) {
                 System.load(installedNativeLibrary(name).absolutePath)
             }
         } else {

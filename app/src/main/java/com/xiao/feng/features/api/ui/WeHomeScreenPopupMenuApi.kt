@@ -10,10 +10,9 @@ import dev.ujhhgtg.reflekt.reflekt
 import dev.ujhhgtg.reflekt.utils.createInstance
 import dev.ujhhgtg.reflekt.utils.isSubclassOf
 import com.xiao.feng.R
-import com.xiao.feng.dexkit.abc.IResolveDex
-import com.xiao.feng.dexkit.dsl.data
-import com.xiao.feng.dexkit.dsl.dexClass
-import com.xiao.feng.dexkit.dsl.dexMethod
+import com.xiao.feng.featurepoints.abc.IResolveDex
+import com.xiao.feng.featurepoints.dsl.dexClass
+import com.xiao.feng.featurepoints.dsl.dexMethod
 import com.xiao.feng.features.core.ApiFeature
 import com.xiao.feng.features.core.FeatureCategoryIds
 import com.xiao.feng.utils.HookHandle
@@ -61,44 +60,10 @@ object WeHomeScreenPopupMenuApi : ApiFeature(), IResolveDex {
 
     private val fakeResIdToResMap = mutableIntObjectMapOf<Drawable>()
 
-    private val methodAddItem by dexMethod {
-        searchPackages("com.tencent.mm.ui")
-        matcher {
-            usingEqStrings(
-                "MicroMsg.PlusSubMenuHelper",
-                "dyna plus config is null, we use default one"
-            )
-        }
-    }
-    private val methodHandleItemClick by dexMethod {
-        searchPackages("com.tencent.mm.ui")
-        matcher {
-            usingEqStrings("MicroMsg.PlusSubMenuHelper", "processOnItemClick")
-        }
-    }
-    private val classMenuItemData by dexClass {
-        searchPackages("com.tencent.mm.ui")
-        matcher {
-            addFieldForType(BString)
-            addFieldForType(int)
-            addFieldForType(int)
-            addFieldForType(int)
-            addFieldForType(BString)
-            fieldCount(5)
-            methods {
-                add {
-                    usingEqStrings("")
-                }
-            }
-        }
-    }
-    private val classMenuItemWrapper by dexClass {
-        searchPackages("com.tencent.mm.ui")
-        matcher {
-            addFieldForType(bool)
-            addFieldForType(classMenuItemData.data.name)
-        }
-    }
+    private val methodAddItem by dexMethod()
+    private val methodHandleItemClick by dexMethod()
+    private val classMenuItemData by dexClass()
+    private val classMenuItemWrapper by dexClass()
 
     // adapter 只有在菜单构建时才能拿到，所以 getView 的 Hook 没法在 onEnable 里注册；
     // 这里按 Method 去重，避免每打开一次菜单就往 getView 上再叠一层 Hook

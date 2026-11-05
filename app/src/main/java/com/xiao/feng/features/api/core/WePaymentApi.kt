@@ -1,11 +1,10 @@
 package com.xiao.feng.features.api.core
 
 import com.xiao.feng.R
-import com.xiao.feng.dexkit.abc.IResolveDex
-import com.xiao.feng.dexkit.dsl.data
-import com.xiao.feng.dexkit.dsl.dexClass
-import com.xiao.feng.dexkit.dsl.dexConstructor
-import com.xiao.feng.dexkit.dsl.dexMethod
+import com.xiao.feng.featurepoints.abc.IResolveDex
+import com.xiao.feng.featurepoints.dsl.dexClass
+import com.xiao.feng.featurepoints.dsl.dexConstructor
+import com.xiao.feng.featurepoints.dsl.dexMethod
 import com.xiao.feng.features.api.net.WeNetSceneApi
 import com.xiao.feng.features.core.ApiFeature
 import com.xiao.feng.features.core.FeatureCategoryIds
@@ -20,49 +19,11 @@ object WePaymentApi : ApiFeature(), IResolveDex {
 
     private const val TAG = "WePaymentApi"
 
-    private val ctorNetSceneTransferOperation by dexConstructor {
-        searchPackages("com.tencent.mm.plugin.remittance.model")
-        matcher {
-            declaredClass {
-                usingEqStrings("Micromsg.NetSceneTenpayRemittanceConfirm", "/cgi-bin/mmpay-bin/transferoperation")
-            }
-            usingEqStrings("account click info , key is %s, value is %s")
-        }
-    }
-    val classReceiveLuckyMoney by dexClass {
-        matcher {
-            methods {
-                add {
-                    name = "<init>"
-                    usingEqStrings("MicroMsg.NetSceneReceiveLuckyMoney")
-                }
-            }
-        }
-    }
-    val classOpenLuckyMoney by dexClass {
-        matcher {
-            methods {
-                add {
-                    name = "<init>"
-                    usingEqStrings("MicroMsg.NetSceneOpenLuckyMoney")
-                }
-            }
-        }
-    }
-    val methodReceiveLuckyMoneyOnGYNetEnd by dexMethod {
-        matcher {
-            declaredClass(classReceiveLuckyMoney.data.name)
-            name = "onGYNetEnd"
-            paramCount = 3
-        }
-    }
-    val methodOpenLuckyMoneyOnGYNetEnd by dexMethod {
-        matcher {
-            declaredClass(classOpenLuckyMoney.data.name)
-            name = "onGYNetEnd"
-            paramCount = 3
-        }
-    }
+    private val ctorNetSceneTransferOperation by dexConstructor()
+    val classReceiveLuckyMoney by dexClass()
+    val classOpenLuckyMoney by dexClass()
+    val methodReceiveLuckyMoneyOnGYNetEnd by dexMethod()
+    val methodOpenLuckyMoneyOnGYNetEnd by dexMethod()
 
     fun confirmTransfer(transactionId: String, transferId: String, payerUsername: String, invalidTime: Int): Boolean {
         return executeTransferOperation("confirm", transactionId, transferId, payerUsername, invalidTime)

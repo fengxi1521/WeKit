@@ -29,8 +29,8 @@ import androidx.core.content.FileProvider
 import dev.ujhhgtg.reflekt.reflekt
 import com.xiao.feng.R
 import com.xiao.feng.constants.PackageNames
-import com.xiao.feng.dexkit.abc.IResolveDex
-import com.xiao.feng.dexkit.dsl.dexMethod
+import com.xiao.feng.featurepoints.abc.IResolveDex
+import com.xiao.feng.featurepoints.dsl.dexMethod
 import com.xiao.feng.features.api.core.WeApi
 import com.xiao.feng.features.api.core.WeConversationApi
 import com.xiao.feng.features.api.core.WeDatabaseApi
@@ -91,13 +91,7 @@ object NotificationsEvolved : ClickableFeature(), IResolveDex {
 
     // com.tencent.mm.booter.notification.x.d(x, String talker, String content, int, int, boolean)
     // args[1] is the talker wxid. Anchored on a log string unique to that method.
-    val methodDealNotify by dexMethod {
-        searchPackages("com.tencent.mm.booter.notification")
-        matcher {
-            paramCount(6)
-            usingEqStrings("jacks dealNotify, talker:%s, msgtype:%d, tipsFlag:%d, isRevokeMesasge:%B content:%s")
-        }
-    }
+    val methodDealNotify by dexMethod()
 
     // com.tencent.mm.storage.ConversationStorage#updateUnreadByTalker(talker) — same declaration
     // as ConversationAggregation.methodConversationStorageUpdateUnreadByTalker. WeChat calls it
@@ -105,17 +99,7 @@ object NotificationsEvolved : ClickableFeature(), IResolveDex {
     // the accumulated MessagingStyle history for that talker is stale and should be dropped.
     // WeChat's notification avatar loader. The declaring class is obfuscated and changes between
     // host versions, so it is resolved by the stable NotificationAvatar implementation markers.
-    private val methodLoadNotificationAvatar by dexMethod {
-        matcher {
-            paramTypes(
-                "android.content.Context",
-                "java.lang.String",
-                "java.lang.String",
-            )
-            returnType("android.graphics.Bitmap")
-            usingEqStrings("MicroMsg.NotificationAvatar", "wcf://avatar/")
-        }
-    }
+    private val methodLoadNotificationAvatar by dexMethod()
 
     override val targetProcesses = setOf(TargetProcess.MAIN, TargetProcess.PUSH)
 

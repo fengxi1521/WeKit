@@ -2,8 +2,8 @@ package com.xiao.feng.features.api.net
 
 import dev.ujhhgtg.reflekt.utils.createInstance
 import com.xiao.feng.R
-import com.xiao.feng.dexkit.abc.IResolveDex
-import com.xiao.feng.dexkit.dsl.dexClass
+import com.xiao.feng.featurepoints.abc.IResolveDex
+import com.xiao.feng.featurepoints.dsl.dexClass
 import com.xiao.feng.features.api.net.WeTransferApi.classNetSceneTenpayRemittanceGen
 import com.xiao.feng.features.api.net.WeTransferApi.onEnable
 import com.xiao.feng.features.api.net.WeTransferApi.pendingPlaceOrders
@@ -30,15 +30,7 @@ object WeTransferApi : ApiFeature(), IResolveDex {
     private const val TAG = "WeTransferApi"
 
     /** com.tencent.mm.plugin.remittance.model.q0 — NetSceneTenpayRemittanceGen (transferplaceorder). */
-    val classNetSceneTenpayRemittanceGen by dexClass {
-        searchPackages("com.tencent.mm.plugin.remittance.model")
-        matcher {
-            usingEqStrings(
-                "Micromsg.NetSceneTenpayRemittanceGen",
-                "payScene: %s, channel: %s dynamicCodeUrl: %s mch_name: %s nickname: %s receiver_true_name %s placeorder_reserves: %s unpayType: %s cancel_outtradeno:%s cancel_reason:%s placeorderAttach:%s"
-            )
-        }
-    }
+    val classNetSceneTenpayRemittanceGen by dexClass()
 
     /**
      * Maps an in-flight [classNetSceneTenpayRemittanceGen] instance we created to the deferred

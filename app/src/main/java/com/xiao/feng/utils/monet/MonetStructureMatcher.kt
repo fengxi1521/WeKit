@@ -6,10 +6,9 @@ object MonetStructureMatcher {
 
     fun resolveAll(
         graph: MonetResourceGraph,
-        dexProvider: MonetDexEvidenceProvider? = null,
         onProgress: (completed: Int?, total: Int?, detail: String) -> Unit = { _, _, _ -> },
     ): Map<String, MonetResourceNode> {
-        val audited = resolveCandidateIds(graph, dexProvider, onProgress)
+        val audited = resolveCandidateIds(graph, onProgress)
         onProgress(null, null, "校验语义角色解析结果")
         val resolved = MONET_RULES.mapNotNull { rule ->
             val candidates = audited.getValue(rule).mapNotNull(graph::node)
@@ -32,9 +31,8 @@ object MonetStructureMatcher {
 
     fun audit(
         graph: MonetResourceGraph,
-        dexProvider: MonetDexEvidenceProvider? = null,
     ): Map<String, List<MonetResourceNode>> {
-        val finalCandidates = resolveCandidateIds(graph, dexProvider)
+        val finalCandidates = resolveCandidateIds(graph)
         return MONET_RULES.associate { rule ->
             rule.id to finalCandidates.getValue(rule).mapNotNull(graph::node)
         }
@@ -42,39 +40,11 @@ object MonetStructureMatcher {
 
     private fun resolveCandidateIds(
         graph: MonetResourceGraph,
-        dexProvider: MonetDexEvidenceProvider?,
         onProgress: (completed: Int?, total: Int?, detail: String) -> Unit = { _, _, _ -> },
     ): Map<MonetSemanticRule, Set<Int>> {
         val structural = structuralResolution(graph, onProgress)
         val candidates = structural.candidates
-        val anchored = candidates.filter { (rule, ids) -> rule.requiredDexEvidence.isNotEmpty() && ids.size > 1 }
-        val dexFiltered = if (anchored.isEmpty()) emptyMap() else {
-            onProgress(null, null, "分析代码引用，区分 ${anchored.size} 个歧义角色")
-            val provider = requireNotNull(dexProvider) { "Dex evidence is required for ambiguous Monet roles" }
-            val neighborIds = anchored.keys.flatMap { rule ->
-                rule.requiredDexEvidence.mapNotNull { token ->
-                    token.removePrefix("neighbor:").takeIf { token.startsWith("neighbor:") }
-                }
-            }.associateWith { role -> candidates.entries.single { it.key.id == role }.value.single() }
-            val requestedIds = (anchored.values.flatten() + neighborIds.values).distinct().sorted()
-            val evidence = provider.query(requestedIds.map { id ->
-                val node = requireNotNull(graph.node(id))
-                MonetDexCandidate(id, node.key.type, node.key.name)
-            })
-            require(evidence.map { it.resourceId }.distinct().size == evidence.size)
-            val byId = evidence.associateBy { it.resourceId }
-            anchored.mapValues { (rule, ids) ->
-                ids.filterTo(linkedSetOf()) { id ->
-                    byId[id]?.methods.orEmpty().any { method ->
-                        val tokens = method.tokens(neighborIds)
-                        tokens.containsAll(rule.requiredDexEvidence)
-                    }
-                }
-            }
-        }
-        val combined = MONET_RULES.associateWith { rule ->
-            dexFiltered[rule] ?: candidates.getValue(rule)
-        }
+        val combined = candidates
         onProgress(null, null, "校验角色关联并消除歧义")
         val related = applyRoleRelations(combined, graph)
         return disambiguate(assignPreferred(related, structural.preferredScores), assignEquivalentGroups = true)
@@ -368,18 +338,6 @@ object MonetStructureMatcher {
         id.startsWith("chat.transfer.incoming.") || id.startsWith("chat.transfer.outgoing.") ->
             id.substringBeforeLast('.')
         else -> null
-    }
-
-    private fun MonetMethodDexEvidence.tokens(neighborIds: Map<String, Int>): Set<String> = buildSet {
-        add("descriptor:$descriptor")
-        add("owner-package:$ownerPackage")
-        add("method-shape:$methodShape")
-        stableStrings.forEach { add("string:$it") }
-        invokedMethodShapes.forEach { add("invoke:$it") }
-        neighborIds.forEach { (role, id) -> if (id in neighboringResourceIds) add("neighbor:$role") }
-        fieldAccesses.forEach { field ->
-            add("field:${if (field.access == MonetFieldAccess.READ) "read" else "write"}:${field.descriptor}")
-        }
     }
 
     fun evidence(

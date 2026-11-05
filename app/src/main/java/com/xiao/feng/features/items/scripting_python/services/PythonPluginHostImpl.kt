@@ -2,7 +2,6 @@ package com.xiao.feng.features.items.scripting_python.services
 
 import com.xiao.feng.features.items.scripting_python.plugin.PythonPluginScope
 import com.xiao.feng.features.items.scripting_python.plugin.PythonCrashGuard
-import com.xiao.feng.python.api.PythonDexHost
 import com.xiao.feng.python.api.PythonHookHost
 import com.xiao.feng.python.api.PythonLogger
 import com.xiao.feng.python.api.PythonPluginHost
@@ -14,12 +13,10 @@ class PythonPluginHostImpl(
 ) : PythonPluginHost {
     private val logger = PythonLogHostImpl(pluginId)
     private val hooks = PythonHookHostImpl(pluginId, scope)
-    private val dex = PythonDexHostImpl(scope)
     private val tasks = PythonTaskHostImpl(scope)
 
     override fun logger(pluginId: String): PythonLogger = checked(pluginId, logger)
     override fun hooks(pluginId: String): PythonHookHost = checked(pluginId, hooks)
-    override fun dex(pluginId: String): PythonDexHost = checked(pluginId, dex)
     override fun tasks(pluginId: String): PythonTaskHost = checked(pluginId, tasks)
 
     override fun beginExecution(pluginId: String, phase: String): Long {

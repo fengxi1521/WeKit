@@ -1,8 +1,8 @@
 package com.xiao.feng.features.items.chat
 
 import com.xiao.feng.R
-import com.xiao.feng.dexkit.abc.IResolveDex
-import com.xiao.feng.dexkit.dsl.dexMethod
+import com.xiao.feng.featurepoints.abc.IResolveDex
+import com.xiao.feng.featurepoints.dsl.dexMethod
 import com.xiao.feng.features.api.core.WeConversationApi
 import com.xiao.feng.features.api.core.WeDatabaseApi
 import com.xiao.feng.features.core.FeatureCategoryIds
@@ -22,32 +22,10 @@ object DisablePinnedChatsCollapsing : SwitchFeature(), IResolveDex {
     override val categoryIds = listOf(FeatureCategoryIds.CHAT)
     override val descriptionRes = R.string.feature_disable_pinned_chats_collapsing_description
 
-    private val methodAddCollapseChatItem by dexMethod {
-        searchPackages("com.tencent.mm.ui.conversation")
-        matcher {
-            usingEqStrings("MicroMsg.FolderHelper", "fold item exist")
-        }
-    }
-    private val methodIfShouldAddCollapseChatItem by dexMethod {
-        searchPackages("com.tencent.mm.ui.conversation")
-        matcher {
-            usingEqStrings("MicroMsg.FolderHelper", "checkIfShowFoldItem, ifShow:")
-            returnType(bool)
-        }
-    }
+    private val methodAddCollapseChatItem by dexMethod()
+    private val methodIfShouldAddCollapseChatItem by dexMethod()
 
-    private val methodRecyclerShouldShowFoldItem by dexMethod(allowFailure = true) {
-        matcher {
-            declaredClass {
-                usingEqStrings(
-                    "MicroMsg.RecyclerFolderHelper",
-                    "performFoldItemClick: not ready",
-                )
-            }
-            paramTypes(int)
-            returnType(bool)
-        }
-    }
+    private val methodRecyclerShouldShowFoldItem by dexMethod()
 
     override fun onEnable() {
         staleFoldConversationCleaned.set(false)

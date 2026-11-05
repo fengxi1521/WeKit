@@ -1,9 +1,8 @@
 package com.xiao.feng.features.items.chat
 
 import com.xiao.feng.R
-import com.xiao.feng.dexkit.abc.IResolveDex
-import com.xiao.feng.dexkit.dsl.data
-import com.xiao.feng.dexkit.dsl.dexMethod
+import com.xiao.feng.featurepoints.abc.IResolveDex
+import com.xiao.feng.featurepoints.dsl.dexMethod
 import com.xiao.feng.features.core.FeatureCategoryIds
 import com.xiao.feng.features.core.SwitchFeature
 
@@ -34,28 +33,11 @@ object AntiSecMsg : SwitchFeature(), IResolveDex {
 
     // 原始 sfn 检查: static (msgInfo) -> boolean, 含唯一的
     // ".msgsource.sec_msg_node.sfn" 字符串字面量
-    private val methodRawSfnCheck by dexMethod {
-        matcher {
-            usingEqStrings(".msgsource.sec_msg_node.sfn")
-            paramCount = 1
-            returnType("boolean")
-        }
-    }
+    private val methodRawSfnCheck by dexMethod()
 
     // 完整判定: 同类、static (msgInfo) -> boolean、内部调用原始 sfn 检查
     // (8.0.65 为 z, 8.0.67+ 为 A, 方法名不参与匹配)
-    private val methodFullSecCheck by dexMethod {
-        matcher {
-            declaredClass(methodRawSfnCheck.data.declaredClassName)
-            paramCount = 1
-            returnType("boolean")
-
-            addInvoke {
-                declaredClass = methodRawSfnCheck.data.declaredClassName
-                name = methodRawSfnCheck.data.name
-            }
-        }
-    }
+    private val methodFullSecCheck by dexMethod()
 
     override fun onEnable() {
         methodFullSecCheck.hookBefore {

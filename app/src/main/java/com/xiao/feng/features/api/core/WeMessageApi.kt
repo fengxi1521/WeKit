@@ -26,12 +26,11 @@ import dev.ujhhgtg.reflekt.utils.createInstance
 import dev.ujhhgtg.reflekt.utils.isBuiltin
 import dev.ujhhgtg.reflekt.utils.makeAccessible
 import com.xiao.feng.R
-import com.xiao.feng.dexkit.abc.IResolveDex
-import com.xiao.feng.dexkit.dsl.data
-import com.xiao.feng.dexkit.dsl.dexClass
-import com.xiao.feng.dexkit.dsl.dexConstructor
-import com.xiao.feng.dexkit.dsl.dexField
-import com.xiao.feng.dexkit.dsl.dexMethod
+import com.xiao.feng.featurepoints.abc.IResolveDex
+import com.xiao.feng.featurepoints.dsl.dexClass
+import com.xiao.feng.featurepoints.dsl.dexConstructor
+import com.xiao.feng.featurepoints.dsl.dexField
+import com.xiao.feng.featurepoints.dsl.dexMethod
 import com.xiao.feng.features.api.core.WeMessageApi.cacheFile
 import com.xiao.feng.features.api.core.WeMessageApi.downloadFile
 import com.xiao.feng.features.api.core.models.MessageInfo
@@ -56,9 +55,6 @@ import com.xiao.feng.utils.serialization.XmlUtils.extractXmlAttr
 import com.xiao.feng.utils.serialization.XmlUtils.extractXmlTag
 import com.xiao.feng.utils.strings.isGroupChatWxId
 import org.json.JSONObject
-import org.luckypray.dexkit.DexKitBridge
-import org.luckypray.dexkit.query.matchers.base.AccessFlagsMatcher
-import org.luckypray.dexkit.result.FieldUsingType
 import java.io.ByteArrayOutputStream
 import java.io.InputStream
 import java.io.OutputStream
@@ -106,196 +102,37 @@ object WeMessageApi : ApiFeature(), IResolveDex {
     // -------------------------------------------------------------------------------------
     // 基础消息类
     // -------------------------------------------------------------------------------------
-    val classNetSceneSendMsg by dexClass {
-        matcher {
-            methods {
-                add {
-                    paramCount = 1
-                    usingStrings("MicroMsg.NetSceneSendMsg", "markMsgFailed for id:%d")
-                }
-            }
-        }
-    }
-    val classNetSceneQueue by dexClass {
-        searchPackages("com.tencent.mm.modelbase")
-        matcher {
-            methods {
-                add {
-                    paramCount = 2
-                    usingStrings("worker thread has not been se", "MicroMsg.NetSceneQueue")
-                }
-            }
-        }
-    }
-    val classNetSceneBase by dexClass {
-        matcher {
-            usingEqStrings("scene security verification not passed, type=")
-        }
-    }
-    private val classNetSceneObserverOwner by dexClass {
-        matcher {
-            methods {
-                add {
-                    paramCount = 4
-                    usingStrings("MicroMsg.Mvvm.NetSceneObserverOwner")
-                }
-            }
-        }
-    }
+    val classNetSceneSendMsg by dexClass()
+    val classNetSceneQueue by dexClass()
+    val classNetSceneBase by dexClass()
+    private val classNetSceneObserverOwner by dexClass()
 
     // hi0.j1::d() is identical to xv0.a9::e()
-    val methodGetSendMsgObject by dexMethod(allowMultiple = true) {
-        matcher {
-            paramCount = 0
-            returnType = classNetSceneObserverOwner.data.name
-            modifiers(AccessFlagsMatcher(Modifier.STATIC))
-        }
-    }
-    private val methodPostToQueue by dexMethod {
-        searchPackages("com.tencent.mm.modelbase")
-        matcher {
-            declaredClass = classNetSceneQueue.data.name
-            paramTypes(classNetSceneBase.data.name)
-            returnType = "boolean"
-            usingNumbers(0)
-        }
-    }
+    val methodGetSendMsgObject by dexMethod()
+    private val methodPostToQueue by dexMethod()
 
-    private val classPatMsgExtension by dexClass {
-        matcher {
-            usingEqStrings("MicroMsg.PatMsgExtension", "insert pat msg %d %s %s")
-        }
-    }
-    private val ctorNetSceneSendPat by dexConstructor {
-        matcher {
-            usingEqStrings("MicroMsg.NetSceneSendPat")
-            paramCount(4)
-        }
-    }
-    private val ctorNetSceneRevokeMsg by dexConstructor {
-        searchPackages("com.tencent.mm.modelsimple")
-        matcher {
-            usingEqStrings("MicroMsg.NetSceneRevokeMsg")
-            paramCount(3)
-        }
-    }
-    private val ctorNetSceneSendMsg by dexConstructor {
-        matcher {
-            declaredClass = classNetSceneSendMsg.data.name
-            usingEqStrings("MicroMsg.NetSceneSendMsg", "[mergeMsgSource] rawSource:%s args is null:%s flag:%s")
-            addAnyOf {
-                paramTypes("java.lang.String", "java.lang.String", "int", "int", "java.lang.Object")
-            }
-            addAnyOf {
-                paramTypes("java.lang.String", "java.lang.String", "int", "int", "java.lang.Object", "java.lang.String")
-            }
-        }
-    }
-    private val classImportMultiVideo by dexClass {
-        matcher {
-            usingEqStrings("MicroMsg.GetVideoMetadata", "get video file name, dataString ")
-        }
-    }
-    private val classAppMessage by dexClass {
-        matcher {
-            usingEqStrings("MicroMsg.AppMessage", "parse amessage xml failed")
-        }
-    }
-    val methodSendAppMsg by dexMethod {
-        searchPackages("com.tencent.mm.pluginsdk.model.app")
-        matcher {
-            usingEqStrings("MicroMsg.AppMsgLogic", "summerbig sendAppMsg attachFilePath[%s], content[%s]")
-        }
-    }
-    private val methodShareFile by dexMethod {
-        matcher {
-            paramTypes(
-                "com.tencent.mm.opensdk.modelmsg.WXMediaMessage",
-                "java.lang.String",
-                "java.lang.String",
-                "java.lang.String",
-                "int",
-                "java.lang.String"
-            )
-        }
-    }
-    val classMsgInfo by dexClass {
-        searchPackages("com.tencent.mm.storage")
-        matcher {
-            usingEqStrings("MicroMsg.MsgInfo", "[parseNewXmlSysMsg]")
-        }
-    }
-    val classMsgInfoStorage by dexClass {
-        searchPackages("com.tencent.mm.storage")
-        matcher {
-            usingEqStrings("MicroMsg.MsgInfoStorage", "deleted dirty msg ,count is %d")
-        }
-    }
-    val methodMsgInfoHandleApiInsertMessage by dexMethod {
-        searchPackages("com.tencent.mm.storage")
-        matcher {
-            usingEqStrings("MicroMsg.MsgInfoStorage", "protect:c2c msg should not here")
-        }
-    }
-    val methodMsgInfoStorageInsertMessage by dexMethod {
-        matcher {
-            declaredClass(classMsgInfoStorage.data.name)
-            usingEqStrings("MsgInfo processAddMsg insert db error")
-        }
-    }
-    val classChattingContext by dexClass {
-        matcher {
-            usingEqStrings("MicroMsg.ChattingContext", "[notifyDataSetChange]")
-        }
-    }
-    val methodChattingContextGetTalker by dexMethod {
-        matcher {
-            declaredClass(classChattingContext.data.name)
-            usingEqStrings("getTalker returns null.")
-        }
-    }
-    val classChattingDataAdapter by dexClass {
-        matcher {
-            usingEqStrings(
-                "MicroMsg.ChattingDataAdapterV3",
-                "[handleMsgChange] isLockNotify:"
-            )
-        }
-    }
-    val classTransformChattingComponent by dexClass {
-        searchPackages("com.tencent.mm.ui.chatting.component")
-        matcher {
-            usingEqStrings("MicroMsg.TransformComponent", "[onChattingPause]")
-        }
-    }
-    val methodGetIsTransformed by dexMethod {
-        matcher {
-            declaredClass(classMsgInfo.data.name)
-            usingNumbers(64, 0)
-            usingFields {
-                add {
-                    type = "int"
-                }
-            }
-            returnType = "boolean"
-        }
-    }
+    private val classPatMsgExtension by dexClass()
+    private val ctorNetSceneSendPat by dexConstructor()
+    private val ctorNetSceneRevokeMsg by dexConstructor()
+    private val ctorNetSceneSendMsg by dexConstructor()
+    private val classImportMultiVideo by dexClass()
+    private val classAppMessage by dexClass()
+    val methodSendAppMsg by dexMethod()
+    private val methodShareFile by dexMethod()
+    val classMsgInfo by dexClass()
+    val classMsgInfoStorage by dexClass()
+    val methodMsgInfoHandleApiInsertMessage by dexMethod()
+    val methodMsgInfoStorageInsertMessage by dexMethod()
+    val classChattingContext by dexClass()
+    val methodChattingContextGetTalker by dexMethod()
+    val classChattingDataAdapter by dexClass()
+    val classTransformChattingComponent by dexClass()
+    val methodGetIsTransformed by dexMethod()
 
     // -------------------------------------------------------------------------------------
     // 原生引用文本发送
     // -------------------------------------------------------------------------------------
-    private val methodQuoteCompose by dexMethod {
-        matcher {
-            declaredClass = "com.tencent.mm.pluginsdk.ui.chat.ChatFooter"
-            returnType = "boolean"
-            usingEqStrings(
-                "MicroMsg.msgquote.PluginMsgQuote",
-                "sendQuoteMsg result:%s msgId:%s result:%s",
-                "msg is revoked!",
-            )
-            usingNumbers(57)
-        }
-    }
+    private val methodQuoteCompose by dexMethod()
     private val classQuoteMsgItem by dexClass()
     private val classQuoteRelation by dexClass()
     private val methodQuoteNormalizeType by dexMethod()
@@ -309,115 +146,29 @@ object WeMessageApi : ApiFeature(), IResolveDex {
     // -------------------------------------------------------------------------------------
     // 图片发送组件
     // -------------------------------------------------------------------------------------
-    private val classMvvmBase by dexClass {
-        matcher {
-            usingStrings(
-                "MicroMsg.Mvvm.MvvmPlugin",
-                "onAccountInitialized start"
-            )
-        }
-    }
+    private val classMvvmBase by dexClass()
     private val classImageSender by dexClass()
-    private val classImageTask by dexClass(allowFailure = true) {
-        matcher { usingStrings("msg_raw_img_send") }
-    }
-    private val classConfigLogic by dexClass {
-        matcher {
-            usingEqStrings(
-                "MicroMsg.ConfigStorageLogic",
-                "get userinfo fail"
-            )
-        }
-    }
-    private val classImageServiceImpl by dexClass(allowFailure = true) {
-        matcher {
-            usingStrings("MicroMsg.ImgUpload.MsgImgFeatureService")
-            superClass(classMvvmBase.data.name)
-        }
-    }
+    private val classImageTask by dexClass()
+    private val classConfigLogic by dexClass()
+    private val classImageServiceImpl by dexClass()
     private val methodImageSendEntry by dexMethod()
 
     // -------------------------------------------------------------------------------------
     // 语音发送组件
     // -------------------------------------------------------------------------------------
-    private val classVoiceNameGen by dexClass(allowFailure = true) {
-        matcher {
-            usingEqStrings("MicroMsg.VoiceLogic", "startRecord insert voicestg success")
-        }
-    }
-    val classVfs by dexClass {
-        matcher {
-            usingStrings("MicroMsg.VFSFileOp", "Cannot resolve path or URI")
-        }
-    }
-    private val classPathUtil by dexClass {
-        searchPackages("com.tencent.mm.sdk.platformtools")
-        matcher {
-            methods {
-                add {
-                    modifiers = Modifier.PUBLIC or Modifier.STATIC
-                    returnType = "java.lang.String"
-                    paramTypes(
-                        "java.lang.String",
-                        "java.lang.String",
-                        "java.lang.String",
-                        "java.lang.String",
-                        "int"
-                    )
-                }
-            }
-        }
-    }
-    val methodChattingDataAdapterOnBindViewHolder by dexMethod {
-        matcher {
-            declaredClass {
-                usingEqStrings("MicroMsg.ChattingDataAdapterV3")
-            }
-            usingEqStrings("_onBindViewHolder[")
-            paramTypes(null, Int::class.java)
-            returnType("void")
-        }
-    }
-    private val classVoiceLogic by dexClass {
-        matcher {
-            usingEqStrings("MicroMsg.VoiceLogic", "startRecord insert voicestg success")
-        }
-    }
-    private val methodSetVoice by dexMethod {
-        matcher {
-            declaredClass = classVoiceLogic.data.name
-            modifiers = Modifier.STATIC
-            returnType = "boolean"
-            addAnyOf { paramTypes("java.lang.String", "int", "int", classMsgInfo.data.name) }
-            addAnyOf {
-                paramTypes("java.lang.String", "int", "int", classMsgInfo.data.name, "java.lang.String")
-            }
-        }
-    }
-    private val methodGetAmrFullPath by dexMethod {
-        matcher {
-            usingEqStrings("getAmrFullPath cost: ")
-        }
-    }
-    private val methodStartRecvAndSend by dexMethod {
-        matcher {
-            usingEqStrings("MicroMsg.SceneVoiceService", "Start Recv[%s] :%s", "Start Send :")
-        }
-    }
-    private val classSceneVoiceService by dexClass {
-        matcher {
-            usingEqStrings("MicroMsg.SceneVoiceService", "//voicetrymore", "getVoiceService %s")
-        }
-    }
+    private val classVoiceNameGen by dexClass()
+    val classVfs by dexClass()
+    private val classPathUtil by dexClass()
+    val methodChattingDataAdapterOnBindViewHolder by dexMethod()
+    private val classVoiceLogic by dexClass()
+    private val methodSetVoice by dexMethod()
+    private val methodGetAmrFullPath by dexMethod()
+    private val methodStartRecvAndSend by dexMethod()
+    private val classSceneVoiceService by dexClass()
 
     // SceneVoiceService.run() — 在服务自身的 looper 线程上派发，避免在 IO 线程直接调用
     // startRecvAndSend 时构造 Handler 抛出 "looper and serial is null!"
-    private val methodRunVoiceService by dexMethod(allowFailure = true) {
-        matcher {
-            paramCount = 0
-            usingEqStrings("MicroMsg.SceneVoiceService", "run() %s")
-        }
-    }
+    private val methodRunVoiceService by dexMethod()
 
     // -------------------------------------------------------------------------------------
     // 运行时缓存
@@ -493,197 +244,6 @@ object WeMessageApi : ApiFeature(), IResolveDex {
         val height: Int,
     )
 
-    @SuppressLint("NonUniqueDexKitData")
-    override fun resolveDex(dexKit: DexKitBridge) {
-        val quoteCompose = methodQuoteCompose.data
-        val quoteMsgItem = dexKit.findClass {
-            matcher { className = "com.tencent.mm.plugin.msgquote.model.MsgQuoteItem" }
-        }.single()
-        classQuoteMsgItem.setDescriptor(quoteMsgItem)
-
-        val appMessageName = classAppMessage.data.name
-        val quoteWrites = quoteCompose.usingFields
-            .filter { it.usingType == FieldUsingType.Write }
-            .map { it.field }
-            .distinctBy { it.descriptor }
-        fieldQuoteAppTitle.setDescriptor(
-            quoteWrites.single {
-                it.className == appMessageName && it.typeName == "java.lang.String"
-            }
-        )
-        fieldQuoteAppType.setDescriptor(
-            quoteWrites.single {
-                it.className == appMessageName && it.typeName == "int"
-            }
-        )
-        fieldQuoteAppItem.setDescriptor(
-            quoteWrites.single {
-                it.className == appMessageName && it.typeName == quoteMsgItem.name
-            }
-        )
-
-        methodQuoteNormalizeType.setDescriptor(
-            quoteCompose.invokes.distinctBy { it.descriptor }.single {
-                Modifier.isStatic(it.modifiers) &&
-                    it.paramTypeNames == listOf("int") &&
-                    it.returnTypeName == "int"
-            }
-        )
-
-        val msgInfoName = classMsgInfo.data.name
-        methodQuoteMsgSource.setDescriptor(
-            quoteCompose.invokes.distinctBy { it.descriptor }.single {
-                !Modifier.isStatic(it.modifiers) &&
-                    it.paramTypeNames == listOf(msgInfoName) &&
-                    it.returnTypeName == "java.lang.String"
-            }
-        )
-
-        val quoteRelation = dexKit.findClass {
-            matcher { usingStrings("MsgQute{field_msgId=", "field_quotedMsgTalker=") }
-        }.single()
-        classQuoteRelation.setDescriptor(quoteRelation)
-        val quoteStorage = dexKit.findClass {
-            matcher {
-                usingStrings(
-                    "MicroMsg.msgquote.MsgQuoteStorage",
-                    "getMsgQuteByMsgId:%s",
-                )
-            }
-        }.single()
-        methodQuoteRelationInsert.setDescriptor(
-            quoteStorage.methods.single { candidate ->
-                candidate.paramTypeNames == listOf(quoteRelation.name) &&
-                    candidate.returnTypeName == "boolean" &&
-                    candidate.usingFields.any {
-                        it.usingType == FieldUsingType.Write &&
-                            it.field.name == "field_status"
-                    }
-            }
-        )
-        methodQuoteStorageGetter.setDescriptor(
-            quoteCompose.invokes.distinctBy { it.descriptor }.single {
-                !Modifier.isStatic(it.modifiers) &&
-                    it.paramCount == 0 &&
-                    it.returnTypeName == quoteStorage.name
-            }
-        )
-
-        classImageSender.find(dexKit, allowFailure = true) {
-            matcher {
-                usingStrings(
-                    "MicroMsg.ImgUpload.MsgImgSyncSendFSC",
-                    "/cgi-bin/micromsg-bin/uploadmsgimg"
-                )
-            }
-        }
-
-        methodImageSendEntry.find(dexKit) {
-            matcher {
-                declaredClass(classImageSender.data.name)
-                modifiers = Modifier.PUBLIC or Modifier.STATIC or Modifier.FINAL
-                paramCount(4, 5)
-                usingEqStrings("send_mid_size", "send_hevc_mid_size")
-            }
-        }
-
-        val taskClassName = methodImageSendEntry.data.paramTypeNames[1]
-        classImageTask.setDescriptor(taskClassName)
-
-        val imageFeatureServiceNewPathProbes = dexKit.findMethod {
-            matcher {
-                usingEqStrings("sendRawImgAsyncWithPreBuild[", "send_group_id")
-            }
-        }
-
-        when (imageFeatureServiceNewPathProbes.size) {
-            1 -> {
-                methodImgUploadFeatureServiceNewPathProbe.setDescriptor(
-                    imageFeatureServiceNewPathProbes.single()
-                )
-                methodImgUploadFeatureServiceSendImage.find(dexKit) {
-                    matcher {
-                        declaredClass {
-                            usingEqStrings(
-                                "MicroMsg.ImgUpload.MsgImgFeatureService",
-                                "taskListener",
-                                "params",
-                            )
-                        }
-                        paramCount(1)
-                        usingEqStrings("params")
-                    }
-                }
-                methodAppInfoSetAppId.find(dexKit) {
-                    matcher {
-                        declaredClass {
-                            usingEqStrings(
-                                "appinfo",
-                                "appid",
-                                "version",
-                                "appname",
-                                "isforceupdate",
-                                "messageaction",
-                                "messageext",
-                                "mediatagname",
-                            )
-                        }
-                        paramTypes(BString)
-                        usingNumbers(0)
-                    }
-                }
-                ctorNetSceneUploadMsgImg.setPlaceholderDescriptor(
-                    expectedFailure = true,
-                    reason = "new image feature service path is active",
-                )
-            }
-
-            0 -> {
-                methodImgUploadFeatureServiceNewPathProbe.setPlaceholderDescriptor(
-                    expectedFailure = true,
-                    reason = "send_group_id image path is absent; using legacy NetSceneUploadMsgImg",
-                )
-                methodImgUploadFeatureServiceSendImage.setPlaceholderDescriptor(
-                    expectedFailure = true,
-                    reason = "legacy NetSceneUploadMsgImg path is active",
-                )
-                methodAppInfoSetAppId.setPlaceholderDescriptor(
-                    expectedFailure = true,
-                    reason = "legacy NetSceneUploadMsgImg path is active",
-                )
-                ctorNetSceneUploadMsgImg.find(dexKit) {
-                    searchPackages("com.tencent.mm.modelimage")
-                    matcher {
-                        name = "<init>"
-                        declaredClass {
-                            usingEqStrings(
-                                "MicroMsg.NetSceneUploadMsgImg",
-                                "/cgi-bin/micromsg-bin/uploadmsgimg",
-                            )
-                        }
-                        paramTypes(
-                            int,
-                            BString,
-                            BString,
-                            BString,
-                            int,
-                            null,
-                            int,
-                            BString,
-                            BString,
-                            bool,
-                            int,
-                        )
-                    }
-                }
-            }
-
-            else -> error(
-                "multiple send_group_id image path probes found: " +
-                    imageFeatureServiceNewPathProbes.joinToString { it.descriptor }
-            )
-        }
-    }
 
     /** 正常未读显示数字；正常未读为零且存在免打扰未读时显示红点。 */
     data class ConversationUnreadState(
@@ -814,16 +374,7 @@ object WeMessageApi : ApiFeature(), IResolveDex {
         return revokeMsg(MessageInfo(getMsgInfoInstanceByMsgSvrId(msgSvrId, null)))
     }
 
-    private val methodGetMsgInfoByTalkerAndSvrId by dexMethod {
-        matcher {
-            declaredClass {
-                usingEqStrings("MicroMsg.MsgInfoStorage", "build new index last %d")
-            }
-            paramTypes(BString, long)
-            returnType(classMsgInfo.data.name)
-            usingEqStrings("msgSvrId=?")
-        }
-    }
+    private val methodGetMsgInfoByTalkerAndSvrId by dexMethod()
 
     /** 通过本地 msgId 解析 msgSvrId；找不到或 msgSvrId 为 0 时返回 null。 */
     fun getMsgSvrIdByMsgId(msgId: Long): Long? {
@@ -2030,39 +1581,14 @@ object WeMessageApi : ApiFeature(), IResolveDex {
 
     // ---- 媒体下载/保存 ----
 
-    private val classEmojiFileEncryptMgr by dexClass {
-        matcher {
-            methods {
-                add {
-                    usingEqStrings(
-                        "MicroMsg.emoji.EmojiFileEncryptMgr",
-                        "decode emoji file failed. path is no exist :%s "
-                    )
-                }
-            }
-        }
-    }
+    private val classEmojiFileEncryptMgr by dexClass()
 
-    val methodLoadEmojiFile by dexMethod {
-        matcher {
-            usingEqStrings("MicroMsg.EmojiLoader", "load emoji file ")
-            paramTypes("com.tencent.mm.storage.emotion.EmojiInfo", "boolean", null)
-        }
-    }
+    val methodLoadEmojiFile by dexMethod()
 
     // com.tencent.mm.pluginsdk.model.app 里的 "自动下载文件" Runnable (8069 为 b0, 8074 为 c0),
     // 构造参数为一个 MsgInfo, run() 会解析 appmsg XML、创建 appattach 行并向 CDN 发起下载任务。
     // 这正是微信里点击文件气泡"下载/缓存"所走的逻辑。
-    private val classAppAttachAutoDownload by dexClass {
-        searchPackages("com.tencent.mm.pluginsdk.model.app")
-        matcher {
-            methods {
-                add {
-                    usingEqStrings("MicroMsg.AppMessageExtension", "autoDownloadFile2 %s %s")
-                }
-            }
-        }
-    }
+    private val classAppAttachAutoDownload by dexClass()
 
     /** 从 message 表读取指定 msgSvrId 消息的 imgPath 字段 (贴纸为 md5, 语音为加密路径)。 */
     private fun queryImgPathByMsgSvrId(msgSvrId: Long): String? {
@@ -2413,14 +1939,7 @@ object WeMessageApi : ApiFeature(), IResolveDex {
         }
     }
 
-    val methodToggleMessageSelection by dexMethod {
-        matcher {
-            declaredClass(classChattingDataAdapter.data.name)
-            usingNumbers(100)
-            usingEqStrings("msgIdTalker")
-            returnType(bool)
-        }
-    }
+    val methodToggleMessageSelection by dexMethod()
 
     private fun triggerDownload(imgLocalId: Long, talker: String): Boolean {
         return try {

@@ -13,10 +13,9 @@ import androidx.compose.ui.res.stringResource
 import androidx.core.net.toUri
 import dev.ujhhgtg.reflekt.utils.createInstance
 import com.xiao.feng.R
-import com.xiao.feng.dexkit.abc.IResolveDex
-import com.xiao.feng.dexkit.dsl.data
-import com.xiao.feng.dexkit.dsl.dexClass
-import com.xiao.feng.dexkit.dsl.dexMethod
+import com.xiao.feng.featurepoints.abc.IResolveDex
+import com.xiao.feng.featurepoints.dsl.dexClass
+import com.xiao.feng.featurepoints.dsl.dexMethod
 import com.xiao.feng.features.api.core.WeDatabaseApi
 import com.xiao.feng.features.api.core.WeDatabaseListenerApi
 import com.xiao.feng.features.api.core.WeMessageApi
@@ -70,45 +69,11 @@ object AutoOpenRedPackets : ClickableFeature(), WeDatabaseListenerApi.IInsertLis
         40, 0, 48, 0, 56, 0, 64, 0, 72, 0, 80, 0, 88, 0, 96, 0, 104, 0, 112, 0, 120, 0,
     )
 
-    private val classReceiveLuckyMoneyUnion by dexClass {
-        matcher {
-            methods {
-                add {
-                    name = "<init>"
-                    usingEqStrings("MicroMsg.NetSceneReceiveLuckyMoneyUnion")
-                }
-            }
-        }
-    }
-    private val classOpenLuckyMoneyUnion by dexClass {
-        matcher {
-            methods {
-                add {
-                    name = "<init>"
-                    usingEqStrings("MicroMsg.NetSceneOpenLuckyMoneyUnion")
-                }
-            }
-        }
-    }
-    private val classLuckyMoneyNotHookReceiveUI by dexClass {
-        matcher {
-            usingEqStrings("LuckyMoneyNotHookReceiveUI")
-        }
-    }
-    private val methodReceiveUnionOnGYNetEnd by dexMethod {
-        matcher {
-            declaredClass(classReceiveLuckyMoneyUnion.data.name)
-            name = "onGYNetEnd"
-            paramCount = 3
-        }
-    }
-    private val methodOpenUnionOnGYNetEnd by dexMethod {
-        matcher {
-            declaredClass(classOpenLuckyMoneyUnion.data.name)
-            name = "onGYNetEnd"
-            paramCount = 3
-        }
-    }
+    private val classReceiveLuckyMoneyUnion by dexClass()
+    private val classOpenLuckyMoneyUnion by dexClass()
+    private val classLuckyMoneyNotHookReceiveUI by dexClass()
+    private val methodReceiveUnionOnGYNetEnd by dexMethod()
+    private val methodOpenUnionOnGYNetEnd by dexMethod()
 
     private val currentRedPacketMap = ConcurrentHashMap<String, RedPacketInfo>()
 

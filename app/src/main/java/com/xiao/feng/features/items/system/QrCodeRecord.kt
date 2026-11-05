@@ -5,8 +5,8 @@ import android.content.Intent
 import androidx.activity.ComponentActivity
 import com.tencent.mm.ui.LauncherUI
 import com.xiao.feng.R
-import com.xiao.feng.dexkit.abc.IResolveDex
-import com.xiao.feng.dexkit.dsl.dexMethod
+import com.xiao.feng.featurepoints.abc.IResolveDex
+import com.xiao.feng.featurepoints.dsl.dexMethod
 import com.xiao.feng.features.api.ui.WeHomeScreenPopupMenuApi
 import com.xiao.feng.features.core.ClickableFeature
 import com.xiao.feng.features.core.FeatureCategoryIds
@@ -19,7 +19,6 @@ import com.xiao.feng.utils.HostInfo
 import com.xiao.feng.utils.nul
 import com.xiao.feng.utils.serialization.DefaultJson
 import kotlinx.serialization.Serializable
-import org.luckypray.dexkit.DexKitBridge
 
 object QrCodeRecord : ClickableFeature(), IResolveDex, WeHomeScreenPopupMenuApi.IMenuItemsProvider {
 
@@ -123,12 +122,5 @@ object QrCodeRecord : ClickableFeature(), IResolveDex, WeHomeScreenPopupMenuApi.
         KvStore.remove(KEY_RECORDS)
     }
 
-    val methodQBarString by dexMethod {
-        matcher {
-            usingEqStrings("MicroMsg.QBarStringHandler", "key_offline_scan_show_tips")
-        }
-    }
-
-    override fun resolveDex(dexKit: DexKitBridge) {
-    }
+    val methodQBarString by dexMethod()
 }

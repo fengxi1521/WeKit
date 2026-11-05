@@ -34,9 +34,9 @@ import androidx.core.graphics.withTranslation
 import com.tencent.mm.ui.widget.MMNeat7extView
 import dev.ujhhgtg.reflekt.reflekt
 import com.xiao.feng.R
-import com.xiao.feng.dexkit.abc.IResolveDex
-import com.xiao.feng.dexkit.dsl.dexClass
-import com.xiao.feng.dexkit.dsl.dexMethod
+import com.xiao.feng.featurepoints.abc.IResolveDex
+import com.xiao.feng.featurepoints.dsl.dexClass
+import com.xiao.feng.featurepoints.dsl.dexMethod
 import com.xiao.feng.features.api.core.WeMessageApi
 import com.xiao.feng.features.api.core.models.MessageInfo
 import com.xiao.feng.features.core.ClickableFeature
@@ -567,24 +567,9 @@ object MarkdownRendering : ClickableFeature(), IResolveDex {
         val type: Field
     )
 
-    private val classItemFactory by dexClass(allowFailure = true) {
-        matcher {
-            usingEqStrings("MicroMsg.ItemFactoryNew", "initChattingItemConfig")
-        }
-    }
+    private val classItemFactory by dexClass()
 
-    private val methodMarkdownPreprocess by dexMethod(allowFailure = true) {
-        matcher {
-            usingEqStrings(
-                "MicroMsg.ChattingItemMarkdownMvvm",
-                "[STREAM_TRACE] preDealData: msgId=%d, msgSvrId=%d, contentLen=%d, isStreaming=%b"
-            )
-        }
-    }
+    private val methodMarkdownPreprocess by dexMethod()
 
-    private val classMsgInfoWrapper by dexClass {
-        matcher {
-            usingEqStrings("other", "null cannot be cast to non-null type com.tencent.mm.storage.MsgInfo")
-        }
-    }
+    private val classMsgInfoWrapper by dexClass()
 }

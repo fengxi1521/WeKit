@@ -1,11 +1,10 @@
 package com.xiao.feng.features.items.chat
 
 import com.xiao.feng.R
-import com.xiao.feng.dexkit.abc.IResolveDex
-import com.xiao.feng.dexkit.dsl.dexClass
+import com.xiao.feng.featurepoints.abc.IResolveDex
+import com.xiao.feng.featurepoints.dsl.dexClass
 import com.xiao.feng.features.core.FeatureCategoryIds
 import com.xiao.feng.features.core.SwitchFeature
-import org.luckypray.dexkit.DexKitBridge
 
 object DisableTypingStatusUploading : SwitchFeature(), IResolveDex {
 
@@ -25,15 +24,4 @@ object DisableTypingStatusUploading : SwitchFeature(), IResolveDex {
             }
     }
 
-    override fun resolveDex(dexKit: DexKitBridge) {
-        classMmTypingSendReq.find(dexKit, allowFailure = true) {
-            searchPackages("com.tencent.mm.modelsimple")
-            matcher {
-                usingEqStrings(
-                    "null cannot be cast to non-null type com.tencent.mm.protocal.MMTypingSend.Req",
-                    "autoAuth"
-                )
-            }
-        }
-    }
 }

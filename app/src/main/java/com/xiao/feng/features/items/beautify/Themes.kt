@@ -73,9 +73,9 @@ import dev.ujhhgtg.reflekt.utils.toClass
 import com.xiao.feng.R
 import com.xiao.feng.activity.theme.ThemeStudioSettingsActivity
 import com.xiao.feng.i18n.LocalXiaoFengLocalizedContext
-import com.xiao.feng.dexkit.abc.IResolveDex
-import com.xiao.feng.dexkit.dsl.dexClass
-import com.xiao.feng.dexkit.dsl.dexMethod
+import com.xiao.feng.featurepoints.abc.IResolveDex
+import com.xiao.feng.featurepoints.dsl.dexClass
+import com.xiao.feng.featurepoints.dsl.dexMethod
 import com.xiao.feng.features.api.core.WeMessageApi
 import com.xiao.feng.features.api.ui.WeChatInputBarMenuApi
 import com.xiao.feng.features.api.ui.WeConversationListViewApi
@@ -1379,94 +1379,34 @@ object Themes : ClickableFeature(), IResolveDex {
     // Dex 解析（cherrywechat FK.cachedMethods 对应项，8.0.65–8.0.76 均存在）
     // ------------------------------------------------------------------
 
-    private val methodChattingBackgroundComponentInitBg by dexMethod {
-        matcher {
-            usingStrings("MicroMsg.ChattingUI.ChattingBackgroundComponent", "initBackground:")
-        }
-    }
+    private val methodChattingBackgroundComponentInitBg by dexMethod()
 
-    private val methodHistoryMsgTongueShow1 by dexMethod {
-        matcher {
-            usingEqStrings("MicroMsg.HistoryMsgTongueComponent", "[update] mGoBackToHistoryMsgLayout VISIBLE")
-        }
-    }
+    private val methodHistoryMsgTongueShow1 by dexMethod()
 
-    private val methodHistoryMsgTongueShow2 by dexMethod {
-        matcher {
-            usingEqStrings("MicroMsg.HistoryMsgTongueComponent", "[showMsgAtSomeoneTongue] has show!!!")
-        }
-    }
+    private val methodHistoryMsgTongueShow2 by dexMethod()
 
-    private val methodHomeUiUpdateStatusBar by dexMethod {
-        matcher {
-            usingEqStrings("MicroMsg.LauncherUI.HomeUI", "updateStatusBar %s")
-        }
-    }
+    private val methodHomeUiUpdateStatusBar by dexMethod()
 
-    private val methodHomeUiSetActionBarColor by dexMethod {
-        matcher {
-            usingEqStrings("com/tencent/mm/ui/HomeUI", "setActionBarColor")
-        }
-    }
+    private val methodHomeUiSetActionBarColor by dexMethod()
 
-    private val methodMoreTabUiOnTabCreate by dexMethod {
-        matcher {
-            usingStrings("MicroMsg.MoreTabUI", "onTabCreate:  %s")
-        }
-    }
+    private val methodMoreTabUiOnTabCreate by dexMethod()
 
-    private val methodMoreTabUiHandleTabSwitchInForStatus by dexMethod {
-        matcher {
-            usingStrings("MicroMsg.MoreTabUI", "handleTabSwitchInForStatus wiht no status")
-        }
-    }
+    private val methodMoreTabUiHandleTabSwitchInForStatus by dexMethod()
 
-    private val methodFMessageContactViewInitView by dexMethod {
-        matcher {
-            usingEqStrings("MicroMsg.FMessageContactView", "initNoNew failed. context is null.")
-        }
-    }
+    private val methodFMessageContactViewInitView by dexMethod()
 
-    private val classEnterpriseBizViewItem by dexClass {
-        matcher {
-            usingStrings("MicroMsg.EnterpriseBizViewItem", "contact is null, %s")
-        }
-    }
+    private val classEnterpriseBizViewItem by dexClass()
 
-    private val classEnterpriseDefaultViewItem by dexClass {
-        matcher {
-            usingStrings("openim_acct_type_icon", "cloudim", "openim_acct_type_title")
-        }
-    }
+    private val classEnterpriseDefaultViewItem by dexClass()
 
-    private val classAddressItemConvert by dexClass {
-        matcher {
-            // 两个 AddressItemConvert 候选类共用日志 tag，用 addressbook_cell 消歧
-            usingStrings("MicroMsg.Mvvm.AddressItemConvert", "onBindViewHolder ", "addressbook_cell")
-        }
-    }
+    private val classAddressItemConvert by dexClass()
 
-    private val classMmPopupWindow by dexClass {
-        matcher {
-            usingStrings("MicroMsg.MMPopupWindow", "dismiss exception, e = ")
-        }
-    }
+    private val classMmPopupWindow by dexClass()
 
-    private val classSmileyTabAdapter by dexClass {
-        matcher {
-            usingStrings(
-                "MicroMsg.emoji.SmileyPanel.SmileyTabAdapter",
-                "emoji group info is null. position:%d",
-            )
-        }
-    }
+    private val classSmileyTabAdapter by dexClass()
 
     // 8.0.65 中 BaseSettingConvert/setOptionView 不存在，8.0.67+ 才有
-    private val classBaseSettingConvert by dexClass(allowFailure = true) {
-        matcher {
-            usingStrings("BaseSettingConvert", "setOptionView")
-        }
-    }
+    private val classBaseSettingConvert by dexClass()
 
     // ------------------------------------------------------------------
     // Hook 入口（cherrywechat P5 全部 11 组 + EJ + C0465dy）

@@ -7,8 +7,8 @@ import android.widget.AdapterView
 import dev.ujhhgtg.reflekt.reflekt
 import dev.ujhhgtg.reflekt.utils.Modifiers
 import com.xiao.feng.R
-import com.xiao.feng.dexkit.abc.IResolveDex
-import com.xiao.feng.dexkit.dsl.dexMethod
+import com.xiao.feng.featurepoints.abc.IResolveDex
+import com.xiao.feng.featurepoints.dsl.dexMethod
 import com.xiao.feng.features.core.ApiFeature
 import com.xiao.feng.features.core.FeatureCategoryIds
 import com.xiao.feng.utils.HookParam
@@ -54,27 +54,10 @@ object WeConversationContextMenuApi : ApiFeature(), IResolveDex {
     )
 
     // com.tencent.mm.ui.conversation.ConversationLongClickListener#onCreateContextMenu
-    private val methodOnCreateMenu by dexMethod {
-        searchPackages("com.tencent.mm.ui.conversation")
-        matcher {
-            usingStrings(
-                "MicroMsg.ConversationLongClickListener",
-                "onCreateContextMenu, contact is null"
-            )
-        }
-    }
+    private val methodOnCreateMenu by dexMethod()
 
     // com.tencent.mm.ui.conversation.ConversationLongClickListener$1#onMMMenuItemSelected
-    private val methodOnItemSelected by dexMethod {
-        searchPackages("com.tencent.mm.ui.conversation")
-        matcher {
-            usingStrings(
-                "yuanbao_set_top",
-                "yuanbao_set_read",
-                "yuanbao_set_no_display"
-            )
-        }
-    }
+    private val methodOnItemSelected by dexMethod()
 
     override fun onEnable() {
         methodOnCreateMenu.method.hookAfter {

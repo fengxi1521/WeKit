@@ -9,8 +9,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.res.stringResource
 import com.xiao.feng.R
-import com.xiao.feng.dexkit.abc.IResolveDex
-import com.xiao.feng.dexkit.dsl.dexMethod
+import com.xiao.feng.featurepoints.abc.IResolveDex
+import com.xiao.feng.featurepoints.dsl.dexMethod
 import com.xiao.feng.features.core.ClickableFeature
 import com.xiao.feng.features.core.FeatureCategoryIds
 import com.xiao.feng.data.KvStore
@@ -27,14 +27,7 @@ object FakeVoiceDuration : ClickableFeature(), IResolveDex {
     override val categoryIds = listOf(FeatureCategoryIds.CHAT)
     override val descriptionRes = R.string.feature_fake_voice_duration_description
 
-    private val methodVoiceRecorderGetLength by dexMethod {
-        matcher {
-            declaredClass {
-                usingEqStrings("MicroMsg.SceneVoice.Recorder", "Stop file success: ")
-            }
-            returnType = "long"
-        }
-    }
+    private val methodVoiceRecorderGetLength by dexMethod()
     private const val KEY_DURATION = "fake_voice_duration"
 
     override fun onEnable() {

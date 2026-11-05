@@ -20,8 +20,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.res.stringResource
 import dev.ujhhgtg.reflekt.reflekt
-import com.xiao.feng.dexkit.abc.IResolveDex
-import com.xiao.feng.dexkit.dsl.dexMethod
+import com.xiao.feng.featurepoints.abc.IResolveDex
+import com.xiao.feng.featurepoints.dsl.dexMethod
 import com.xiao.feng.features.api.ui.WeMomentsApi
 import com.xiao.feng.features.core.ClickableFeature
 import com.xiao.feng.features.core.FeatureCategoryIds
@@ -45,12 +45,7 @@ object CustomSourceApp : ClickableFeature(), IResolveDex {
 
     private data class SourceApp(val appId: String, val appName: String)
 
-    private val methodSnsUploadUIInitView by dexMethod {
-        matcher {
-            declaredClass = "com.tencent.mm.plugin.sns.ui.SnsUploadUI"
-            usingEqStrings("initView", "customizeInputView", "com.tencent.mm.plugin.sns.ui.SnsUploadUI")
-        }
-    }
+    private val methodSnsUploadUIInitView by dexMethod()
 
     private var appId by prefOption("custom_app_id", "")
     private var appName by prefOption("custom_app_name", "")

@@ -1045,10 +1045,6 @@ fn build_python_sdk_artifact(root: &Path, dist: &Path) -> Result<()> {
     let options = SimpleFileOptions::default().compression_method(zip::CompressionMethod::Deflated);
     for (prefix, directory) in [
         ("stubs", root.join("extension-packs/python-runtime/stubs")),
-        (
-            "stubs",
-            root.join("extension-packs/python-runtime/runtime/build/generated/dexkitBindings/stubs"),
-        ),
         ("examples", root.join("extension-packs/python-runtime/examples")),
     ] {
         for entry in walkdir::WalkDir::new(&directory) {

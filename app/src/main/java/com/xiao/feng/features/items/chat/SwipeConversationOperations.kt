@@ -25,9 +25,9 @@ import androidx.compose.ui.unit.dp
 import dev.ujhhgtg.reflekt.reflekt
 import dev.ujhhgtg.reflekt.utils.makeAccessible
 import com.xiao.feng.R
-import com.xiao.feng.dexkit.abc.IResolveDex
-import com.xiao.feng.dexkit.dsl.DexClassDelegate
-import com.xiao.feng.dexkit.dsl.dexClass
+import com.xiao.feng.featurepoints.abc.IResolveDex
+import com.xiao.feng.featurepoints.dsl.DexClassDelegate
+import com.xiao.feng.featurepoints.dsl.dexClass
 import com.xiao.feng.features.api.core.WeConversationApi
 import com.xiao.feng.features.core.ClickableFeature
 import com.xiao.feng.features.core.FeatureCategoryIds
@@ -266,21 +266,9 @@ object SwipeConversationOperations : ClickableFeature(), IResolveDex {
     // returns the clickable row root and getItem(position) -> com.tencent.mm.storage.m3, and both
     // re-install their own row OnTouchListener on every bind — so we hook getView on whichever is
     // present. allowFailure so a build that only ships one of them still resolves the other.
-    private val classConversationAdapter by dexClass(allowFailure = true) {
-        searchPackages("com.tencent.mm.ui.conversation")
-        matcher {
-            usingStrings(
-                "MicroMsg.ConversationWithCacheAdapter",
-                "[getView] position="
-            )
-        }
-    }
+    private val classConversationAdapter by dexClass()
 
-    private val classMvvmConversationAdapter by dexClass(allowFailure = true) {
-        matcher {
-            usingEqStrings("MicroMsg.ConversationAdapter.MvvmConversationAdapter")
-        }
-    }
+    private val classMvvmConversationAdapter by dexClass()
 
     override fun onEnable() {
         hookAdapter(classConversationAdapter)

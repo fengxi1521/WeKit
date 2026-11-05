@@ -1,8 +1,8 @@
 package com.xiao.feng.features.api.core
 
 import com.xiao.feng.R
-import com.xiao.feng.dexkit.abc.IResolveDex
-import com.xiao.feng.dexkit.dsl.dexMethod
+import com.xiao.feng.featurepoints.abc.IResolveDex
+import com.xiao.feng.featurepoints.dsl.dexMethod
 import com.xiao.feng.features.core.ApiFeature
 import com.xiao.feng.features.core.FeatureCategoryIds
 import com.xiao.feng.utils.HookParam
@@ -32,12 +32,7 @@ object WeXmlParserApi : ApiFeature(), IResolveDex {
         listeners.remove(listener)
     }
 
-    private val methodXmlParser by dexMethod {
-        searchPackages("com.tencent.mm.sdk.platformtools")
-        matcher {
-            usingEqStrings("MicroMsg.SDK.XmlParser", "[ %s ]")
-        }
-    }
+    private val methodXmlParser by dexMethod()
 
     override fun onEnable() {
         methodXmlParser.hookAfter {

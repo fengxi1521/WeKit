@@ -8,10 +8,9 @@ import dev.ujhhgtg.reflekt.reflekt
 import dev.ujhhgtg.reflekt.utils.createInstance
 import dev.ujhhgtg.reflekt.utils.isSubclassOf
 import com.xiao.feng.R
-import com.xiao.feng.dexkit.abc.IResolveDex
-import com.xiao.feng.dexkit.dsl.data
-import com.xiao.feng.dexkit.dsl.dexClass
-import com.xiao.feng.dexkit.dsl.dexMethod
+import com.xiao.feng.featurepoints.abc.IResolveDex
+import com.xiao.feng.featurepoints.dsl.dexClass
+import com.xiao.feng.featurepoints.dsl.dexMethod
 import com.xiao.feng.features.api.core.WeDatabaseApi
 import com.xiao.feng.features.api.core.WeMessageApi
 import com.xiao.feng.features.api.net.abc.WeRequestCallback
@@ -24,9 +23,6 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import org.json.JSONObject
-import org.luckypray.dexkit.DexKitBridge
-import org.luckypray.dexkit.query.enums.OpCodeMatchType
-import org.luckypray.dexkit.query.matchers.base.IntRange
 import java.lang.reflect.InvocationHandler
 import java.lang.reflect.Method
 import java.lang.reflect.Modifier
@@ -39,151 +35,24 @@ object WePacketHelper : ApiFeature(), IResolveDex {
     override val categoryIds = listOf(FeatureCategoryIds.API)
 
     // 核心 Protobuf 类
-    private val classProtoBase by dexClass {
-        matcher {
-            usingEqStrings("Cannot use this method")
-            methods {
-                add {
-                    name = "op"
-                    paramTypes("int", "java.lang.Object[]")
-                }
-            }
-        }
-    }
-    private val classRawReq by dexClass {
-        matcher {
-            fields {
-                count(1)
-                add { type = "byte[]" }
-            }
-
-            methods {
-                add {
-                    name = "<init>"
-                    paramTypes("byte[]")
-                }
-
-                add {
-                    name = "op"
-                    paramTypes("int", "java.lang.Object[]")
-                    returnType = "int"
-                    opNames(
-                        opNames = emptyList(),
-                        matchType = OpCodeMatchType.Contains,
-                        opCodeSize = IntRange(0, 10)
-                    )
-                }
-
-                add {
-                    name = "toByteArray"
-                    returnType = "byte[]"
-                    invokeMethods {
-                        add {
-                            declaredClass = "java.lang.System"
-                            name = "arraycopy"
-                        }
-                    }
-                }
-            }
-        }
-    }
-    private val classGenericResp by dexClass {
-        matcher {
-            fields {
-                countMax(1)
-            }
-
-            methods {
-                add {
-                    name = "<init>"
-                    opNames(listOf("new-instance"), OpCodeMatchType.Contains)
-                }
-                add {
-                    name = "op"
-                    paramTypes("int", "java.lang.Object[]")
-                    returnType = "int"
-                    opNames(
-                        opNames = emptyList(),
-                        matchType = OpCodeMatchType.Contains,
-                        opCodeSize = IntRange(0, 10)
-                    )
-                }
-            }
-        }
-    }
-    private val classConfigBuilder by dexClass {
-        searchPackages("com.tencent.mm.modelbase")
-
-        matcher {
-            fields {
-                countMin(10)
-                add { type(classProtoBase.data.name) }
-                add { type(classProtoBase.data.name) }
-                add { type = "java.lang.String" }
-            }
-        }
-    }
+    private val classProtoBase by dexClass()
+    private val classRawReq by dexClass()
+    private val classGenericResp by dexClass()
+    private val classConfigBuilder by dexClass()
 
     // 业务特定请求类
     private val classNewSendMsgReq by dexClass()
     val classOplogReq by dexClass()
 
     // 网络
-    val classNetScenePat by dexClass {
-        matcher {
-            superClass = WeMessageApi.classNetSceneBase.data.name
-
-            methods {
-                add {
-                    name = "getType"
-                    returnType = "int"
-                    usingNumbers(849)
-                }
-            }
-            usingStrings("/cgi-bin/micromsg-bin/sendpat")
-        }
-    }
+    val classNetScenePat by dexClass()
     private val classNetDispatcher by dexClass()
-    private val classIOnSceneEnd by dexClass {
-        matcher {
-            modifiers = Modifier.INTERFACE
-            interfaceCount(0)
-
-            methods {
-                count = 1
-                add {
-                    name = "onSceneEnd"
-                    paramCount = 4
-                    paramTypes("int", "int", "java.lang.String", WeMessageApi.classNetSceneBase.data.name)
-                    returnType = "void"
-                }
-            }
-        }
-    }
-    private val classCallbackIface by dexClass {
-        matcher {
-            modifiers = Modifier.INTERFACE or Modifier.ABSTRACT
-            methods {
-                add {
-                    returnType = "int"
-                    paramCount = 5
-                    paramTypes("int", "int", "java.lang.String", null, WeMessageApi.classNetSceneBase.data.name)
-                }
-            }
-        }
-    }
+    private val classIOnSceneEnd by dexClass()
+    private val classCallbackIface by dexClass()
     private val classReqResp by dexClass()
 
     // 关键方法 //
-    private val methodGetNetQueue by dexMethod {
-        val kernelName = WeDatabaseApi.classMmKernel.data.name
-        val queueName = WeMessageApi.classNetSceneQueue.data.name
-        matcher {
-            declaredClass = kernelName
-            modifiers = Modifier.STATIC or Modifier.PUBLIC
-            returnType = queueName
-        }
-    }
+    private val methodGetNetQueue by dexMethod()
 //    private val methodNetDispatch by dexMethod()
 
     private val cgiReqClassMap = mutableMapOf<Int, Class<*>>()
@@ -198,117 +67,6 @@ object WePacketHelper : ApiFeature(), IResolveDex {
         cgiReqClassMap[681] = classOplogReq.clazz
     }
 
-    @SuppressLint("NonUniqueDexKitData")
-    override fun resolveDex(dexKit: DexKitBridge) {
-        val wrapperName = classRawReq.data.superClass!!.name
-        val candidates = dexKit.findClass {
-            matcher {
-                superClass = wrapperName
-                fields {
-                    count(2)
-                    add { type = "int" }
-                    add { type = "java.util.LinkedList" }
-                }
-            }
-        }
-
-        for (candidate in candidates) {
-            val isMsgReq = dexKit.findMethod {
-                searchInClass(listOf(candidate))
-                matcher {
-                    name = "op"
-                    addUsingField { name = "BaseRequest" }
-                }
-            }.isEmpty()
-
-            if (isMsgReq) {
-                classNewSendMsgReq.setDescriptor(candidate.name)
-                break
-            }
-        }
-
-        val cbIface = classCallbackIface.data.name
-        val callbackMethod = dexKit.findMethod {
-            searchInClass(listOf(classCallbackIface.getClassData(dexKit)))
-            matcher {
-                paramCount = 5
-            }
-        }.first()
-
-        val reqRespName = callbackMethod.paramTypes[3]
-        classReqResp.setDescriptor(reqRespName)
-
-        WeLogger.i(TAG, "found ReqResp base class: $reqRespName")
-
-        val dispatchMethod = dexKit.findMethod {
-            matcher {
-                modifiers = Modifier.STATIC or Modifier.PUBLIC
-                paramCount = 3
-                paramTypes(reqRespName.name, cbIface, "boolean")
-            }
-        }.firstOrNull()
-
-        if (dispatchMethod != null) {
-            classNetDispatcher.setDescriptor(dispatchMethod.className)
-//            methodNetDispatch.setDescriptor(
-//                dispatchMethod.className,
-//                dispatchMethod.methodName,
-//                dispatchMethod.methodSign
-//            )
-        }
-
-        val directOplogReq = dexKit.findClass {
-            matcher {
-                superClass = classProtoBase.data.name
-                usingStrings("/cgi-bin/micromsg-bin/oplog")
-                fields { count(1) }
-                methods {
-                    add {
-                        name = "op"
-                        paramTypes("int", "java.lang.Object[]")
-                    }
-                }
-            }
-        }
-
-        when (directOplogReq.size) {
-            1 -> classOplogReq.setDescriptor(directOplogReq.single())
-            0 -> {
-                val wrapperClassData = dexKit.findClass {
-                    matcher {
-                        methods {
-                            add {
-                                name = "getFuncId"
-                                returnType = "int"
-                                usingNumbers(681)
-                            }
-                            add {
-                                name = "toProtoBuf"
-                                returnType = "byte[]"
-                            }
-                        }
-                    }
-                }.firstOrNull()
-                    ?: throw NoSuchElementException("failed to locate wrapper class based on FuncId 681")
-
-                val protoBaseName = classProtoBase.data.name
-                val realProtoClass = wrapperClassData.fields
-                    .map { it.type }
-                    .firstOrNull { fieldType ->
-                        generateSequence(fieldType) { it.superClass }
-                            .any { it.name == protoBaseName }
-                    }
-                    ?: throw NoSuchElementException("failed to find protobuf field in FuncId 681 wrapper")
-
-                WeLogger.i(TAG, "located oplog successfully: ${realProtoClass.name}")
-                classOplogReq.setDescriptor(realProtoClass)
-            }
-
-            else -> error(
-                "multiple direct oplog request classes found: ${directOplogReq.joinToString { it.name }}"
-            )
-        }
-    }
 
     fun sendCgi(
         uri: String,

@@ -3,8 +3,8 @@ package com.xiao.feng.features.items.profile
 import android.graphics.Bitmap
 import dev.ujhhgtg.reflekt.reflekt
 import com.xiao.feng.R
-import com.xiao.feng.dexkit.abc.IResolveDex
-import com.xiao.feng.dexkit.dsl.dexClass
+import com.xiao.feng.featurepoints.abc.IResolveDex
+import com.xiao.feng.featurepoints.dsl.dexClass
 import com.xiao.feng.features.core.FeatureCategoryIds
 import com.xiao.feng.features.core.SwitchFeature
 import com.xiao.feng.utils.reflection.int
@@ -22,11 +22,7 @@ object UploadTransparentAvatars : SwitchFeature(), IResolveDex {
         "PhotoCropActivity"
     )
 
-    private val classMediaTailor by dexClass {
-        matcher {
-            usingEqStrings("Rect width or height contains zero. contentRect: ")
-        }
-    }
+    private val classMediaTailor by dexClass()
 
     override fun onEnable() {
         Bitmap::class.reflekt().firstMethod {

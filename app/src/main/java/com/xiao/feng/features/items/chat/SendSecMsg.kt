@@ -14,8 +14,8 @@ import com.composables.icons.materialsymbols.outlined.Lock
 import com.tencent.mm.pluginsdk.ui.chat.ChatFooter
 import dev.ujhhgtg.reflekt.reflekt
 import com.xiao.feng.R
-import com.xiao.feng.dexkit.abc.IResolveDex
-import com.xiao.feng.dexkit.dsl.dexMethod
+import com.xiao.feng.featurepoints.abc.IResolveDex
+import com.xiao.feng.featurepoints.dsl.dexMethod
 import com.xiao.feng.features.api.core.WeMessageApi
 import com.xiao.feng.features.api.core.models.MessageInfo
 import com.xiao.feng.features.api.ui.WeChatInputBarMenuApi
@@ -83,13 +83,7 @@ object SendSecMsg : ClickableFeature(), IResolveDex {
     private var pendingSecSend = false
 
     // MsgSourceHelper 合并方法: static (msgInfo, String secXml, boolean) -> void
-    private val methodMergeSecNode by dexMethod {
-        matcher {
-            usingEqStrings("(?s)<sec_msg_node[^>]*>.*?</sec_msg_node>")
-            paramCount(3)
-            returnType("void")
-        }
-    }
+    private val methodMergeSecNode by dexMethod()
 
     private val provider = WeChatInputBarMenuApi.IActionItemsProvider {
         if (mode != MODE_ACTIVE_MENU) return@IActionItemsProvider emptyList()

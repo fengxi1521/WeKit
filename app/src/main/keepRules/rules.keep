@@ -14,12 +14,6 @@
 -keep public class com.xiao.feng.features.api.** { public *; }
 -keep public class com.xiao.feng.loader.abc.IHookBridge$IMemberHookParam { public *; }
 
-# DexKit scripting API
--keep class org.luckypray.dexkit.query.matchers.** { public *; }
--keep class org.luckypray.dexkit.query.enums.** { public *; }
--keep class org.luckypray.dexkit.query.**MatcherList { public *; }
--keep class org.luckypray.dexkit.query.StringMatchersGroupList { public *; }
-
 # BeanShell
 -keep class bsh.This { *; }
 -keep class bsh.This$* { *; }

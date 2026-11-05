@@ -96,8 +96,8 @@ import dev.ujhhgtg.reflekt.firstMethod
 import dev.ujhhgtg.reflekt.reflekt
 import dev.ujhhgtg.reflekt.utils.toClass
 import com.xiao.feng.R
-import com.xiao.feng.dexkit.abc.IResolveDex
-import com.xiao.feng.dexkit.dsl.dexMethod
+import com.xiao.feng.featurepoints.abc.IResolveDex
+import com.xiao.feng.featurepoints.dsl.dexMethod
 import com.xiao.feng.features.api.ui.WeConversationListViewApi
 import com.xiao.feng.features.api.ui.WeMainActivityBeautifyApi
 import com.xiao.feng.features.core.ClickableFeature
@@ -1328,59 +1328,17 @@ object ReplaceNavigationBar : ClickableFeature(), IResolveDex {
         }
     }
 
-    private val methodRecentPageHideAnimationStart by dexMethod {
-        matcher {
-            declaredClass {
-                usingEqStrings($$"com/tencent/mm/plugin/taskbar/ui/TaskBarAnimController$6")
-            }
-            name = "onAnimationStart"
-            paramTypes("android.animation.Animator")
-            returnType = "void"
-        }
-    }
+    private val methodRecentPageHideAnimationStart by dexMethod()
 
-    private val methodRecentPageClose by dexMethod {
-        matcher {
-            usingEqStrings("com/tencent/mm/plugin/taskbar/ui/TaskBarAnimController", "onClose")
-            paramTypes("boolean")
-            returnType = "void"
-        }
-    }
+    private val methodRecentPageClose by dexMethod()
 
-    private val methodUpdateTabUnread by dexMethod {
-        matcher {
-            declaredClass = "com.tencent.mm.ui.LauncherUIBottomTabView"
-            usingEqStrings("MicroMsg.LauncherUITabView", "updateMainTabUnread %d")
-        }
-    }
+    private val methodUpdateTabUnread by dexMethod()
 
-    private val methodChangeTab by dexMethod {
-        matcher {
-            declaredClass = "com.tencent.mm.ui.MainTabUI"
-            usingEqStrings(
-                "change tab to %d, cur tab %d, has init tab %B, tab cache size %d"
-            )
-        }
-    }
+    private val methodChangeTab by dexMethod()
 
-    private val methodUpdateFriendTabUnread by dexMethod {
-        matcher {
-            declaredClass = "com.tencent.mm.ui.LauncherUIBottomTabView"
-            usingEqStrings("[updateFriendTabUnread] unread : ")
-        }
-    }
+    private val methodUpdateFriendTabUnread by dexMethod()
 
-    private val methodShowFriendPoint by dexMethod {
-        matcher {
-            declaredClass = "com.tencent.mm.ui.LauncherUIBottomTabView"
-            usingEqStrings("[showFriendPoint] show : ")
-        }
-    }
+    private val methodShowFriendPoint by dexMethod()
 
-    private val methodUpdateContactTabUnread by dexMethod {
-        matcher {
-            declaredClass = "com.tencent.mm.ui.LauncherUIBottomTabView"
-            usingEqStrings("[updateContactTabUnread] unread : ")
-        }
-    }
+    private val methodUpdateContactTabUnread by dexMethod()
 }

@@ -27,7 +27,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.xiao.feng.R
-import com.xiao.feng.utils.monet.MonetDexEvidenceCollector
 import com.xiao.feng.utils.monet.MonetModuleGenerator
 import com.xiao.feng.utils.monet.MonetBubbleStyle
 import com.xiao.feng.utils.monet.MonetGenerationEvent
@@ -164,7 +163,6 @@ object MonetEngineModuleGenerator : ClickableFeature() {
                             versionCode = HostInfo.versionCode,
                             versionName = HostInfo.versionName,
                             sdkInt = Build.VERSION.SDK_INT,
-                            dexEvidenceProvider = MonetDexEvidenceCollector::collect,
                             options = options,
                             workDir = workDir,
                             outputZip = resolvedOutputZip,

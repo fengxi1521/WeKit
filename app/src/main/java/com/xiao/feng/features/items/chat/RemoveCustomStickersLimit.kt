@@ -2,10 +2,9 @@ package com.xiao.feng.features.items.chat
 
 import dev.ujhhgtg.reflekt.reflekt
 import com.xiao.feng.R
-import com.xiao.feng.dexkit.abc.IResolveDex
-import com.xiao.feng.dexkit.dsl.data
-import com.xiao.feng.dexkit.dsl.dexClass
-import com.xiao.feng.dexkit.dsl.dexMethod
+import com.xiao.feng.featurepoints.abc.IResolveDex
+import com.xiao.feng.featurepoints.dsl.dexClass
+import com.xiao.feng.featurepoints.dsl.dexMethod
 import com.xiao.feng.features.core.FeatureCategoryIds
 import com.xiao.feng.features.core.SwitchFeature
 import com.xiao.feng.utils.reflection.int
@@ -18,78 +17,25 @@ object RemoveCustomStickersLimit : SwitchFeature(), IResolveDex {
     override val categoryIds = listOf(FeatureCategoryIds.CHAT)
     override val descriptionRes = R.string.feature_remove_custom_stickers_limit_description
 
-    private val methodGetCustomEmojiMaxSize by dexMethod {
-        matcher {
-            usingEqStrings("CustomEmojiMaxSize")
-            returnType(int)
-            paramCount(0)
-            modifiers = Modifier.STATIC
-        }
-    }
+    private val methodGetCustomEmojiMaxSize by dexMethod()
 
-    private val methodComputeEmojiStorageState by dexMethod {
-        matcher {
-            usingEqStrings("MicroMsg.EmojiStorageState", "normal_custom_size")
-            returnType(Void.TYPE)
-            paramCount(1)
-        }
-    }
+    private val methodComputeEmojiStorageState by dexMethod()
 
-    private val classMmkv by dexClass {
-        matcher {
-            usingEqStrings("MicroMsg.MultiProcessMMKV", "getMMKV name is illegal")
-        }
-    }
+    private val classMmkv by dexClass()
 
-    private val methodGetMmkv by dexMethod {
-        matcher {
-            declaredClass(classMmkv.data.name)
-            usingEqStrings("MicroMsg.MultiProcessMMKV", "getMMKV name is illegal")
-        }
-    }
+    private val methodGetMmkv by dexMethod()
 
-    private val classCgiBack by dexClass {
-        matcher {
-            usingEqStrings("CgiBack{errType=")
-        }
-    }
+    private val classCgiBack by dexClass()
 
-    private val methodCreateCgiBack by dexMethod {
-        matcher {
-            declaredClass(classCgiBack.data.name)
-            modifiers = Modifier.STATIC
-            paramCount(6)
-            returnType(classCgiBack.data.name)
-        }
-    }
+    private val methodCreateCgiBack by dexMethod()
 
-    private val methodAddEmojiOnSceneEnd by dexMethod {
-        matcher {
-            usingEqStrings("CgiBackupEmojiOperate onResult: errType=")
-        }
-    }
+    private val methodAddEmojiOnSceneEnd by dexMethod()
 
-    private val methodNetSceneBackupEmojiOperateOnGYNetEnd by dexMethod {
-        matcher {
-            usingEqStrings("MicroMsg.emoji.NetSceneBackupEmojiOperate", "errType:%d, errCode:%d")
-            name = "onGYNetEnd"
-        }
-    }
+    private val methodNetSceneBackupEmojiOperateOnGYNetEnd by dexMethod()
 
-    private val methodChattingUiEmoji by dexMethod {
-        matcher {
-            usingEqStrings("addToCustom. over max size.")
-        }
-    }
+    private val methodChattingUiEmoji by dexMethod()
 
-    private val methodConditionallyShowDialog by dexMethod {
-        matcher {
-            declaredClass {
-                usingEqStrings("uninstallEmoticon Failed to send net scene: ")
-            }
-            usingEqStrings("custom_full")
-        }
-    }
+    private val methodConditionallyShowDialog by dexMethod()
 
     private fun putCustomFullFalseInMmkv() {
         runCatching {

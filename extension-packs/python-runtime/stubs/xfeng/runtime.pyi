@@ -2,8 +2,6 @@ from collections.abc import Awaitable, Callable, Mapping, Sequence
 from pathlib import Path
 from typing import Any, Protocol, TypeVar
 
-from .dexkit import ClassMatcher, FieldMatcher, MethodMatcher
-
 _T = TypeVar("_T")
 
 class Logger(Protocol):
@@ -48,89 +46,6 @@ class Hooks(Protocol):
     def invoke_original(self, parameter: HookParameter) -> object: ...
     def unhook(self, token: HookToken) -> None: ...
 
-class ResolvedClass(Protocol):
-    descriptor: str
-    name: str
-    hostVersion: str
-    hostBuildTag: str
-
-class ResolvedMember(Protocol):
-    descriptor: str
-    hostVersion: str
-    hostBuildTag: str
-    kind: object
-
-class ResolvedField(Protocol):
-    descriptor: str
-    hostVersion: str
-    hostBuildTag: str
-
-class Dex(Protocol):
-    def class_(
-        self,
-        matcher: ClassMatcher,
-        *,
-        search_packages: Sequence[str] = ...,
-        exclude_packages: Sequence[str] = ...,
-        ignore_packages_case: bool = ...,
-    ) -> ResolvedClass: ...
-    def classes(
-        self,
-        matcher: ClassMatcher,
-        *,
-        search_packages: Sequence[str] = ...,
-        exclude_packages: Sequence[str] = ...,
-        ignore_packages_case: bool = ...,
-    ) -> Sequence[ResolvedClass]: ...
-    def method(
-        self,
-        matcher: MethodMatcher,
-        *,
-        search_packages: Sequence[str] = ...,
-        exclude_packages: Sequence[str] = ...,
-        ignore_packages_case: bool = ...,
-    ) -> ResolvedMember: ...
-    def methods(
-        self,
-        matcher: MethodMatcher,
-        *,
-        search_packages: Sequence[str] = ...,
-        exclude_packages: Sequence[str] = ...,
-        ignore_packages_case: bool = ...,
-    ) -> Sequence[ResolvedMember]: ...
-    def constructor(
-        self,
-        matcher: MethodMatcher,
-        *,
-        search_packages: Sequence[str] = ...,
-        exclude_packages: Sequence[str] = ...,
-        ignore_packages_case: bool = ...,
-    ) -> ResolvedMember: ...
-    def constructors(
-        self,
-        matcher: MethodMatcher,
-        *,
-        search_packages: Sequence[str] = ...,
-        exclude_packages: Sequence[str] = ...,
-        ignore_packages_case: bool = ...,
-    ) -> Sequence[ResolvedMember]: ...
-    def field(
-        self,
-        matcher: FieldMatcher,
-        *,
-        search_packages: Sequence[str] = ...,
-        exclude_packages: Sequence[str] = ...,
-        ignore_packages_case: bool = ...,
-    ) -> ResolvedField: ...
-    def fields(
-        self,
-        matcher: FieldMatcher,
-        *,
-        search_packages: Sequence[str] = ...,
-        exclude_packages: Sequence[str] = ...,
-        ignore_packages_case: bool = ...,
-    ) -> Sequence[ResolvedField]: ...
-
 class TaskHandle(Protocol):
     def cancel(self) -> None: ...
     def isDone(self) -> bool: ...
@@ -155,7 +70,6 @@ class PluginContext:
     host_context: object
     log: Logger
     hooks: Hooks
-    dex: Dex
     tasks: Tasks
     jvm: Jvm
     def defer(self, action: Callable[[], _T]) -> Callable[[], _T]: ...

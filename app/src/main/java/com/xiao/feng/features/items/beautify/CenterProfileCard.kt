@@ -33,9 +33,9 @@ import androidx.compose.ui.unit.dp
 import androidx.core.graphics.drawable.toDrawable
 import androidx.core.graphics.toColorInt
 import androidx.core.view.isVisible
-import com.xiao.feng.dexkit.abc.IResolveDex
+import com.xiao.feng.featurepoints.abc.IResolveDex
 import com.xiao.feng.R
-import com.xiao.feng.dexkit.dsl.dexMethod
+import com.xiao.feng.featurepoints.dsl.dexMethod
 import com.xiao.feng.features.api.core.WeApi
 import com.xiao.feng.features.api.core.WeDatabaseApi
 import com.xiao.feng.features.api.core.models.SelfProfileField
@@ -105,12 +105,7 @@ object CenterProfileCard : ClickableFeature(), IResolveDex {
     private var aliasTextPref by KvStore.prefOption(KEY_ALIAS_TEXT, "")
     private var signatureTextPref by KvStore.prefOption(KEY_SIGNATURE_TEXT, "")
 
-    private val methodBindAccountInfo by dexMethod {
-        matcher {
-            declaredClass = "com.tencent.mm.pluginsdk.ui.preference.AccountInfoPreference"
-            paramTypes(View::class.java)
-        }
-    }
+    private val methodBindAccountInfo by dexMethod()
 
     override fun onEnable() {
         methodBindAccountInfo.hookAfter {

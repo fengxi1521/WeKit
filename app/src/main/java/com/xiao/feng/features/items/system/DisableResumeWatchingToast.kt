@@ -1,8 +1,8 @@
 package com.xiao.feng.features.items.system
 
 import com.xiao.feng.R
-import com.xiao.feng.dexkit.abc.IResolveDex
-import com.xiao.feng.dexkit.dsl.dexMethod
+import com.xiao.feng.featurepoints.abc.IResolveDex
+import com.xiao.feng.featurepoints.dsl.dexMethod
 import com.xiao.feng.features.core.FeatureCategoryIds
 import com.xiao.feng.features.core.SwitchFeature
 
@@ -13,18 +13,7 @@ object DisableResumeWatchingToast : SwitchFeature(), IResolveDex {
     override val categoryIds = listOf(FeatureCategoryIds.SYSTEM_PRIVACY)
     override val descriptionRes = R.string.feature_disable_resume_watching_toast_description
 
-    private val methodShowRecoveryToast by dexMethod {
-        matcher {
-            paramCount = 0
-            usingEqStrings(
-                "MicroMsg.RecoveryHelper",
-                "topActivity == null or isFinishing or isDestroyed",
-                "recoveryObj == null ",
-                "toast_button",
-                "view_exp",
-            )
-        }
-    }
+    private val methodShowRecoveryToast by dexMethod()
 
     override fun onEnable() {
         methodShowRecoveryToast.hookBefore {

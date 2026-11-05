@@ -1,8 +1,8 @@
 package com.xiao.feng.features.api.core
 
 import com.xiao.feng.R
-import com.xiao.feng.dexkit.abc.IResolveDex
-import com.xiao.feng.dexkit.dsl.dexConstructor
+import com.xiao.feng.featurepoints.abc.IResolveDex
+import com.xiao.feng.featurepoints.dsl.dexConstructor
 import com.xiao.feng.features.api.net.WeNetSceneApi
 import com.xiao.feng.features.core.ApiFeature
 import com.xiao.feng.features.core.FeatureCategoryIds
@@ -20,45 +20,13 @@ object WeGroupApi : ApiFeature(), IResolveDex {
     private const val TAG = "WeGroupApi"
 
     // ul.m(String chatRoomName, List<String> members, String sceneNote, Object historyInfo)
-    private val ctorAddMember by dexConstructor {
-        matcher {
-            usingEqStrings("MicroMsg.NetSceneAddChatRoomMember")
-            paramCount(4)
-            paramTypes(
-                BString,
-                List::class.java,
-                BString,
-                Any::class.java
-            )
-        }
-    }
+    private val ctorAddMember by dexConstructor()
 
     // ul.p(String chatRoomName, List<String> members, int scene)
-    private val ctorDelMember by dexConstructor {
-        matcher {
-            usingEqStrings("/cgi-bin/micromsg-bin/delchatroommember")
-            paramCount(3)
-            paramTypes(
-                BString,
-                List::class.java,
-                int
-            )
-        }
-    }
+    private val ctorDelMember by dexConstructor()
 
     // ul.x(String chatRoomName, List<String> members, int scene, Object historyInfo)
-    private val ctorInviteMember by dexConstructor {
-        matcher {
-            usingEqStrings("MicroMsg.NetSceneInviteChatRoomMember")
-            paramCount(4)
-            paramTypes(
-                BString,
-                List::class.java,
-                int,
-                Any::class.java
-            )
-        }
-    }
+    private val ctorInviteMember by dexConstructor()
 
     fun addMember(groupId: String, memberWxId: String) {
         addMembers(groupId, listOf(memberWxId))

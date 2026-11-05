@@ -207,10 +207,10 @@ mod tests {
             start: 0x1000,
             end: 0x2000,
             prot: libc::PROT_READ,
-            path: "/data/app/libdexkit.so".to_string(),
+            path: "/data/app/libxfeng_native.so".to_string(),
         };
-        assert!(entry.path.contains("libdexkit.so"));
-        assert!(!entry.path.contains("libxfeng.so"));
+        assert!(entry.path.contains("libxfeng_native.so"));
+        assert!(!entry.path.contains("libmmkv.so"));
     }
 
     #[test]

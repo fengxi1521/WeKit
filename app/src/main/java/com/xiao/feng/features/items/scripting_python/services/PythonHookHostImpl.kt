@@ -1,6 +1,6 @@
 package com.xiao.feng.features.items.scripting_python.services
 
-import com.xiao.feng.dexkit.DexMethodDescriptor
+import com.xiao.feng.featurepoints.DexMethodDescriptor
 import com.xiao.feng.features.items.scripting_python.plugin.PythonPluginScope
 import com.xiao.feng.features.items.scripting_python.plugin.PythonCrashGuard
 import com.xiao.feng.features.items.scripting_python.runtime.PythonRuntimeLoader

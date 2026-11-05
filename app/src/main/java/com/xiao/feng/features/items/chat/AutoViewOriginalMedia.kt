@@ -6,14 +6,12 @@ import android.widget.TextView
 import androidx.core.view.isVisible
 import dev.ujhhgtg.reflekt.reflekt
 import com.xiao.feng.R
-import com.xiao.feng.dexkit.abc.IResolveDex
-import com.xiao.feng.dexkit.dsl.data
-import com.xiao.feng.dexkit.dsl.dexClass
-import com.xiao.feng.dexkit.dsl.dexMethod
+import com.xiao.feng.featurepoints.abc.IResolveDex
+import com.xiao.feng.featurepoints.dsl.dexClass
+import com.xiao.feng.featurepoints.dsl.dexMethod
 import com.xiao.feng.features.core.FeatureCategoryIds
 import com.xiao.feng.features.core.SwitchFeature
 import java.util.WeakHashMap
-import org.luckypray.dexkit.DexKitBridge
 
 object AutoViewOriginalMedia : SwitchFeature(), IResolveDex {
 
@@ -39,108 +37,6 @@ object AutoViewOriginalMedia : SwitchFeature(), IResolveDex {
         "查看原视频", "Original quality", "View Full Video",
     )
 
-    override fun resolveDex(dexKit: DexKitBridge) {
-        val results = dexKit.findMethod {
-            matcher {
-                declaredClass = "com.tencent.mm.ui.chatting.gallery.ImageGalleryUI"
-                usingEqStrings("setHdImageActionDownloadable")
-            }
-        }.ifEmpty {
-            dexKit.findMethod {
-                matcher {
-                    declaredClass = "com.tencent.mm.ui.chatting.gallery.ImageGalleryUI"
-                    usingEqStrings("setImageHdImgBtnVisibility")
-                }
-            }
-        }
-        methodSetImageHdImgBtnVisibility.setDescriptor(results.single())
-
-        methodCheckNeedShowOriginVideoBtn.find(dexKit) {
-            matcher {
-                declaredClass = "com.tencent.mm.ui.chatting.gallery.ImageGalleryUI"
-                usingEqStrings("checkNeedShowOriginVideoBtn")
-            }
-        }
-
-        classMediaGalleryVideoBottomBarLayer.find(dexKit) {
-            matcher {
-                usingEqStrings("MediaGallery.VideoBottomBarLayer")
-            }
-        }
-
-        val chatLiveBottomBarLayers = dexKit.findClass {
-            matcher {
-                methods {
-                    add {
-                        name = "<init>"
-                        paramCount = 1
-                        usingEqStrings("MediaGallery.ChatLiveBottomBarLayer")
-                    }
-                }
-            }
-        }
-
-        when (chatLiveBottomBarLayers.size) {
-            0 -> {
-                classMediaGalleryChatLiveBottomBarLayer.setPlaceholderDescriptor(
-                    expectedFailure = true,
-                    reason = "chat live-photo bottom bar is absent; using common media controls",
-                )
-                methodUpdateMediaGalleryVideoOriginButton.setPlaceholderDescriptor(
-                    expectedFailure = true,
-                    reason = "layered original-video controls are absent",
-                )
-                methodBindMediaGalleryChatLiveBottomBar.setPlaceholderDescriptor(
-                    expectedFailure = true,
-                    reason = "chat live-photo bottom bar is absent",
-                )
-                return
-            }
-
-            1 -> classMediaGalleryChatLiveBottomBarLayer.setDescriptor(
-                chatLiveBottomBarLayers.single()
-            )
-
-            else -> error(
-                "multiple MediaGallery.ChatLiveBottomBarLayer classes found: " +
-                    chatLiveBottomBarLayers.joinToString { it.name }
-            )
-        }
-
-        methodBindMediaGalleryChatLiveBottomBar.find(dexKit) {
-            matcher {
-                declaredClass(classMediaGalleryChatLiveBottomBarLayer.data.name)
-                paramCount = 1
-                returnType = "void"
-                usingEqStrings("bindContext", "msgInfo")
-            }
-        }
-
-        val updateVideoOriginButtonMethods = dexKit.findMethod {
-            matcher {
-                declaredClass(classMediaGalleryVideoBottomBarLayer.data.name)
-                paramTypes("java.lang.String", "boolean")
-                returnType = "void"
-                usingEqStrings("getString(...)")
-            }
-        }
-
-        when (updateVideoOriginButtonMethods.size) {
-            0 -> methodUpdateMediaGalleryVideoOriginButton.setPlaceholderDescriptor(
-                expectedFailure = true,
-                reason = "layered original-video controls are absent",
-            )
-
-            1 -> methodUpdateMediaGalleryVideoOriginButton.setDescriptor(
-                updateVideoOriginButtonMethods.single()
-            )
-
-            else -> error(
-                "multiple layered original-video update methods found: " +
-                    updateVideoOriginButtonMethods.joinToString { it.descriptor }
-            )
-        }
-    }
 
     override fun onEnable() {
         listOf(

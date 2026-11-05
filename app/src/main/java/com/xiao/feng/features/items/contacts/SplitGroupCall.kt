@@ -27,19 +27,17 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import dev.ujhhgtg.reflekt.reflekt
 import com.xiao.feng.R
-import com.xiao.feng.dexkit.abc.IResolveDex
-import com.xiao.feng.dexkit.dsl.data
-import com.xiao.feng.dexkit.dsl.dexClass
-import com.xiao.feng.dexkit.dsl.dexConstructor
-import com.xiao.feng.dexkit.dsl.dexField
-import com.xiao.feng.dexkit.dsl.dexMethod
+import com.xiao.feng.featurepoints.abc.IResolveDex
+import com.xiao.feng.featurepoints.dsl.dexClass
+import com.xiao.feng.featurepoints.dsl.dexConstructor
+import com.xiao.feng.featurepoints.dsl.dexField
+import com.xiao.feng.featurepoints.dsl.dexMethod
 import com.xiao.feng.features.api.core.WeDatabaseApi
 import com.xiao.feng.features.api.ui.WeContactPrefsScreenApi
 import com.xiao.feng.features.api.ui.WeContactPrefsScreenApi.IContactInfoProvider
 import com.xiao.feng.features.api.ui.WeContactPrefsScreenApi.PreferenceItem
 import com.xiao.feng.features.core.ClickableFeature
 import com.xiao.feng.features.core.FeatureCategoryIds
-import com.xiao.feng.features.items.contacts.SplitGroupCall.resolveDex
 import com.xiao.feng.ui.content.AlertDialogContent
 import com.xiao.feng.ui.content.Button
 import com.xiao.feng.ui.content.SingleContactSelector
@@ -53,7 +51,6 @@ import com.xiao.feng.utils.android.showToast
 import com.xiao.feng.utils.reflection.BString
 import com.xiao.feng.utils.reflection.int
 import com.xiao.feng.utils.unsafe.TheUnsafe
-import org.luckypray.dexkit.DexKitBridge
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.concurrent.thread
@@ -125,191 +122,22 @@ object SplitGroupCall : ClickableFeature(), IContactInfoProvider, IResolveDex {
      * i4.f166883p1 —— 房间 ID (chatroom username) 字符串字段, 进入 native Invite。
      * i4 上有多个 String 字段, 无法按名字/顺序命中; 通过 "唯一读取该字段的方法" 反查:
      * 方法 p(b) 含字符串 "start audio device failed", 且其中唯一被读取的 String 字段即 f166883p1。
-     * 由 [resolveDex] 手动填充。
+     * 由内置特征点表提供。
      */
     private val fieldRoomId by dexField()
 
     /** TalkRoomServer.enterTalkRoom(String, int) —— 发起「实时对讲机」. */
-    private val methodEnterTalkRoom by dexMethod {
-        matcher {
-            usingStrings("enterTalkRoom %s scene %d")
-            paramTypes("java.lang.String", "int")
-            returnType("void")
-        }
-    }
+    private val methodEnterTalkRoom by dexMethod()
 
     /** TalkRoomServer.exitTalkRoom() —— 终止当前「实时对讲机」. */
-    private val methodExitTalkRoom by dexMethod {
-        matcher {
-            declaredClass = methodEnterTalkRoom.data.declaredClassName
-            usingStrings("exitTalkRoom", "exitTalkRoom: has exited")
-            paramCount = 0
-            returnType("void")
-        }
-    }
+    private val methodExitTalkRoom by dexMethod()
 
     /** SubCoreTalkRoom 上返回 TalkRoomServer 单例的静态方法. */
-    private val methodGetTalkRoomServer by dexMethod {
-        matcher {
-            modifiers = ReflectModifier.PUBLIC or ReflectModifier.STATIC
-            paramCount = 0
-            returnType = methodEnterTalkRoom.data.declaredClassName
-        }
-    }
+    private val methodGetTalkRoomServer by dexMethod()
 
     /** TalkRoomServer 当前房间 ID; 空值表示没有正在进行的实时对讲. */
-    private val fieldCurrentTalkRoom by dexField {
-        matcher {
-            declaredClass = methodEnterTalkRoom.data.declaredClassName
-            type = "java.lang.String"
-        }
-    }
+    private val fieldCurrentTalkRoom by dexField()
 
-    override fun resolveDex(dexKit: DexKitBridge) {
-        val subCoreMultiTalkClasses = dexKit.findClass {
-            matcher {
-                usingStrings("MicroMsg.SubCoreMultiTalk", "add , is running , forbid add")
-            }
-        }
-
-        when (subCoreMultiTalkClasses.size) {
-            1 -> classSubCoreMultiTalk.setDescriptor(subCoreMultiTalkClasses.single())
-            0 -> {
-                val reason = "legacy MultiTalk and ILink architecture is absent"
-                classSubCoreMultiTalk.setPlaceholderDescriptor(true, reason)
-                methodExitMultiTalk.setPlaceholderDescriptor(true, reason)
-                classILinkService.setPlaceholderDescriptor(true, reason)
-                classILinkMember.setPlaceholderDescriptor(true, reason)
-                classInviteTask.setPlaceholderDescriptor(true, reason)
-                methodGetMultiTalkManager.setPlaceholderDescriptor(true, reason)
-                methodSetStatus.setPlaceholderDescriptor(true, reason)
-                methodSetMtSdkMode.setPlaceholderDescriptor(true, reason)
-                methodSetName.setPlaceholderDescriptor(true, reason)
-                methodPostTask.setPlaceholderDescriptor(true, reason)
-                ctorInviteTask.setPlaceholderDescriptor(true, reason)
-                ctorHangupTask.setPlaceholderDescriptor(true, reason)
-                fieldILinkInstance.setPlaceholderDescriptor(true, reason)
-                fieldRoomId.setPlaceholderDescriptor(true, reason)
-                return
-            }
-
-            else -> error(
-                "multiple SubCoreMultiTalk classes found: " +
-                    subCoreMultiTalkClasses.joinToString { it.name }
-            )
-        }
-
-        methodExitMultiTalk.find(dexKit) {
-            matcher {
-                usingStrings(
-                    "exitCurrentMultiTalk: isReject %b isMissCall %b isPhoneCall %b isNetworkError %b"
-                )
-            }
-        }
-
-        classILinkService.find(dexKit) {
-            matcher {
-                usingStrings(
-                    "steve: initsession : mIsInitedEngine :%b mIsInitingEngine %b " +
-                        "mCurrentStatus %d mIsJoiningRoom %b"
-                )
-            }
-        }
-
-        classILinkMember.find(dexKit) {
-            matcher {
-                usingStrings("ILinkMember{memberId=")
-            }
-        }
-
-        classInviteTask.find(dexKit) {
-            matcher {
-                usingStrings("enter inviteSync. %s, %s, %d, %b")
-            }
-        }
-
-        methodGetMultiTalkManager.find(dexKit) {
-            matcher {
-                declaredClass = classSubCoreMultiTalk.data.name
-                modifiers = ReflectModifier.STATIC or ReflectModifier.PUBLIC
-                returnType = methodExitMultiTalk.data.declaredClassName
-            }
-        }
-
-        methodSetStatus.find(dexKit) {
-            matcher {
-                declaredClass = methodExitMultiTalk.data.declaredClassName
-                paramCount = 1
-                usingStrings("onChangeMultiTalkStatus is %s")
-            }
-        }
-
-        methodSetMtSdkMode.find(dexKit) {
-            matcher {
-                declaredClass = methodExitMultiTalk.data.declaredClassName
-                paramCount = 2
-                usingStrings("setCurrentMTSDKMode groupid:%s, mode:%d")
-            }
-        }
-
-        methodSetName.find(dexKit) {
-            matcher {
-                declaredClass = classILinkService.data.name
-                paramCount = 2
-                usingStrings("set name=%s, uin=%d")
-            }
-        }
-
-        methodPostTask.find(dexKit) {
-            matcher {
-                declaredClass = classILinkService.data.name
-                paramCount = 1
-                paramTypes("java.lang.Runnable")
-            }
-        }
-
-        ctorInviteTask.find(dexKit) {
-            matcher {
-                declaredClass = classInviteTask.data.name
-                paramCount = 3
-                paramTypes(
-                    classILinkService.data.name,
-                    "java.util.ArrayList",
-                    "java.lang.String",
-                )
-            }
-        }
-
-        ctorHangupTask.find(dexKit) {
-            matcher {
-                declaredClass {
-                    usingStrings("Hangup ret:")
-                }
-                paramCount = 2
-                paramTypes(classILinkService.data.name, "int")
-            }
-        }
-
-        fieldILinkInstance.find(dexKit) {
-            matcher {
-                declaredClass = classILinkService.data.name
-                type = classILinkService.data.name
-                modifiers = ReflectModifier.PUBLIC or ReflectModifier.STATIC or ReflectModifier.FINAL
-            }
-        }
-
-        val iLinkServiceName = classILinkService.data.name
-        val readerMethod = dexKit.findMethod {
-            matcher {
-                declaredClass = classILinkService.data.name
-                usingStrings("start audio device failed")
-            }
-        }.single()
-        val roomIdField = readerMethod.usingFields
-            .map { it.field }
-            .single { it.className == iLinkServiceName && it.typeName == "java.lang.String" }
-        fieldRoomId.setDescriptor(roomIdField)
-    }
 
     override fun onClick(context: ComponentActivity) {
         showComposeDialog(context) {

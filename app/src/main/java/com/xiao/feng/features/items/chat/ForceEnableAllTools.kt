@@ -3,13 +3,12 @@ package com.xiao.feng.features.items.chat
 import dev.ujhhgtg.reflekt.reflekt
 import dev.ujhhgtg.reflekt.utils.Modifiers
 import com.xiao.feng.R
-import com.xiao.feng.dexkit.abc.IResolveDex
-import com.xiao.feng.dexkit.dsl.dexClass
-import com.xiao.feng.dexkit.dsl.dexField
-import com.xiao.feng.dexkit.dsl.dexMethod
+import com.xiao.feng.featurepoints.abc.IResolveDex
+import com.xiao.feng.featurepoints.dsl.dexClass
+import com.xiao.feng.featurepoints.dsl.dexField
+import com.xiao.feng.featurepoints.dsl.dexMethod
 import com.xiao.feng.features.core.FeatureCategoryIds
 import com.xiao.feng.features.core.SwitchFeature
-import org.luckypray.dexkit.DexKitBridge
 
 object ForceEnableAllTools : SwitchFeature(), IResolveDex {
 
@@ -36,36 +35,6 @@ object ForceEnableAllTools : SwitchFeature(), IResolveDex {
         }
     }
 
-    override fun resolveDex(dexKit: DexKitBridge) {
-        val refreshMethod = dexKit.findMethod {
-            searchPackages(APP_PANEL_PACKAGE)
-            matcher {
-                declaredClass = APP_PANEL_CLASS
-                usingEqStrings("MicroMsg.AppPanel", "roomEnable:%s, hideRoomLive:%s")
-                paramCount = 0
-                returnType = "void"
-            }
-        }.single()
-        methodRefreshAppPanel.setDescriptor(refreshMethod)
-
-        val usedFields = refreshMethod.usingFields.map { it.field }.distinct()
-        val firstFlag = usedFields.first { field ->
-            field.modifiers and Modifiers.FINAL != 0 &&
-                field.type.fields.count { it.typeName == "boolean" } == 1
-        }
-        val configClass = firstFlag.declaredClass
-        val appPanelConfig = usedFields.single { field ->
-            field.className == APP_PANEL_CLASS && field.typeName == configClass.name
-        }
-        val flagEnabled = firstFlag.type.fields.single {
-            it.typeName == "boolean"
-        }
-
-        classAppPanelConfig.setDescriptor(configClass)
-        fieldAppPanelConfig.setDescriptor(appPanelConfig)
-        fieldFirstFlag.setDescriptor(firstFlag)
-        fieldFlagEnabled.setDescriptor(flagEnabled)
-    }
 
     private const val APP_PANEL_PACKAGE = "com.tencent.mm.pluginsdk.ui.chat"
     private const val APP_PANEL_CLASS = "$APP_PANEL_PACKAGE.AppPanel"

@@ -3,10 +3,9 @@ package com.xiao.feng.features.items.chat
 import dev.ujhhgtg.reflekt.utils.makeAccessible
 import com.xiao.feng.R
 import com.xiao.feng.constants.PackageNames
-import com.xiao.feng.dexkit.abc.IResolveDex
-import com.xiao.feng.dexkit.dsl.data
-import com.xiao.feng.dexkit.dsl.dexClass
-import com.xiao.feng.dexkit.dsl.dexMethod
+import com.xiao.feng.featurepoints.abc.IResolveDex
+import com.xiao.feng.featurepoints.dsl.dexClass
+import com.xiao.feng.featurepoints.dsl.dexMethod
 import com.xiao.feng.features.api.core.WeMessageApi
 import com.xiao.feng.features.core.FeatureCategoryIds
 import com.xiao.feng.features.core.SwitchFeature
@@ -28,50 +27,13 @@ object RemoveMessageSelectionLimit : SwitchFeature(), IResolveDex {
 
     private const val SELECTION_LIMIT = 100
 
-    private val methodGetSelectedMessageCount by dexMethod {
-        matcher {
-            declaredClass(WeMessageApi.classChattingDataAdapter.data.name)
-            addUsingField {
-                type(CopyOnWriteArraySet::class.java)
-            }
-            paramCount(0)
-            returnType(int)
-        }
-    }
+    private val methodGetSelectedMessageCount by dexMethod()
 
-    private val classChatItemQuickSelect by dexClass {
-        searchPackages("${PackageNames.WECHAT}.ui.chatting.component")
-        matcher {
-            usingEqStrings(
-                "MicroMsg.ChatItemQuickSelectComponent",
-                "initViews: chattingQuickSelectRootUp="
-            )
-        }
-    }
+    private val classChatItemQuickSelect by dexClass()
 
-    private val methodSetQuickSelectViewEnabled1 by dexMethod(
-        allowMultiple = true,
-        resultIndex = 0
-    ) {
-        matcher {
-            declaredClass(classChatItemQuickSelect.data.name)
-            usingNumbers(SELECTION_LIMIT)
-            paramTypes(bool)
-            returnType(void)
-        }
-    }
+    private val methodSetQuickSelectViewEnabled1 by dexMethod()
 
-    private val methodSetQuickSelectViewEnabled2 by dexMethod(
-        allowMultiple = true,
-        resultIndex = 1
-    ) {
-        matcher {
-            declaredClass(classChatItemQuickSelect.data.name)
-            usingNumbers(SELECTION_LIMIT)
-            paramTypes(bool)
-            returnType(void)
-        }
-    }
+    private val methodSetQuickSelectViewEnabled2 by dexMethod()
 
     private val selectedMessagesField: Field by lazy {
         WeMessageApi.methodToggleMessageSelection.method.declaringClass.declaredFields.single {

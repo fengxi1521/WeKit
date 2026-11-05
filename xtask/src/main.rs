@@ -6,9 +6,7 @@
 //!   build [OPTIONS]      Build the project (default: full Android debug build via Gradle).
 //!   check [OPTIONS]      Run `cargo check` on the native library.
 //!   clippy [OPTIONS]     Run `cargo clippy` on the native library.
-//!   dex-test [OPTIONS]   Resolve XiaoFeng DexKit targets against desktop APKs.
-//!   dex-report-diff      Compare member signatures in existing per-APK reports.
-//!   dex-test-ci          Prepare APK sources and mutable Dex-Test Release assets.
+//!   extensions           Build extension packs and their manifest.json index.
 //!   i18n-check           Validate the Android English and Chinese resource catalogs.
 //!
 //! Run `cargo xtask <COMMAND> --help` for per-command options.
@@ -27,8 +25,6 @@ use std::{
 use walkdir::WalkDir;
 use zip::{CompressionMethod, ZipArchive, ZipWriter, write::SimpleFileOptions};
 
-mod dex_test;
-mod dex_test_ci;
 mod extensions;
 mod i18n_check;
 
@@ -120,15 +116,6 @@ enum Cmd {
 
     /// Run `cargo clippy` on the native library for each target ABI.
     Clippy(NativeArgs),
-
-    /// Run DexKit resolvers against one or more WeChat APKs on this Linux desktop.
-    DexTest(dex_test::DexTestArgs),
-
-    /// Compare adjacent per-APK Dex reports in the supplied order; no APK/JVM required.
-    DexReportDiff(dex_test::diff::DexReportDiffArgs),
-
-    /// Prepare inputs and outputs used by the cloud Dex resolution CI jobs.
-    DexTestCi(dex_test_ci::DexTestCiArgs),
 
     /// Build extension packs and their manifest.json index.
     Extensions(extensions::ExtensionsArgs),
@@ -263,9 +250,6 @@ fn main() -> Result<()> {
         Cmd::Run(args) => task_run(args)?,
         Cmd::Check(args) => task_cargo_cmd("check", &args.abis, &[])?,
         Cmd::Clippy(args) => task_cargo_cmd("clippy", &args.abis, &["--", "-D", "warnings"])?,
-        Cmd::DexTest(args) => dex_test::task_dex_test(args)?,
-        Cmd::DexReportDiff(args) => dex_test::diff::task_dex_report_diff(args)?,
-        Cmd::DexTestCi(args) => dex_test_ci::task_dex_test_ci(args)?,
         Cmd::I18nCheck => i18n_check::check_repository(&workspace_root())?,
         Cmd::Extensions(args) => extensions::run(&workspace_root(), &args)?,
     }
@@ -866,8 +850,6 @@ struct GradleVersionCatalog {
 #[derive(Deserialize)]
 struct GradleVersions {
     ndk: String,
-    #[serde(default)]
-    dexkit: Option<String>,
 }
 
 fn parse_pinned_ndk_version(text: &str, path: &Path) -> Result<String> {

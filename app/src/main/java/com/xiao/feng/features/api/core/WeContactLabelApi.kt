@@ -3,15 +3,13 @@ package com.xiao.feng.features.api.core
 import dev.ujhhgtg.reflekt.utils.createInstance
 import dev.ujhhgtg.reflekt.utils.makeAccessible
 import com.xiao.feng.R
-import com.xiao.feng.dexkit.abc.IResolveDex
-import com.xiao.feng.dexkit.dsl.dexClass
+import com.xiao.feng.featurepoints.abc.IResolveDex
+import com.xiao.feng.featurepoints.dsl.dexClass
 import com.xiao.feng.features.api.core.WeContactLabelApi.modifyLabel
 import com.xiao.feng.features.api.net.WeNetSceneApi
 import com.xiao.feng.features.core.ApiFeature
 import com.xiao.feng.features.core.FeatureCategoryIds
 import com.xiao.feng.utils.WeLogger
-import org.luckypray.dexkit.DexKitBridge
-import org.luckypray.dexkit.result.FieldUsingType
 import java.util.LinkedList
 
 object WeContactLabelApi : ApiFeature(), IResolveDex {
@@ -25,30 +23,14 @@ object WeContactLabelApi : ApiFeature(), IResolveDex {
 
     data class ContactLabel(val labelId: Int, val labelName: String)
 
-    private val classNetSceneModifyContactLabelList by dexClass {
-        matcher {
-            usingEqStrings("/cgi-bin/micromsg-bin/modifycontactlabellist")
-            addMethod {
-                name = "<init>"
-                paramTypes(LinkedList::class.java)
-            }
-        }
-    }
+    private val classNetSceneModifyContactLabelList by dexClass()
 
     /**
      * `NetSceneAddContactLabel` (e.g. `e93.a` on 8.0.74). Anchored on the unique cgi path plus its
      * single-`String` constructor, which takes the new label's name. On success the host persists
      * the label (with a server-assigned id) into the `ContactLabel` table inside `onGYNetEnd`.
      */
-    private val classNetSceneAddContactLabel by dexClass {
-        matcher {
-            usingEqStrings("/cgi-bin/micromsg-bin/addcontactlabel")
-            addMethod {
-                name = "<init>"
-                paramTypes(String::class.java)
-            }
-        }
-    }
+    private val classNetSceneAddContactLabel by dexClass()
 
     /**
      * Get all contact labels.
@@ -154,33 +136,6 @@ object WeContactLabelApi : ApiFeature(), IResolveDex {
      */
     private val classContactLabelPb by dexClass()
 
-    override fun resolveDex(dexKit: DexKitBridge) {
-        val candidates = dexKit.findMethod {
-            matcher {
-                usingEqStrings("UserLabelInfoList")
-            }
-        }.asSequence()
-            .flatMap { it.usingFields.asSequence() }
-            .filter { it.usingType == FieldUsingType.Read }
-            .map { it.field }
-            .filter { it.typeName == "java.lang.String" }
-            .map { it.declaredClass }
-            .filter { clazz ->
-                val fields = clazz.fields
-                fields.size == 2 && fields.all { it.typeName == "java.lang.String" }
-            }
-            .map { it.name }
-            .distinct()
-            .toList()
-
-        val className = candidates.singleOrNull()
-        if (className == null) {
-            WeLogger.e(TAG, "contactLabelPbClass resolution failed, candidates=$candidates")
-            error("failed to locate classContactLabelPb")
-        }
-
-        classContactLabelPb.setDescriptor(className)
-    }
 
     /**
      * Create a contact label by name, returning its label id once the server has assigned one.

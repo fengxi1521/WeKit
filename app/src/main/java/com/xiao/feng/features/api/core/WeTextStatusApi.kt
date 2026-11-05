@@ -6,10 +6,9 @@ import dev.ujhhgtg.reflekt.reflekt
 import dev.ujhhgtg.reflekt.utils.Modifiers
 import dev.ujhhgtg.reflekt.utils.createInstance
 import com.xiao.feng.R
-import com.xiao.feng.dexkit.abc.IResolveDex
-import com.xiao.feng.dexkit.dsl.data
-import com.xiao.feng.dexkit.dsl.dexClass
-import com.xiao.feng.dexkit.dsl.dexMethod
+import com.xiao.feng.featurepoints.abc.IResolveDex
+import com.xiao.feng.featurepoints.dsl.dexClass
+import com.xiao.feng.featurepoints.dsl.dexMethod
 import com.xiao.feng.features.core.ApiFeature
 import com.xiao.feng.features.core.FeatureCategoryIds
 import com.xiao.feng.utils.WeLogger
@@ -18,8 +17,6 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.decodeFromByteArray
 import kotlinx.serialization.protobuf.ProtoBuf
 import kotlinx.serialization.protobuf.ProtoNumber
-import org.luckypray.dexkit.DexKitBridge
-import org.luckypray.dexkit.result.MethodData
 import java.lang.reflect.Modifier
 
 sealed interface TextStatusResult {
@@ -53,40 +50,11 @@ object WeTextStatusApi : ApiFeature(), IResolveDex {
     private const val TAG = "WeTextStatusApi"
 
     private val classTextStatusService by dexClass()
-    private val classTextStatusRecord by dexClass {
-        matcher {
-            addFieldForName("field_UserName")
-            addFieldForName("field_StatusID")
-            addFieldForName("field_IconID")
-            addFieldForName("field_Description")
-            addFieldForName("field_ExpireTime")
-            addFieldForName("field_EmojiInfo")
-        }
-    }
+    private val classTextStatusRecord by dexClass()
     private val methodTextStatusStorageAccessor by dexMethod()
-    private val methodLatestStatusByUsername by dexMethod {
-        matcher {
-            paramTypes(String::class.java)
-            usingEqStrings(
-                "MicroMsg.TextStatus.StatusInfoAffStorage",
-                "getLatestStatusByUserName: failed",
-            )
-        }
-    }
-    private val methodTextStatusTopicInfo by dexMethod {
-        matcher {
-            usingEqStrings(
-                "Super calls with default arguments not supported in this target, function: getTopicInfo",
-            )
-        }
-    }
-    private val methodSetTextStatusIcon by dexMethod {
-        matcher {
-            usingEqStrings(
-                "Super calls with default arguments not supported in this target, function: setIcon",
-            )
-        }
-    }
+    private val methodLatestStatusByUsername by dexMethod()
+    private val methodTextStatusTopicInfo by dexMethod()
+    private val methodSetTextStatusIcon by dexMethod()
     private val methodTextStatusIconHelperAccessor by dexMethod()
     private val methodTextStatusDescription by dexMethod()
     private val methodCurrentStatusActions by dexMethod()
@@ -103,64 +71,6 @@ object WeTextStatusApi : ApiFeature(), IResolveDex {
         methodTextStatusIconHelperAccessor.method.invoke(null)!!
     }
 
-    override fun resolveDex(dexKit: DexKitBridge) {
-        val latestStatusMethod = methodLatestStatusByUsername.data
-        val storageInterface = latestStatusMethod.declaredClass!!.interfaces.single { candidate ->
-            candidate.methods.any { method ->
-                method.methodName == latestStatusMethod.methodName &&
-                    method.paramTypeNames == latestStatusMethod.paramTypeNames &&
-                    method.returnTypeName == latestStatusMethod.returnTypeName
-            }
-        }
-        val storageAccessor = dexKit.findMethod {
-            matcher {
-                paramTypes()
-                returnType(storageInterface.name)
-            }
-        }.single { candidate ->
-            candidate.declaredClass!!.fields.any { field ->
-                field.typeName == candidate.declaredClassName &&
-                    Modifier.isStatic(field.modifiers)
-            }
-        }
-
-        val topicInfoMethod = methodTextStatusTopicInfo.data
-        val setIconMethod = methodSetTextStatusIcon.data
-        val iconHelperType = setIconMethod.paramTypeNames.first()
-        val iconHelperAccessor = dexKit.findMethod {
-            matcher {
-                paramTypes()
-                returnType(iconHelperType)
-                modifiers(Modifier.STATIC)
-            }
-        }.single()
-        val statusDescriptionMethod = dexKit.findMethod {
-            matcher {
-                declaredClass(iconHelperType)
-                paramTypes(topicInfoMethod.returnTypeName)
-                returnType(String::class.java)
-            }
-        }.single()
-        val statusType = latestStatusMethod.returnTypeName
-        val currentStatusActionsMethod = dexKit.findMethod {
-            matcher {
-                paramTypes(Context::class.java.name, statusType)
-                returnType(Void.TYPE)
-                usingEqStrings(
-                    "MicroMsg.MMSubMenuHelper",
-                    "show, menu empty",
-                )
-            }
-        }.single { candidate ->
-            candidate.usesFieldThroughDirectInvoke("field_UserName")
-        }
-
-        classTextStatusService.setDescriptor(storageAccessor.declaredClass!!)
-        methodTextStatusStorageAccessor.setDescriptor(storageAccessor)
-        methodTextStatusIconHelperAccessor.setDescriptor(iconHelperAccessor)
-        methodTextStatusDescription.setDescriptor(statusDescriptionMethod)
-        methodCurrentStatusActions.setDescriptor(currentStatusActionsMethod)
-    }
 
     fun read(wxId: String): TextStatusResult = runCatching {
         val current = readCurrentStatus(wxId) ?: return TextStatusResult.NoStatus
@@ -270,12 +180,6 @@ object WeTextStatusApi : ApiFeature(), IResolveDex {
         val statusId: String,
     )
 }
-
-private fun MethodData.usesFieldThroughDirectInvoke(fieldName: String): Boolean =
-    usingFields.any { it.field.fieldName == fieldName } ||
-        invokes.any { invoked ->
-            invoked.usingFields.any { it.field.fieldName == fieldName }
-        }
 
 @Serializable
 @OptIn(ExperimentalSerializationApi::class)

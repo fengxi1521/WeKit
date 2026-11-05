@@ -31,10 +31,9 @@ import com.tencent.mm.ui.base.CustomViewPager
 import com.tencent.mm.ui.mogic.WxViewPager
 import dev.ujhhgtg.reflekt.reflekt
 import com.xiao.feng.R
-import com.xiao.feng.dexkit.abc.IResolveDex
-import com.xiao.feng.dexkit.dsl.data
-import com.xiao.feng.dexkit.dsl.dexClass
-import com.xiao.feng.dexkit.dsl.dexMethod
+import com.xiao.feng.featurepoints.abc.IResolveDex
+import com.xiao.feng.featurepoints.dsl.dexClass
+import com.xiao.feng.featurepoints.dsl.dexMethod
 import com.xiao.feng.features.api.ui.WeMainActivityBeautifyApi
 import com.xiao.feng.features.core.FeatureCategoryIds
 import com.xiao.feng.features.core.SwitchFeature
@@ -108,39 +107,13 @@ object HomeSidePanel : SwitchFeature(), IResolveDex {
     override val categoryIds = listOf(FeatureCategoryIds.BEAUTIFY)
     override val descriptionRes = R.string.feature_home_side_panel_description
 
-    private val classWalletCache by dexClass {
-        matcher {
-            className = "com.tencent.mm.wallet_core.model.m1"
-        }
-    }
+    private val classWalletCache by dexClass()
 
-    private val classWalletPayPlugin by dexClass {
-        matcher {
-            className = "com.tencent.mm.plugin.wxpay.g"
-            usingEqStrings("MicroMsg.PluginWxPay")
-            addMethod {
-                returnType(classWalletCache.data.name)
-            }
-        }
-    }
+    private val classWalletPayPlugin by dexClass()
 
-    private val methodWalletCacheRead by dexMethod {
-        matcher {
-            declaredClass = "com.tencent.mm.wallet_core.model.m1"
-            name = "i"
-            paramCount = 2
-            returnType = "java.lang.Object"
-        }
-    }
+    private val methodWalletCacheRead by dexMethod()
 
-    private val methodWalletCacheWrite by dexMethod {
-        matcher {
-            declaredClass = "com.tencent.mm.wallet_core.model.m1"
-            name = "j"
-            paramCount = 2
-            returnType = "void"
-        }
-    }
+    private val methodWalletCacheWrite by dexMethod()
 
     private const val TAG = "HomeSidePanel"
     private const val LAUNCHER_BOTTOM_TAB_VIEW_CLASS = "com.tencent.mm.ui.LauncherUIBottomTabView"

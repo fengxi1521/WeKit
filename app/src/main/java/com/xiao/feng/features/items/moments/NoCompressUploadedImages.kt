@@ -14,8 +14,8 @@ import androidx.compose.ui.unit.dp
 import dev.ujhhgtg.reflekt.utils.Modifiers
 import dev.ujhhgtg.reflekt.reflekt
 import com.xiao.feng.R
-import com.xiao.feng.dexkit.abc.IResolveDex
-import com.xiao.feng.dexkit.dsl.dexMethod
+import com.xiao.feng.featurepoints.abc.IResolveDex
+import com.xiao.feng.featurepoints.dsl.dexMethod
 import com.xiao.feng.features.api.core.WeMessageApi
 import com.xiao.feng.features.core.ClickableFeature
 import com.xiao.feng.features.core.FeatureCategoryIds
@@ -42,36 +42,11 @@ object NoCompressUploadedImages : ClickableFeature(), IResolveDex {
 
     private var selectedMode by KvStore.prefOption("no_compress_mode", MODE_CONVERT)
 
-    private val methodImagePreviewSend by dexMethod {
-        matcher {
-            declaredClass = "com.tencent.mm.plugin.gallery.ui.ImagePreviewUI"
-            paramTypes("android.content.Intent", "boolean", "boolean")
-            returnType = "void"
-            usingEqStrings("CropImage_OutputPath_List", "key_select_video_list")
-        }
-    }
+    private val methodImagePreviewSend by dexMethod()
 
-    private val methodCreatePic by dexMethod {
-        matcher {
-            usingEqStrings(
-                "MicroMsg.snsMediaStorage",
-                "SnsCompressResolutionFor2G",
-                "SnsCompressResolutionFor3G",
-                "SnsCompressResolutionFor4G",
-                "SnsCompressResolutionForWifi"
-            )
-        }
-    }
+    private val methodCreatePic by dexMethod()
 
-    private val methodConvertImg2WxamWithoutZip by dexMethod {
-        matcher {
-            paramTypes("java.lang.String", "java.lang.String")
-            usingEqStrings(
-                "MicroMsg.snsMediaStorage",
-                "convertImg2WxamWithoutZip origPath:%s OutOfMemoryError! rollback"
-            )
-        }
-    }
+    private val methodConvertImg2WxamWithoutZip by dexMethod()
 
     private val vfsGetCachePathMethod by lazy {
         WeMessageApi.classVfs.reflekt().firstMethod {

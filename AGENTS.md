@@ -46,7 +46,7 @@
 - `libs/common/bsh/` — submodule: forked BeanShell interpreter with snapshot serialization (`BshSnapshot`, `BshSnapshotHelper`); snapshots are encrypted AST byte representations used by the WAuxiliary Xposed module; `app/src/main/java/com/xiao/feng/utils/BshSnapshotDecompiler.kt` — decompiles encrypted BeanShell snapshot files back into Java-like source code; the AES key was recovered from WAuxiliary's decompiled source
 - `libs/common/reflekt/` — submodule: reflection utility library (`dev.ujhhgtg.reflekt`)
 - `libs/common/stubs/` — compileOnly stubs for WeChat and Android hidden classes
-- `buildSrc/` — custom Gradle tasks: `GenerateMethodHashesTask` (`IResolveDex` `resolveDex` method MD5 cache), `GenerateNewFeaturesTask` (Kotlin source files added within 30 days of the HEAD commit → `NewFeatures.ADDED_AT_BY_SOURCE_KEY`; KSP joins source keys to discovered features for the 新功能 pseudo-category)
+- `buildSrc/` — custom Gradle tasks: `GenerateNewFeaturesTask` (Kotlin source files added within 30 days of the HEAD commit → `NewFeatures.ADDED_AT_BY_SOURCE_KEY`; KSP joins source keys to discovered features for the 新功能 pseudo-category)
 - `xtask/` — build orchestration behind `./x`: native-lib compilation + NDK linker config, APK
   assembly/signing via Gradle, and Zygisk installation of that same APK
 
@@ -59,8 +59,8 @@
 - Extension pack objects implement `ExtensionPack`, declare a required `displayOrder`, and are
   auto-discovered by the same KSP processor
 - Base classes: `SwitchFeature` (toggle on/off), `ClickableFeature` (toggle on/off with onClick event), `ApiFeature` (always-on), `BaseFeature` (abstract base, do not use directly)
-- DEX analysis via DexKit with `IResolveDex` interface; method resolve body MD5-hashed for cache (
-  `GenerateMethodHashesTask`)
+- Symbols come from the bundled feature-point table and are exposed through the `IResolveDex`
+  delegate DSL
 - DEX-resolved targets DSL: `val methodTarget by dexMethod()` `val classTarget by dexClass()` delegate → `methodTarget.hookBefore { ... }`, `val method: Method = methodTarget.method`, `val clazz = classTarget.clazz`
 - UI: Jetpack Compose + Material 3, dialogs written using `showComposeDialog` and
   `AlertDialogContent`; settings screens follow the Material 3 UI Standards section below
@@ -68,77 +68,27 @@
 - Config: `KvStore` (Room-backed key-value store, legacy MMKV migrated via `MmkvReadonlyReader`)
 - Logging: via `WeLogger`
 
-## Desktop DexKit Validation
+## Feature-Point Table
 
-- Use `./x dex-test` to run the same `IResolveDex`/DexKit resolution steps used by
-  `DexCacheManager.kt` against WeChat APKs on the Linux desktop. Test only the supported host
-  range **8.0.65–8.0.78**; APKs outside that range are useful for investigation but must not be
-  treated as compatibility gates for the project.
-- Add `--workers 4` to exercise the same shared batch scheduler as local Android resolution.
-  Use `--workers 1` for its serial comparison; omitting the option preserves per-feature runs.
-  Batch runs initialize/reset all selected roots before starting workers and report after joining.
-- Test each supported APK version separately, including separate normal and Google Play APKs
-  when both are available. Each APK runs in its own JVM worker and must carry its own version code,
-  version name, build tag, and Google Play metadata.
-- Reports belong under `dex-test-results/<run-id>/` (or an explicitly supplied output directory),
-  never under Gradle's `build/reports/`. Preserve the per-APK JSON reports and aggregate summary.
-- Resolution classification is strict: an `allowFailure = true` delegate that receives its
-  placeholder is `EXPECTED_FAILURE`; an unhandled resolver exception is `UNEXPECTED_FAILURE`;
-  delegates that remain pending after that exception are `BLOCKED` and must record the triggering
-  delegate; a resolver returning with pending delegates is `INCOMPLETE`.
-- A desktop resolution pass does not prove hook-time behavior on a physical device. Initialization,
-  worker, native-library, APK metadata, report, unexpected, blocked, or incomplete failures must
-  remain visible and make the command fail.
-- DexKit desktop testing is intentionally expensive. After a supported-version run has passed,
-  do not rerun it for unrelated changes when no Dex declarations or resolution steps changed.
-  Rerun the affected supported APK versions after changing `dexMethod`, `dexClass`, `dexField`,
-  inline matchers, or the corresponding `resolveDex`/`resolveInlineDex` logic.
-- Before reporting a Dex resolver change as complete, run the affected desktop tests plus any
-  relevant existing or qualifying Gradle tests (as defined under Testing Strategy), `./x build`,
-  and `git diff --check`.
-
-### Desktop-safe Dex resolver rules
-
-- `resolveDex`, `resolveInlineDex`, and inline matcher blocks run in the same
-  `DexResolutionContext`. When a matcher needs information from an already-resolved delegate,
-  use its DexKit metadata (`delegate.data.name`, `.declaredClassName`, `.returnTypeName`,
-  `.paramTypeNames`, `.superClass`, `.interfaces`, etc.), not JVM reflection. In particular, do
-  not use another delegate's `.clazz`, `.method`, `.constructor`, `.field`, `asClass`, or
-  reflection-derived `Class`/type information to construct a later Dex query: desktop workers
-  cannot reliably load WeChat/Android classes.
-- Do not hide that reflection behind a `lazy` property or object initialization. A resolver-side
-  lazy such as `by lazy { target.method.declaringClass }` is still invalid for desktop testing;
-  derive the required descriptor from `target.data` while resolving instead. Reflection properties
-  remain valid after resolution for actual hook-time Android behavior; this rule applies only to
-  declaration and resolution paths.
-- An explicitly user-approved host-version branch, or any build-tag/Google Play branch, inside
-  resolution must read `DexResolutionContext.host`, rather than `HostInfo`, so `./x dex-test` uses
-  metadata belonging to the APK under test. Android resolution receives equivalent current-host
-  metadata through the same context.
-- A metadata migration must preserve the intended descriptor/matcher constraints. Do not loosen
-  strings, signatures, or structural predicates merely to make a desktop test pass; use stable
-  DexKit evidence as normal.
-- For an intentional supported-version absence, use `allowFailure = true` only as documented
-  below. Its generated generic expected-failure reason is acceptable; provide a more precise reason
-  when it materially clarifies a structure-selected compatibility path. Do not convert exceptions
-  or uncertain matches into placeholders just to obtain a green report.
-- Resolver source is part of the device cache key: even a mechanically equivalent rewrite from
-  reflection to `.data` changes the generated `methodHash` and invalidates that feature's old
-  cache. Expect one device re-resolution after such a change; never retain or hand-edit an old
-  hash to suppress it. Avoid unrelated formatting/refactors in resolver and inline matcher bodies
-  when a cache invalidation is not intended.
+- Symbols are resolved exclusively from the bundled table at
+  `app/src/main/assets/feature_points/<versionName>-<versionCode>-<build>.json`. There is no
+  runtime Dex scanning, no DexKit dependency, and no cache rebuild.
+- `IResolveDex` delegates are populated by `FeaturePointsTable`. A missing feature entry or
+  delegate key is logged loudly and that feature is skipped; never add a runtime scanning fallback.
+- Delegate property names are the table keys. Renaming a delegate or changing its `technicalId`
+  requires updating the bundled table in the same change.
+- After changing `dexMethod`/`dexClass`/`dexField`/`dexConstructor` declarations, verify that every
+  delegate key exists in the table before shipping.
+- Supported host: WeChat **8.0.78 / versionCode 3180 / domestic** only.
 
 ### Host compatibility path selection
 
-- Prefer structure-based compatibility over host-version checks. In Dex resolution, first probe
-  one stable class, method, field, or constructor that exists only on the newer path. If that probe
-  produces zero results, record its expected placeholder and fall back to the older path. If it is
-  present, keep every other required target on that path strict. Multiple results, matcher errors,
-  and failures after the probe must remain visible failures; they are not fallback conditions.
+- Prefer structure-based compatibility over host-version checks. A delegate may be a table
+  placeholder when the structure is intentionally absent from the supported host; check its
+  `isPlaceholder` before use.
 - At hook time or when invoking resolved host members, choose the path from the actual resolved
-  structure. Use the new-path probe's `isPlaceholder`, inspect the resolved member's reflection
-  signature, or test another directly relevant runtime property. Do not repeat the resolver's
-  compatibility decision with a host-version comparison.
+  structure. Inspect the resolved member's reflection signature or another directly relevant
+  runtime property. Do not repeat a compatibility decision with a host-version comparison.
 - If old and new hosts expose the same semantic member with only a signature difference, accept
   the confirmed signatures structurally (for example, `paramCount(10, 11)`). When invocation
   arguments differ, inspect `Method.parameterCount` or `Constructor.parameterCount` and construct
@@ -170,11 +120,10 @@
   boundary. Extract a helper only when it improves readability, is reused, or isolates genuinely
   complex behavior; testability alone is not sufficient justification.
 - If work does not meet all of those conditions, do not use TDD and do not add low-value tests
-  merely to satisfy a testing workflow. Host hooks, reflection/DexKit glue, and host UI behavior
+  merely to satisfy a testing workflow. Host hooks, reflection glue, and host UI behavior
   are normally in this category.
-- Use `./x dex-test` for automated Dex resolution validation as documented above. Apart from Dex
-  resolution, manual testing in the real WeChat host is the primary behavioral test method;
-  desktop JVM or Gradle tests do not replace it.
+- Manual testing in the real WeChat host is the primary behavioral test method; desktop JVM or
+  Gradle tests do not replace it.
 
 ## Key Conventions
 
@@ -184,22 +133,20 @@
   Kotlin's default implicit `public` visibility instead, because `internal` provides no meaningful
   boundary there.
 - Min SDK 28, target SDK 37, compile SDK 37
-- Target: WeChat `com.tencent.mm`, versions 8.0.65–8.0.78. Current host info in `HostInfo`
+- Target: WeChat `com.tencent.mm`, version 8.0.78 (versionCode 3180, domestic). Current host info in `HostInfo`
 - Process targeting via `TargetProcesses`: override `startup()` to check
   `TargetProcesses.isInMain` / `TargetProcesses.currentType`. Default: main process only.
-- Device behavior still requires manual testing on real WeChat; desktop JVM tests cover Dex
-  resolution only and do not replace device validation.
+- Device behavior requires manual testing on real WeChat; desktop JVM or Gradle tests do not
+  replace device validation.
 - NEVER wrap `hookBefore` and `hookAfter` in a `try-catch`/`runCatching` block. They should NOT fail. If they fail, then it's the module developer's problem.
 - Use `KvStore.prefOption` delegates to declare & use preference items easily.
 - Teardown/revert on `onDisable` is **best-effort by design**, not a requirement. Many features
   irreversibly modify the host view tree; fully reverting them would need complex state management
   and syncing for little gain, so having the user restart WeChat is the accepted approach. Do NOT
   report "feature does not undo its changes in `onDisable`" as a bug.
-- `allowFailure` on `dexMethod`/`dexClass`/`dexField` is ONLY for structures whose existence
-  differs across supported WeChat versions (present in old, absent in new, or vice versa). If a
-  declared Dex resolution is expected to succeed on every supported version, do
-  NOT set `allowFailure`: a resolution failure must fail that feature loudly instead of silently
-  degrading to a no-op.
+- A bundled table entry that is intentionally absent uses a placeholder descriptor; feature code
+  must check `isPlaceholder` before touching the member. A missing key for an expected member is a
+  hard failure and the feature must be skipped loudly, never silently degraded to a no-op.
 - JVM reflection over host classes should go through `reflekt` (`libs/common/reflekt/`) by
   default, e.g. `thisObject.reflekt().firstField { ... }` or `.getField(name, true)` — not
   hand-rolled `getDeclaredField`/`getMethod` traversal.
@@ -213,7 +160,7 @@
   safe casts, `args.getOrNull(0)`, `?:`, `?.someFun()` or similar guards for values that should always be present/non-null/etc.
   Code that is correct does not need the defense; code that is wrong must throw loudly and get caught by either `HookUtils`' or code's own exception catcher, and these
   guards only swallow the exception and hide the real error. Defenses and guards that are reasonable should still exist.
-- The libraries `DexKit` and `reflekt` are NOT something you are familiar with. Do NOT hallucinate their API surfaces. Read their code before using them.
+- The `reflekt` library is NOT something you are familiar with. Do NOT hallucinate its API surface. Read its code before using it.
 - In Compose, `LocalContext` always means the platform context and is never localized by XiaoFeng.
   Use standard Compose resource APIs for composable text and `LocalXiaoFengLocalizedContext` only
   for imperative XiaoFeng resource reads. Mixed platform/resource operations must read both locals.

@@ -2,8 +2,8 @@ package com.xiao.feng.features.items.beautify
 
 import android.view.View
 import com.xiao.feng.R
-import com.xiao.feng.dexkit.abc.IResolveDex
-import com.xiao.feng.dexkit.dsl.dexMethod
+import com.xiao.feng.featurepoints.abc.IResolveDex
+import com.xiao.feng.featurepoints.dsl.dexMethod
 import com.xiao.feng.features.core.FeatureCategoryIds
 import com.xiao.feng.features.core.SwitchFeature
 
@@ -14,17 +14,7 @@ object HideOtherDevicesBanner : SwitchFeature(), IResolveDex {
     override val categoryIds = listOf(FeatureCategoryIds.BEAUTIFY)
     override val descriptionRes = R.string.feature_hide_other_devices_banner_description
 
-    private val methodSetOtherOnlineBannerVisibility by dexMethod {
-        searchPackages("com.tencent.mm.ui.conversation.banner")
-        matcher {
-            paramTypes("int")
-            returnType = "void"
-            usingEqStrings(
-                "com/tencent/mm/ui/conversation/banner/OtherOnlineBanner",
-                "setVisibility"
-            )
-        }
-    }
+    private val methodSetOtherOnlineBannerVisibility by dexMethod()
 
     override fun onEnable() {
         methodSetOtherOnlineBannerVisibility.hookBefore {

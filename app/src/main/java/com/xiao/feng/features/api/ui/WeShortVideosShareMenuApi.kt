@@ -4,8 +4,8 @@ import android.graphics.drawable.Drawable
 import android.view.ContextMenu
 import dev.ujhhgtg.reflekt.reflekt
 import com.xiao.feng.R
-import com.xiao.feng.dexkit.abc.IResolveDex
-import com.xiao.feng.dexkit.dsl.dexMethod
+import com.xiao.feng.featurepoints.abc.IResolveDex
+import com.xiao.feng.featurepoints.dsl.dexMethod
 import com.xiao.feng.features.core.ApiFeature
 import com.xiao.feng.features.core.FeatureCategoryIds
 import com.xiao.feng.utils.HookParam
@@ -39,50 +39,12 @@ object WeShortVideosShareMenuApi : ApiFeature(), IResolveDex {
         menuItems.remove(provider)
     }
 
-    private val methodCreateMenu1 by dexMethod {
-        searchPackages("com.tencent.mm.plugin.finder.feed")
-        matcher {
-            name = "onCreateMMMenu"
-            usingEqStrings("pos is error ")
-        }
-    }
-    private val methodOnSelectMenuItem1 by dexMethod {
-        searchPackages("com.tencent.mm.plugin.finder.feed")
-        matcher {
-            name = "onMMMenuItemSelected"
-            usingEqStrings("[getMoreMenuItemSelectedListener] feed ")
-        }
-    }
-    private val methodCreateMenu2 by dexMethod {
-        searchPackages("com.tencent.mm.plugin.finder.feed")
-        matcher {
-            usingEqStrings("feed", "menu", "sheet", "holder", "KEY_FINDER_SELF_FLAG")
-        }
-    }
-    private val methodOnSelectMenuItem2 by dexMethod {
-        searchPackages("com.tencent.mm.plugin.finder.feed")
-        matcher {
-            declaredClass {
-                usingEqStrings("Finder.FinderLoaderFeedUIContract.Presenter")
-            }
-
-            usingEqStrings("getMoreMenuItemSelectedListener feed ")
-        }
-    }
-    private val methodCreateMenu3 by dexMethod {
-        searchPackages("com.tencent.mm.plugin.finder.feed")
-        matcher {
-            name = "onCreateMMMenu"
-            usingEqStrings("getCreateSecondMoreMenuListener: username=")
-        }
-    }
-    private val methodOnSelectMenuItem3 by dexMethod {
-        searchPackages("com.tencent.mm.plugin.finder.feed")
-        matcher {
-            name = "onMMMenuItemSelected"
-            usingEqStrings("button_speedplay", "ref_eid")
-        }
-    }
+    private val methodCreateMenu1 by dexMethod()
+    private val methodOnSelectMenuItem1 by dexMethod()
+    private val methodCreateMenu2 by dexMethod()
+    private val methodOnSelectMenuItem2 by dexMethod()
+    private val methodCreateMenu3 by dexMethod()
+    private val methodOnSelectMenuItem3 by dexMethod()
 
     override fun onEnable() {
         methodCreateMenu1.hookBefore {

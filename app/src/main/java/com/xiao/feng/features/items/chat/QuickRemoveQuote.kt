@@ -4,8 +4,8 @@ import android.view.KeyEvent
 import com.tencent.mm.pluginsdk.ui.chat.ChatFooter
 import dev.ujhhgtg.reflekt.reflekt
 import com.xiao.feng.R
-import com.xiao.feng.dexkit.abc.IResolveDex
-import com.xiao.feng.dexkit.dsl.dexMethod
+import com.xiao.feng.featurepoints.abc.IResolveDex
+import com.xiao.feng.featurepoints.dsl.dexMethod
 import com.xiao.feng.features.core.FeatureCategoryIds
 import com.xiao.feng.features.core.SwitchFeature
 
@@ -16,21 +16,8 @@ object QuickRemoveQuote : SwitchFeature(), IResolveDex {
     override val categoryIds = listOf(FeatureCategoryIds.CHAT)
     override val descriptionRes = R.string.feature_quick_remove_quote_description
 
-    private val methodSupportAutoCompleteOnKey by dexMethod {
-        searchPackages("com.tencent.mm.pluginsdk.ui.chat")
-        matcher {
-            name = "onKey"
-            usingEqStrings("ChatFooterKtHelper", "supportAutoComplete err")
-        }
-    }
-    private val methodShowMsgQuoteContainer by dexMethod {
-        matcher {
-            declaredClass = "com.tencent.mm.pluginsdk.ui.chat.ChatFooter"
-            paramTypes("boolean", "boolean")
-            returnType = "void"
-            usingEqStrings("")
-        }
-    }
+    private val methodSupportAutoCompleteOnKey by dexMethod()
+    private val methodShowMsgQuoteContainer by dexMethod()
 
     override fun onEnable() {
         methodSupportAutoCompleteOnKey.hookBefore {

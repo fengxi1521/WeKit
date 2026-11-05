@@ -11,8 +11,8 @@ import androidx.compose.ui.res.stringResource
 import com.composables.icons.materialsymbols.MaterialSymbols
 import com.composables.icons.materialsymbols.outlined.Alternate_email
 import com.xiao.feng.R
-import com.xiao.feng.dexkit.abc.IResolveDex
-import com.xiao.feng.dexkit.dsl.dexMethod
+import com.xiao.feng.featurepoints.abc.IResolveDex
+import com.xiao.feng.featurepoints.dsl.dexMethod
 import com.xiao.feng.features.api.core.WeApi
 import com.xiao.feng.features.api.core.WeDatabaseApi
 import com.xiao.feng.features.api.core.WeMessageApi
@@ -75,13 +75,7 @@ object MentionMembers : SwitchFeature(), IResolveDex {
     private var pendingStealthAt: Pair<String, String>? = null
 
     // MsgSourceHelper 节点合并方法: static (msgInfo, String nodeXml, boolean) -> void
-    private val methodMergeMsgSourceNode by dexMethod {
-        matcher {
-            usingEqStrings("(?s)<alnode[^>]*>.*?</alnode>")
-            paramCount(3)
-            returnType("void")
-        }
-    }
+    private val methodMergeMsgSourceNode by dexMethod()
 
     private fun showSettingsDialog(context: Context) {
         showComposeDialog(context) {

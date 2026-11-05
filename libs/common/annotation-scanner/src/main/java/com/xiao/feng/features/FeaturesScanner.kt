@@ -28,7 +28,6 @@ private const val FEATURES_CORE_PACKAGE = "$PACKAGE_NAME.features.core"
 private const val EXTENSIONS_PACKAGE = "$PACKAGE_NAME.extensions"
 private const val BASE_FEATURE = "$FEATURES_CORE_PACKAGE.BaseFeature"
 private const val EXTENSION_PACK = "$EXTENSIONS_PACKAGE.ExtensionPack"
-private const val RESOLVER_INTERFACE = "$PACKAGE_NAME.dexkit.abc.IResolveDex"
 
 class FeaturesKspProvider : SymbolProcessorProvider {
     override fun create(environment: SymbolProcessorEnvironment): SymbolProcessor =
@@ -74,7 +73,6 @@ class FeaturesScanner(
         }
 
         generateFeaturesProvider(features)
-        generateDexResolutionRegistry(features.filter { it.isSubtypeOf(RESOLVER_INTERFACE) })
         generateExtensionPacksProvider(extensionPacks)
         return emptyList()
     }
@@ -138,37 +136,6 @@ class FeaturesScanner(
             .build()
         FileSpec.builder(FEATURES_CORE_PACKAGE, "FeaturesProvider")
             .addType(provider)
-            .build()
-            .writeTo(codeGenerator, dependencies(symbols))
-    }
-
-    private fun generateDexResolutionRegistry(symbols: List<KSClassDeclaration>) {
-        val entryType = ClassName(FEATURES_CORE_PACKAGE, "DexResolutionTestEntry")
-        val stringType = ClassName("kotlin", "String")
-        val entryClass = TypeSpec.classBuilder(entryType.simpleName)
-            .addModifiers(com.squareup.kotlinpoet.KModifier.DATA)
-            .primaryConstructor(FunSpec.constructorBuilder().addParameter("className", stringType).build())
-            .addProperty(PropertySpec.builder("className", stringType).initializer("className").build())
-            .build()
-        val entries = CodeBlock.builder().apply {
-            add("listOf(\n")
-            indent()
-            symbols.forEach { add("%T(%S),\n", entryType, it.qualifiedName!!.asString()) }
-            unindent()
-            add(")")
-        }.build()
-        val registry = TypeSpec.objectBuilder("DexResolutionTestRegistry")
-            .addProperty(
-                PropertySpec.builder(
-                    "ITEMS",
-                    ClassName("kotlin.collections", "List").parameterizedBy(entryType),
-                ).initializer(entries).build(),
-            )
-            .addKdoc("Auto-generated lazy registry for desktop DexKit tests.\n")
-            .build()
-        FileSpec.builder(FEATURES_CORE_PACKAGE, "DexResolutionTestRegistry")
-            .addType(entryClass)
-            .addType(registry)
             .build()
             .writeTo(codeGenerator, dependencies(symbols))
     }

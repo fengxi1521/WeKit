@@ -5,9 +5,9 @@ import android.view.MotionEvent
 import android.view.View
 import dev.ujhhgtg.reflekt.reflekt
 import com.xiao.feng.R
-import com.xiao.feng.dexkit.abc.IResolveDex
-import com.xiao.feng.dexkit.dsl.dexField
-import com.xiao.feng.dexkit.dsl.dexMethod
+import com.xiao.feng.featurepoints.abc.IResolveDex
+import com.xiao.feng.featurepoints.dsl.dexField
+import com.xiao.feng.featurepoints.dsl.dexMethod
 import com.xiao.feng.features.core.FeatureCategoryIds
 import com.xiao.feng.features.core.SwitchFeature
 
@@ -39,31 +39,7 @@ object NoCloseVideoPlayerOnClick : SwitchFeature(), IResolveDex {
         }
     }
 
-    private val fieldSeekBarController by dexField {
-        matcher {
-            declaredClass = "com.tencent.mm.plugin.sns.ui.SnsOnlineVideoActivity"
-            // Identify ISnsVideoSeekBar by its init signature, independent of field order.
-            type {
-                methods {
-                    add {
-                        returnType = "void"
-                        paramTypes(
-                            "android.app.Activity",
-                            "android.view.ViewStub",
-                            "com.tencent.mm.plugin.sns.ui.OnlineVideoView",
-                            null
-                        )
-                    }
-                }
-            }
-        }
-    }
+    private val fieldSeekBarController by dexField()
 
-    private val methodVideoOnTouchListenerOnTouch by dexMethod {
-        searchPackages("com.tencent.mm.plugin.sns.ui")
-        matcher {
-            name = "onTouch"
-            usingEqStrings("com/tencent/mm/plugin/sns/ui/SnsOnlineVideoActivity$5", $$"android/view/View$OnTouchListener", "onTouch")
-        }
-    }
+    private val methodVideoOnTouchListenerOnTouch by dexMethod()
 }

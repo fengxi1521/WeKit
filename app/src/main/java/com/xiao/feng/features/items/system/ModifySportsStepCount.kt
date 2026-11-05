@@ -22,8 +22,8 @@ import com.composables.icons.materialsymbols.MaterialSymbols
 import com.composables.icons.materialsymbols.outlined.Upload
 import dev.ujhhgtg.reflekt.utils.createInstance
 import com.xiao.feng.R
-import com.xiao.feng.dexkit.abc.IResolveDex
-import com.xiao.feng.dexkit.dsl.dexMethod
+import com.xiao.feng.featurepoints.abc.IResolveDex
+import com.xiao.feng.featurepoints.dsl.dexMethod
 import com.xiao.feng.features.core.ClickableFeature
 import com.xiao.feng.features.core.FeatureCategoryIds
 import com.xiao.feng.data.KvStore
@@ -52,18 +52,8 @@ object ModifySportsStepCount : ClickableFeature(), IResolveDex {
     override val categoryIds = listOf(FeatureCategoryIds.SYSTEM_PRIVACY)
     override val descriptionRes = R.string.feature_modify_sports_step_count_description
 
-    private val methodGetSteps by dexMethod {
-        searchPackages("com.tencent.mm.plugin.sport.model")
-        matcher {
-            usingEqStrings("MicroMsg.Sport.DeviceStepManager", "get today step from %s todayStep %d")
-        }
-    }
-    private val methodUploadSteps by dexMethod {
-        searchPackages("com.tencent.mm.plugin.sport.model")
-        matcher {
-            usingEqStrings("MicroMsg.Sport.DeviceStepManager", "update device Step time: %s stepCount: %s")
-        }
-    }
+    private val methodGetSteps by dexMethod()
+    private val methodUploadSteps by dexMethod()
 
     override fun onEnable() {
         migrateLegacySettings()

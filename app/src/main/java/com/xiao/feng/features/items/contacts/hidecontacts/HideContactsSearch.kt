@@ -2,7 +2,7 @@ package com.xiao.feng.features.items.contacts.hidecontacts
 
 import dev.ujhhgtg.reflekt.reflekt
 import dev.ujhhgtg.reflekt.utils.makeAccessible
-import com.xiao.feng.dexkit.dsl.DexMethodDelegate
+import com.xiao.feng.featurepoints.dsl.DexMethodDelegate
 import com.xiao.feng.features.items.contacts.HideContacts
 import com.xiao.feng.utils.WeLogger
 import java.lang.reflect.Field

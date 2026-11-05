@@ -11,8 +11,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.res.stringResource
 import com.xiao.feng.R
-import com.xiao.feng.dexkit.abc.IResolveDex
-import com.xiao.feng.dexkit.dsl.dexMethod
+import com.xiao.feng.featurepoints.abc.IResolveDex
+import com.xiao.feng.featurepoints.dsl.dexMethod
 import com.xiao.feng.features.core.ClickableFeature
 import com.xiao.feng.features.core.FeatureCategoryIds
 import com.xiao.feng.data.KvStore.prefOption
@@ -120,57 +120,9 @@ object RedirectDownloadPath : ClickableFeature(), IResolveDex {
         }
     }
 
-    private val methodDownloadFile by dexMethod {
-        searchPackages("com.tencent.mm.vfs")
-        matcher {
-            declaredClass {
-                usingStrings("VFS.VFSStrategy", "Found wrong moving file: ", "accountSalt")
-            }
-
-            paramTypes(BString)
-            returnType(BString)
-        }
-    }
-    private val methodInitDownloadAttach by dexMethod {
-        searchPackages("com.tencent.mm.pluginsdk.model.app")
-        matcher {
-            declaredClass {
-                usingStrings(
-                    "MicroMsg.AppMsgLogic",
-                    "summerbig initDownloadAttach msgLocalId[%d], msgXml[%s], downloadPath[%s]",
-                    "summerbig initDownloadAttach ret[%b], rowid[%d], field_totalLen[%d], type[%d], isLargeFile[%d], destFile[%s], msgLocalId[%s], stack[%s]"
-                )
-            }
-
-            paramTypes("long", "java.lang.String", "java.lang.String", "java.lang.String")
-            returnType(BString)
-        }
-    }
-    private val methodInsertDownloadAttach by dexMethod {
-        searchPackages("com.tencent.mm.pluginsdk.model.app")
-        matcher {
-            declaredClass {
-                usingStrings(
-                    "MicroMsg.AppMsgLogic",
-                    "summerbig initDownloadAttach ret[%b], rowid[%d], field_totalLen[%d], type[%d], isLargeFile[%d], destFile[%s], msgLocalId[%s], stack[%s]"
-                )
-            }
-
-            paramTypes(
-                "java.lang.String",
-                "long",
-                "java.lang.String",
-                "int",
-                "java.lang.String",
-                "java.lang.String",
-                "long",
-                "int",
-                "java.lang.String",
-                "int"
-            )
-            returnType(BString)
-        }
-    }
+    private val methodDownloadFile by dexMethod()
+    private val methodInitDownloadAttach by dexMethod()
+    private val methodInsertDownloadAttach by dexMethod()
 
     private fun ensureSaveDir(): String {
         val configured = File(currentSaveDir())

@@ -28,10 +28,9 @@ import com.tencent.mm.plugin.sns.ui.improve.ImproveSnsTimelineUI
 import com.tencent.mm.ui.widget.imageview.WeImageView
 import com.tencent.mm.view.recyclerview.WxRecyclerView
 import dev.ujhhgtg.reflekt.reflekt
-import com.xiao.feng.dexkit.abc.IResolveDex
-import com.xiao.feng.dexkit.dsl.data
-import com.xiao.feng.dexkit.dsl.dexField
-import com.xiao.feng.dexkit.dsl.dexMethod
+import com.xiao.feng.featurepoints.abc.IResolveDex
+import com.xiao.feng.featurepoints.dsl.dexField
+import com.xiao.feng.featurepoints.dsl.dexMethod
 import com.xiao.feng.features.api.ui.WeMomentsApi
 import com.xiao.feng.features.core.ClickableFeature
 import com.xiao.feng.features.core.FeatureCategoryIds
@@ -279,40 +278,15 @@ object DisplayDetails : ClickableFeature(), IResolveDex {
             .replace(PH_USER_NAME, userName)
     }
 
-    private val fieldSnsId by dexField {
-        matcher {
-            declaredClass(WeMomentsApi.classImproveSnsInfo.data.superClass!!.name)
-            name = "field_snsId"
-        }
-    }
+    private val fieldSnsId by dexField()
 
-    private val fieldUserName by dexField {
-        matcher {
-            declaredClass(WeMomentsApi.classImproveSnsInfo.data.superClass!!.name)
-            name = "field_userName"
-        }
-    }
+    private val fieldUserName by dexField()
 
-    private val fieldCreateTime by dexField {
-        matcher {
-            declaredClass(WeMomentsApi.classImproveSnsInfo.data.superClass!!.name)
-            name = "field_createTime"
-        }
-    }
+    private val fieldCreateTime by dexField()
 
-    private val fieldType by dexField {
-        matcher {
-            declaredClass(WeMomentsApi.classImproveSnsInfo.data.superClass!!.name)
-            name = "field_type"
-        }
-    }
+    private val fieldType by dexField()
 
-    private val methodGetTimeString by dexMethod(allowFailure = true) {
-        matcher {
-            declaredClass(WeMomentsApi.classImproveSnsInfo.data.name)
-            usingEqStrings("getTimeString")
-        }
-    }
+    private val methodGetTimeString by dexMethod()
 
     private fun locateSnsInfo(itemView: View): Any? {
         val interactionView = itemView.findViewWhich {

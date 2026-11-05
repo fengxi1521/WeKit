@@ -37,8 +37,8 @@ import com.tencent.mm.pluginsdk.ui.chat.ChatFooter
 import dev.ujhhgtg.reflekt.reflekt
 import dev.ujhhgtg.reflekt.utils.Modifiers
 import com.xiao.feng.R
-import com.xiao.feng.dexkit.abc.IResolveDex
-import com.xiao.feng.dexkit.dsl.dexMethod
+import com.xiao.feng.featurepoints.abc.IResolveDex
+import com.xiao.feng.featurepoints.dsl.dexMethod
 import com.xiao.feng.features.core.ClickableFeature
 import com.xiao.feng.features.core.FeatureCategoryIds
 import com.xiao.feng.data.KvStore.prefOption
@@ -57,7 +57,6 @@ import com.xiao.feng.utils.android.showToast
 import com.xiao.feng.utils.captureOriginalMethod
 import com.xiao.feng.utils.invokeOriginalMethod
 import com.xiao.feng.utils.reflection.int
-import org.luckypray.dexkit.query.enums.MatchType
 import kotlin.math.abs
 import kotlin.math.atan2
 import kotlin.math.sqrt
@@ -77,23 +76,8 @@ object EmojiGameControl : ClickableFeature(), IResolveDex {
     private const val MOTION_THRESHOLD = 2.0f
     private const val TAG = "EmojiGameControl"
 
-    private val methodRandom by dexMethod {
-        searchPackages("com.tencent.mm.sdk.platformtools")
-        matcher {
-            returnType(Int::class.java)
-            paramTypes(Int::class.java, Int::class.java)
-            invokeMethods {
-                add { name = "currentTimeMillis" }
-                add { name = "nextInt" }
-                matchType = MatchType.Contains
-            }
-        }
-    }
-    private val methodPanelClick by dexMethod {
-        matcher {
-            usingEqStrings("MicroMsg.EmojiPanelClickListener")
-        }
-    }
+    private val methodRandom by dexMethod()
+    private val methodPanelClick by dexMethod()
 
     private var valMorra = 0
     private var valDice = 0

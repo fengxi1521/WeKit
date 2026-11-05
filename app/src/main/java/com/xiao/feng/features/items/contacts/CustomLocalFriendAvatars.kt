@@ -47,10 +47,9 @@ import dev.ujhhgtg.reflekt.utils.toClass
 import com.xiao.feng.activity.TransparentActivity
 import com.xiao.feng.data.AssetStore
 import com.xiao.feng.constants.PackageNames
-import com.xiao.feng.dexkit.abc.IResolveDex
-import com.xiao.feng.dexkit.dsl.data
-import com.xiao.feng.dexkit.dsl.dexClass
-import com.xiao.feng.dexkit.dsl.dexMethod
+import com.xiao.feng.featurepoints.abc.IResolveDex
+import com.xiao.feng.featurepoints.dsl.dexClass
+import com.xiao.feng.featurepoints.dsl.dexMethod
 import com.xiao.feng.features.api.core.WeDatabaseApi
 import com.xiao.feng.features.api.core.models.IWeContact
 import com.xiao.feng.features.api.ui.WeContactPrefsScreenApi
@@ -83,7 +82,6 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.Json
-import org.luckypray.dexkit.DexKitBridge
 import java.lang.reflect.Field
 import java.lang.reflect.Method
 import java.text.Collator
@@ -131,159 +129,33 @@ object CustomLocalFriendAvatars : ClickableFeature(), IContactInfoProvider, IRes
     @Volatile
     private var loadedAvatarRevision = Long.MIN_VALUE
 
-    private val methodNotificationAvatar by dexMethod {
-        matcher {
-            paramTypes("android.content.Context", "java.lang.String", "java.lang.String")
-            returnType = "android.graphics.Bitmap"
-            usingEqStrings("MicroMsg.NotificationAvatar", "wcf://avatar/")
-        }
-    }
+    private val methodNotificationAvatar by dexMethod()
 
-    private val methodDesktopShortcut by dexMethod {
-        matcher {
-            paramTypes("android.content.Context", "java.lang.String", "boolean", "java.lang.String")
-            returnType = "android.content.Intent"
-            usingEqStrings(
-                "MicroMsg.ShortcutManager", "getScaledBitmap fail, bmp is null",
-                "com.tencent.qlauncher.extra.EXTRA_PUSH_ITEM_UNIQUE_ID",
-            )
-        }
-    }
+    private val methodDesktopShortcut by dexMethod()
 
-    private val methodAddressLayout by dexMethod {
-        matcher {
-            declaredClass = "com.tencent.mm.ui.contact.address.MvvmAddressUIFragment"
-            name = "getLayoutView"
-            paramCount = 0
-            returnType = "android.view.View"
-        }
-    }
+    private val methodAddressLayout by dexMethod()
 
     // ji1.s.og, most of com.tencent.mm.feature.avatar.w calls this,
     // e.g. Cg, ig, cg, og, rg
-    private val methodMvvmLoadAvatar1 by dexMethod(allowFailure = true) {
-        matcher {
-            paramTypes(
-                "android.widget.ImageView",
-                "java.lang.String",
-                "java.lang.String",
-                "float"
-            )
-            returnType(Void.TYPE)
-            usingEqStrings("MicroMsg.AvatarGetContactServiceHelper", "put stack into pool: ")
-        }
-    }
+    private val methodMvvmLoadAvatar1 by dexMethod()
 
     // ji1.s.pg: another exception
-    private val methodMvvmLoadAvatar2 by dexMethod(allowFailure = true) {
-        matcher {
-            declaredClass {
-                usingEqStrings("MicroMsg.AvatarGetContactServiceHelper", "put stack into pool: ")
-            }
+    private val methodMvvmLoadAvatar2 by dexMethod()
 
-            usingEqStrings("imageView")
-            paramTypes(
-                "android.widget.ImageView",
-                "java.lang.String",
-            )
-            returnType(Void.TYPE)
-            usingNumbers(30000)
-        }
-    }
-
-    private val classAvatarDrawable by dexClass {
-        searchPackages("com.tencent.mm.feature.avatar")
-        matcher {
-            usingEqStrings("MicroMsg.AvatarDrawable", "imageView is null", "?access_token=")
-        }
-    }
+    private val classAvatarDrawable by dexClass()
 
     // com.tencent.mm.feature.avatar.w.pg; an exception: this doesn't call methodMvvmLoadAvatar
     private val methodFeatureAvatarSimple1 by dexMethod()
 
-    override fun resolveDex(dexKit: DexKitBridge) {
-        methodFeatureAvatarSimple1.setDescriptor(
-            dexKit.findMethod {
-                matcher {
-                    declaredClass(classAvatarDrawable.data.name)
-                    paramTypes(
-                        "android.widget.ImageView",
-                        "java.lang.String"
-                    )
-                    returnType(Void.TYPE)
 
-                    usingNumbers(0.5f)
-                }
-            }.singleOrNull() ?: dexKit.findMethod {
-                matcher {
-                    declaredClass(classAvatarDrawable.data.name)
-                    paramTypes(
-                        "android.widget.ImageView",
-                        "java.lang.String"
-                    )
-                    returnType(Void.TYPE)
+    private val methodPluginsdkLoadAvatar by dexMethod()
 
-                    addInvoke {
-                        declaredClass = "android.view.View"
-                        name = "invalidate"
-                    }
-                }
-            }.single()
-        )
-    }
+    private val methodHdGallerySetUsername by dexMethod()
 
-    private val methodPluginsdkLoadAvatar by dexMethod(allowFailure = true) {
-        searchPackages("com.tencent.mm.pluginsdk.ui")
-        matcher {
-            paramTypes(
-                "android.widget.ImageView",
-                "java.lang.String"
-            )
-            returnType(Void.TYPE)
-            usingEqStrings("MicroMsg.AvatarDrawable")
-        }
-    }
-
-    private val methodHdGallerySetUsername by dexMethod(allowFailure = true) {
-        matcher {
-            declaredClass = "com.tencent.mm.plugin.setting.ui.setting.view.GetHdHeadImageGalleryView"
-            name = "setUsername"
-            paramTypes("java.lang.String")
-            returnType(Void.TYPE)
-        }
-    }
-
-    private val methodRoundBitmap by dexMethod(allowFailure = true) {
-        searchPackages("com.tencent.mm.sdk.platformtools")
-        matcher {
-            paramTypes("android.graphics.Bitmap", "boolean", "float")
-            returnType = "android.graphics.Bitmap"
-
-            addInvoke {
-                usingEqStrings("MicroMsg.BitmapUtil", "getRoundedCornerBitmap in bitmap is null")
-            }
-        }
-    }
+    private val methodRoundBitmap by dexMethod()
 
     // com.tencent.mm.pluginsdk.ui.u.b
-    val methodConversationAvatar by dexMethod {
-        searchPackages("com.tencent.mm.pluginsdk.ui")
-        matcher {
-            usingEqStrings("MicroMsg.AvatarDrawable", "imageView is null")
-            paramTypes(
-                "android.widget.ImageView",
-                "java.lang.String",
-                "float",
-                "boolean"
-            )
-            returnType = "void"
-
-            addInvoke {
-                declaredClass = "android.view.View"
-                name = "invalidate"
-            }
-        }
-    }
+    val methodConversationAvatar by dexMethod()
 
     @Volatile
     private var avatarUsernamesCache: Set<String>? = null

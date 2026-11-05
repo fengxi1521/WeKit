@@ -5,9 +5,9 @@ import android.view.ViewGroup
 import android.widget.TextView
 import dev.ujhhgtg.reflekt.reflekt
 import com.xiao.feng.R
-import com.xiao.feng.dexkit.abc.IResolveDex
-import com.xiao.feng.dexkit.dsl.dexClass
-import com.xiao.feng.dexkit.dsl.dexMethod
+import com.xiao.feng.featurepoints.abc.IResolveDex
+import com.xiao.feng.featurepoints.dsl.dexClass
+import com.xiao.feng.featurepoints.dsl.dexMethod
 import com.xiao.feng.features.api.core.WePaymentApi
 import com.xiao.feng.features.core.FeatureCategoryIds
 import com.xiao.feng.features.core.SwitchFeature
@@ -33,23 +33,9 @@ object DisplayRedPacketDetails : SwitchFeature(), IResolveDex {
 
     private const val TAG = "DisplayRedPacketDetails"
 
-    private val methodOnBindListView by dexMethod {
-        matcher {
-            usingStrings(
-                "MicroMsg.LuckyMoneyDetailUI",
-                "try get user contact: %s"
-            )
-        }
-    }
+    private val methodOnBindListView by dexMethod()
 
-    private val classNetSceneLuckyMoneyDetail by dexClass {
-        matcher {
-            usingStrings(
-                "MicroMsg.NetSceneLuckyMoneyDetail",
-                "/cgi-bin/mmpay-bin/qrydetailwxhb"
-            )
-        }
-    }
+    private val classNetSceneLuckyMoneyDetail by dexClass()
 
     override fun onEnable() {
         methodOnBindListView.hookAfter {

@@ -7,9 +7,9 @@ import androidx.annotation.StringRes
 import dev.ujhhgtg.reflekt.reflected.BaseReflectedMethod
 import dev.ujhhgtg.reflekt.reflected.ReflectedConstructor
 import dev.ujhhgtg.reflekt.reflekt
-import com.xiao.feng.dexkit.dsl.BaseDexDelegate
-import com.xiao.feng.dexkit.dsl.DexConstructorDelegate
-import com.xiao.feng.dexkit.dsl.DexMethodDelegate
+import com.xiao.feng.featurepoints.dsl.BaseDexDelegate
+import com.xiao.feng.featurepoints.dsl.DexConstructorDelegate
+import com.xiao.feng.featurepoints.dsl.DexMethodDelegate
 import com.xiao.feng.utils.HookAction
 import com.xiao.feng.utils.HookHandle
 import com.xiao.feng.utils.HookParam
@@ -18,7 +18,6 @@ import com.xiao.feng.utils.TargetProcesses
 import com.xiao.feng.utils.WeLogger
 import com.xiao.feng.utils.hookAfterDirectly
 import com.xiao.feng.utils.hookBeforeDirectly
-import org.luckypray.dexkit.DexKitBridge
 import java.lang.reflect.Executable
 import kotlin.reflect.KClass
 
@@ -89,10 +88,6 @@ abstract class BaseFeature {
     fun registerDexDelegate(d: BaseDexDelegate) {
         d.owner = this
         _dexDelegates += d
-    }
-
-    fun resolveInlineDex(dexKit: DexKitBridge) {
-        dexDelegates.forEach { it.findInline(dexKit) }
     }
 
     val unhooks = mutableListOf<HookHandle>()

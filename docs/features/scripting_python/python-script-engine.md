@@ -31,20 +31,8 @@ This produces `dist/extensions/python-runtime-<content-hash>.apk` and `xfeng-pyt
 
 Plugins live in `XiaoFeng/scripts_python/<reverse-dns-id>/` and contain `plugin.json` plus an entry module. New plugins are disabled by default. Enabling one starts the process-local runtime on demand and calls `setup(ctx)` in a private `_xfeng_plugins.<encoded-id>` namespace. `ctx.defer`, hook tokens and task handles are released in LIFO order during disable or reload.
 
-`xfeng.dexkit` is generated from DexKit 2.2.0's AAR. It exposes every public
-matcher, matcher collection and query enum as a typed Python class, with
-snake-case methods, typed overloads and the canonical JVM method aliases. A
-binding recursively unwraps nested Python bindings before calling DexKit and
-wraps matcher results again; the underlying JVM object is not the public API.
-Constructor keywords are generated from DexKit's fluent setters, so
-`MethodMatcher(return_type="void", param_count=1, using_strings=[eq("foo")])`
-and the equivalent fluent chain are the same binding.
-
-`ctx.dex` accepts these real bindings for class, method, constructor and field
-queries. Queries use XiaoFeng's shared DexKit lease off the UI thread and return
-descriptors tagged with the current host version/build rather than
-process-stale reflection objects. The generated `.pyi` files ship in
-`xfeng-python-sdk.zip` with the runtime and examples.
+The runtime does not bundle DexKit. Plugins access classes and members through the
+normal Java bridge (`ctx.jvm`) and the reflection helpers available from the host.
 
 The manager remains available when the runtime pack is absent. Missing runtime state is shown as `RUNTIME_MISSING`; XiaoFeng does not download it or show an installation dialog during WeChat startup.
 

@@ -20,8 +20,8 @@ import androidx.dynamicanimation.animation.DynamicAnimation
 import androidx.dynamicanimation.animation.SpringAnimation
 import androidx.dynamicanimation.animation.SpringForce
 import com.xiao.feng.R
-import com.xiao.feng.dexkit.abc.IResolveDex
-import com.xiao.feng.dexkit.dsl.dexMethod
+import com.xiao.feng.featurepoints.abc.IResolveDex
+import com.xiao.feng.featurepoints.dsl.dexMethod
 import com.xiao.feng.features.api.core.models.MessageInfo
 import com.xiao.feng.features.api.core.WeMessageApi
 import com.xiao.feng.features.core.ClickableFeature
@@ -149,15 +149,7 @@ object MessageEntranceAnimation : ClickableFeature(), IResolveDex {
      * 用于读取稳定的 `field_msgId` / `field_createTime` / `field_isSend` 字段。
      * 所有支持版本均存在, 按项目约定不加 allowFailure。
      */
-    private val methodChattingAdapterGetItem by dexMethod {
-        matcher {
-            declaredClass {
-                usingEqStrings("MicroMsg.ChattingDataAdapterV3")
-            }
-            name = "getItem"
-            paramTypes(Int::class.java)
-        }
-    }
+    private val methodChattingAdapterGetItem by dexMethod()
 
     override fun onEnable() {
         WeMessageApi.methodChattingDataAdapterOnBindViewHolder.hookAfter {

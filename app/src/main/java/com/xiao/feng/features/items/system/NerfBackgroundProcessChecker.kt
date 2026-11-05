@@ -1,8 +1,8 @@
 package com.xiao.feng.features.items.system
 
 import com.xiao.feng.R
-import com.xiao.feng.dexkit.abc.IResolveDex
-import com.xiao.feng.dexkit.dsl.dexMethod
+import com.xiao.feng.featurepoints.abc.IResolveDex
+import com.xiao.feng.featurepoints.dsl.dexMethod
 import com.xiao.feng.features.core.FeatureCategoryIds
 import com.xiao.feng.features.core.SwitchFeature
 
@@ -13,11 +13,7 @@ object NerfBackgroundProcessChecker : SwitchFeature(), IResolveDex {
     override val categoryIds = listOf(FeatureCategoryIds.SYSTEM_PRIVACY)
     override val descriptionRes = R.string.feature_nerf_background_process_checker_description
 
-    private val methodPerformProcessCheck by dexMethod {
-        matcher {
-            usingEqStrings("MicroMsg.AbstractProcessChecker", "pass this check,because request is null! ????")
-        }
-    }
+    private val methodPerformProcessCheck by dexMethod()
 
     override fun onEnable() {
         methodPerformProcessCheck.hookBefore {

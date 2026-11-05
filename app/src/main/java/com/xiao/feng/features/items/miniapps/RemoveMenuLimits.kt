@@ -1,14 +1,12 @@
 package com.xiao.feng.features.items.miniapps
 
 import com.xiao.feng.R
-import com.xiao.feng.dexkit.abc.IResolveDex
-import com.xiao.feng.dexkit.dsl.dexMethod
+import com.xiao.feng.featurepoints.abc.IResolveDex
+import com.xiao.feng.featurepoints.dsl.dexMethod
 import com.xiao.feng.features.core.FeatureCategoryIds
 import com.xiao.feng.features.core.SwitchFeature
 import com.xiao.feng.utils.TargetProcess
 import com.xiao.feng.utils.enumValueOfClass
-import org.luckypray.dexkit.query.enums.StringMatchType
-import org.luckypray.dexkit.query.matchers.base.AccessFlagsMatcher
 import java.lang.reflect.Modifier
 
 object RemoveMenuLimits : SwitchFeature(), IResolveDex {
@@ -37,38 +35,7 @@ object RemoveMenuLimits : SwitchFeature(), IResolveDex {
         }
     }
 
-    private val methodGetMenuItemVisibility1 by dexMethod {
-        searchPackages("com.tencent.mm.plugin.appbrand.menu")
+    private val methodGetMenuItemVisibility1 by dexMethod()
 
-        matcher {
-            declaredClass {
-                superClass {
-                    modifiers(AccessFlagsMatcher(Modifier.ABSTRACT))
-                }
-
-                addMethod {
-                    usingNumbers(39)
-                }
-            }
-
-            returnType("com.tencent.mm.plugin.appbrand.menu", StringMatchType.Contains)
-        }
-    }
-
-    private val methodGetMenuItemVisibility2 by dexMethod {
-        searchPackages("com.tencent.mm.plugin.appbrand.menu")
-        matcher {
-            declaredClass {
-                superClass {
-                    modifiers(AccessFlagsMatcher(Modifier.ABSTRACT))
-                }
-
-                addMethod {
-                    usingNumbers(30)
-                }
-            }
-
-            returnType("com.tencent.mm.plugin.appbrand.menu", StringMatchType.Contains)
-        }
-    }
+    private val methodGetMenuItemVisibility2 by dexMethod()
 }

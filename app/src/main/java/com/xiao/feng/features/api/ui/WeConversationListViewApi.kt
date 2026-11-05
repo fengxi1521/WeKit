@@ -14,19 +14,17 @@ import androidx.core.view.isGone
 import dev.ujhhgtg.reflekt.reflekt
 import dev.ujhhgtg.reflekt.utils.makeAccessible
 import com.xiao.feng.R
-import com.xiao.feng.dexkit.abc.IResolveDex
-import com.xiao.feng.dexkit.dsl.DexMethodDelegate
-import com.xiao.feng.dexkit.dsl.data
-import com.xiao.feng.dexkit.dsl.dexClass
-import com.xiao.feng.dexkit.dsl.dexField
-import com.xiao.feng.dexkit.dsl.dexMethod
+import com.xiao.feng.featurepoints.abc.IResolveDex
+import com.xiao.feng.featurepoints.dsl.DexMethodDelegate
+import com.xiao.feng.featurepoints.dsl.dexClass
+import com.xiao.feng.featurepoints.dsl.dexField
+import com.xiao.feng.featurepoints.dsl.dexMethod
 import com.xiao.feng.features.core.ApiFeature
 import com.xiao.feng.features.core.FeatureCategoryIds
 import com.xiao.feng.ui.utils.findViewByChildIndexes
 import com.xiao.feng.utils.HookParam
 import com.xiao.feng.utils.WeLogger
 import com.xiao.feng.utils.android.runOnUiThread
-import org.luckypray.dexkit.DexKitBridge
 import java.lang.reflect.Field
 import java.lang.reflect.Modifier
 import java.lang.ref.WeakReference
@@ -80,52 +78,12 @@ object WeConversationListViewApi : ApiFeature(), IResolveDex {
     private var latestContainer: WeakReference<View>? = null
     private var latestBackend: Backend? = null
 
-    val methodLegacyGetView by dexMethod(allowFailure = true) {
-        searchPackages("com.tencent.mm.ui.conversation")
-        matcher {
-            name = "getView"
-            paramTypes("int", "android.view.View", "android.view.ViewGroup")
-            returnType = "android.view.View"
-            usingEqStrings(
-                "MicroMsg.ConversationWithCacheAdapter",
-                "Get Item duplicated: positionMaps: %s username [%s, %d] Map: %s datas: %d",
-            )
-        }
-    }
-    val methodMvvmGetView by dexMethod {
-        matcher {
-            declaredClass {
-                usingEqStrings(
-                    "MicroMsg.ConversationAdapter.MvvmConversationAdapter",
-                    "Get Item duplicated: positionMaps: %s username [%s, %d] Map: %s datas: %d",
-                )
-            }
-            name = "getView"
-            paramTypes("int", "android.view.View", "android.view.ViewGroup")
-            returnType = "android.view.View"
-        }
-    }
+    val methodLegacyGetView by dexMethod()
+    val methodMvvmGetView by dexMethod()
 
-    private val methodListViewCheckEmptyFooter by dexMethod {
-        matcher {
-            declaredClass = "com.tencent.mm.ui.conversation.ConversationListView"
-            paramCount = 0
-            returnType = "void"
-            usingEqStrings("[checkEmptyFooter] isRealFull:", "[checkEmptyFooter] setSelection")
-        }
-    }
+    private val methodListViewCheckEmptyFooter by dexMethod()
 
-    private val fieldListViewActionBar by dexField {
-        matcher {
-            declaredClass = "com.tencent.mm.ui.conversation.ConversationListView"
-            type = "android.view.View"
-            addReadMethod {
-                paramCount = 0
-                returnType = "void"
-                usingEqStrings("resetActionBarView")
-            }
-        }
-    }
+    private val fieldListViewActionBar by dexField()
 
     /** Common host interface implemented by both the ListView and RecyclerView adapters. */
     val classConversationAdapter by dexClass()
@@ -135,24 +93,7 @@ object WeConversationListViewApi : ApiFeature(), IResolveDex {
     val methodAdapterGetItem by dexMethod()
 
     /** MainUI's common list-host wrapper, used to reach whichever view backend is active. */
-    private val classConversationListHost by dexClass(allowFailure = true) {
-        searchPackages("com.tencent.mm.ui.conversation")
-        matcher {
-            modifiers(Modifier.PUBLIC or Modifier.ABSTRACT or Modifier.INTERFACE)
-            methods {
-                add {
-                    name = "addHeaderView"
-                    paramTypes(View::class.java)
-                    returnType = "void"
-                }
-                add {
-                    name = "removeHeaderView"
-                    paramTypes(View::class.java)
-                    returnType = "void"
-                }
-            }
-        }
-    }
+    private val classConversationListHost by dexClass()
 
     private val fieldMainUiListHost by dexField()
 
@@ -161,14 +102,7 @@ object WeConversationListViewApi : ApiFeature(), IResolveDex {
     private val methodListHostView by dexMethod()
 
     /** 8.0.78's optional RecyclerView conversation-list path. */
-    val classConversationRecyclerAdapter by dexClass(allowFailure = true) {
-        matcher {
-            usingEqStrings(
-                "MicroMsg.ConversationRecyclerAdapter",
-                "loadFirstPage size:",
-            )
-        }
-    }
+    val classConversationRecyclerAdapter by dexClass()
 
     private val methodRecyclerConversationBind by dexMethod()
 
@@ -192,179 +126,6 @@ object WeConversationListViewApi : ApiFeature(), IResolveDex {
 
     private val fieldRecyclerActionBar by dexField()
 
-    override fun resolveDex(dexKit: DexKitBridge) {
-        if (classConversationListHost.isPlaceholder) {
-            val reason = "common conversation list host is absent"
-            fieldMainUiListHost.setPlaceholderDescriptor(true, reason)
-            methodListHostAddHeaderView.setPlaceholderDescriptor(true, reason)
-            methodListHostView.setPlaceholderDescriptor(true, reason)
-        } else {
-            fieldMainUiListHost.find(dexKit) {
-                matcher {
-                    declaredClass = "com.tencent.mm.ui.conversation.MainUI"
-                    type(classConversationListHost.data.name)
-                }
-            }
-            methodListHostAddHeaderView.find(dexKit) {
-                matcher {
-                    declaredClass(classConversationListHost.data.name)
-                    name = "addHeaderView"
-                    paramTypes(View::class.java)
-                    returnType = "void"
-                }
-            }
-            methodListHostView.find(dexKit) {
-                matcher {
-                    declaredClass(classConversationListHost.data.name)
-                    paramCount = 0
-                    returnType(View::class.java)
-                }
-            }
-        }
-
-        if (classConversationRecyclerAdapter.isPlaceholder) {
-            val reason = "conversation RecyclerView architecture is absent"
-            classConversationAdapter.setPlaceholderDescriptor(true, reason)
-            methodAdapterGetCount.setPlaceholderDescriptor(true, reason)
-            methodAdapterGetItem.setPlaceholderDescriptor(true, reason)
-            methodRecyclerConversationBind.setPlaceholderDescriptor(true, reason)
-            fieldRecyclerHolderAdapter.setPlaceholderDescriptor(true, reason)
-            fieldRecyclerHolderView.setPlaceholderDescriptor(true, reason)
-            classConversationRecyclerView.setPlaceholderDescriptor(true, reason)
-            methodRecyclerAddHeaderView.setPlaceholderDescriptor(true, reason)
-            methodRecyclerAttachViewToParent.setPlaceholderDescriptor(true, reason)
-            methodRecyclerSetFoldBanner.setPlaceholderDescriptor(true, reason)
-            methodRecyclerFirstVisiblePosition.setPlaceholderDescriptor(true, reason)
-            methodRecyclerOnScrolled.setPlaceholderDescriptor(true, reason)
-            methodRecyclerOnScrollStateChanged.setPlaceholderDescriptor(true, reason)
-            fieldRecyclerActionBar.setPlaceholderDescriptor(true, reason)
-            return
-        }
-
-        val mvvmAdapter = dexKit.getClassData(methodMvvmGetView.data.declaredClassName)!!
-        val recyclerAdapter = classConversationRecyclerAdapter.data
-        val recyclerInterfaceNames = recyclerAdapter.interfaces.mapTo(mutableSetOf()) { it.name }
-        val adapterInterfaces = mvvmAdapter.interfaces
-            .filter { it.name in recyclerInterfaceNames }
-            .filter { candidate ->
-                candidate.methods.any {
-                    it.methodName == "getCount" &&
-                        it.paramTypeNames.isEmpty() &&
-                        it.returnTypeName == "int"
-                } && candidate.methods.any {
-                    it.methodName == "getItem" && it.paramTypeNames == listOf("int")
-                }
-            }
-        require(adapterInterfaces.size == 1) {
-            "expected one common conversation adapter interface, found: " +
-                adapterInterfaces.joinToString { it.name }
-        }
-        val adapterInterface = adapterInterfaces.single()
-        classConversationAdapter.setDescriptor(adapterInterface)
-        methodAdapterGetCount.setDescriptor(adapterInterface.methods.single {
-            it.methodName == "getCount" &&
-                it.paramTypeNames.isEmpty() &&
-                it.returnTypeName == "int"
-        })
-        methodAdapterGetItem.setDescriptor(adapterInterface.methods.single {
-            it.methodName == "getItem" && it.paramTypeNames == listOf("int")
-        })
-
-        methodRecyclerConversationBind.find(dexKit) {
-            matcher {
-                paramTypes(null, null, "int", "int", "boolean", "java.util.List")
-                returnType = "void"
-                usingEqStrings("GROUP_KEY_TOP")
-            }
-        }
-        val holderType = methodRecyclerConversationBind.data.paramTypeNames[0]
-        val recyclerAdapterFrameworkClass = generateSequence(
-            dexKit.getClassData(classConversationRecyclerAdapter.data.name)
-        ) { it.superClass }.first {
-            it.name.startsWith("androidx.recyclerview.widget.")
-        }
-        val holderClass = dexKit.getClassData(holderType)!!
-        fieldRecyclerHolderAdapter.setDescriptor(holderClass.fields.single {
-            it.typeName == recyclerAdapterFrameworkClass.name
-        })
-        fieldRecyclerHolderView.setDescriptor(holderClass.fields.single {
-            it.typeName == "androidx.recyclerview.widget.RecyclerView"
-        })
-
-        classConversationRecyclerView.find(dexKit) {
-            matcher {
-                usingEqStrings(
-                    "MicroMsg.ConversationRecyclerView",
-                    "[flushPendingHeaders] flushing %d headers",
-                )
-            }
-        }
-        fieldRecyclerActionBar.find(dexKit) {
-            matcher {
-                declaredClass(classConversationRecyclerView.data.name)
-                type = "android.view.View"
-                addReadMethod {
-                    paramCount = 0
-                    returnType = "void"
-                    usingEqStrings($$"resetActionBarView$app_release")
-                }
-            }
-        }
-        methodRecyclerAddHeaderView.find(dexKit) {
-            matcher {
-                declaredClass(classConversationRecyclerView.data.name)
-                name = "addHeaderView"
-                paramTypes(View::class.java)
-                returnType = "void"
-            }
-        }
-        methodRecyclerAttachViewToParent.find(dexKit) {
-            matcher {
-                declaredClass(classConversationRecyclerView.data.name)
-                name = "attachViewToParent"
-                paramTypes(
-                    View::class.java.name,
-                    "int",
-                    ViewGroup.LayoutParams::class.java.name,
-                )
-                returnType = "void"
-            }
-        }
-        methodRecyclerSetFoldBanner.find(dexKit) {
-            matcher {
-                declaredClass(classConversationRecyclerView.data.name)
-                name = "setFoldBanner"
-                paramTypes(View::class.java)
-                returnType = "void"
-            }
-        }
-        methodRecyclerFirstVisiblePosition.find(dexKit) {
-            matcher {
-                declaredClass(classConversationRecyclerView.data.name)
-                name = "getFirstVisiblePosition"
-                paramCount = 0
-                returnType = "int"
-            }
-        }
-        methodRecyclerOnScrolled.find(dexKit) {
-            matcher {
-                paramTypes("androidx.recyclerview.widget.RecyclerView", "int", "int")
-                returnType = "void"
-                usingEqStrings(
-                    "MicroMsg.ConversationRecyclerView",
-                    "[onScrolled] stop fling at HC edge: dy=%d firstView.top=%d scrollOffset=%d",
-                )
-            }
-        }
-        methodRecyclerOnScrollStateChanged.find(dexKit) {
-            matcher {
-                declaredClass(methodRecyclerOnScrolled.data.declaredClassName)
-                name = "onScrollStateChanged"
-                paramTypes("androidx.recyclerview.widget.RecyclerView", "int")
-                returnType = "void"
-            }
-        }
-    }
 
     override fun onEnable() {
         hookListBinding(methodLegacyGetView)

@@ -36,8 +36,8 @@ import androidx.core.graphics.toColorInt
 import dev.ujhhgtg.reflekt.reflekt
 import dev.ujhhgtg.reflekt.utils.makeAccessible
 import com.xiao.feng.R
-import com.xiao.feng.dexkit.abc.IResolveDex
-import com.xiao.feng.dexkit.dsl.dexMethod
+import com.xiao.feng.featurepoints.abc.IResolveDex
+import com.xiao.feng.featurepoints.dsl.dexMethod
 import com.xiao.feng.features.api.core.WeConversationApi
 import com.xiao.feng.features.api.ui.WeChatMessageViewApi
 import com.xiao.feng.features.items.contacts.GroupMemberRoleSpan
@@ -67,11 +67,7 @@ object DisplayGroupMemberRoles : ClickableFeature(), IResolveDex,
     override val categoryIds = listOf(FeatureCategoryIds.CHAT)
     override val descriptionRes = R.string.feature_display_group_member_roles_description
 
-    private val methodGetChatroomData by dexMethod {
-        matcher {
-            usingEqStrings("MicroMsg.ChatRoomMember", "getChatroomData hashMap is null!")
-        }
-    }
+    private val methodGetChatroomData by dexMethod()
 
     override fun onEnable() {
         WeChatMessageViewApi.addListener(this)

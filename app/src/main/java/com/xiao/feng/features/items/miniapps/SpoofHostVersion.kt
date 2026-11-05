@@ -1,9 +1,9 @@
 package com.xiao.feng.features.items.miniapps
 
 import com.xiao.feng.R
-import com.xiao.feng.dexkit.abc.IResolveDex
-import com.xiao.feng.dexkit.dsl.dexConstructor
-import com.xiao.feng.dexkit.dsl.dexMethod
+import com.xiao.feng.featurepoints.abc.IResolveDex
+import com.xiao.feng.featurepoints.dsl.dexConstructor
+import com.xiao.feng.featurepoints.dsl.dexMethod
 import com.xiao.feng.features.core.FeatureCategoryIds
 import com.xiao.feng.features.core.SwitchFeature
 import com.xiao.feng.utils.TargetProcess
@@ -41,20 +41,7 @@ object SpoofHostVersion : SwitchFeature(), IResolveDex {
         "https://szsupport.weixin.qq.com/update",
     )
 
-    private val methodPrivateOpenUrl by dexMethod {
-        matcher {
-            paramTypes(null, "org.json.JSONObject", "int")
-            returnType = "void"
-            usingEqStrings("private_openUrl", "rawUrl", "geta8key_open_webview_appid")
-        }
-    }
+    private val methodPrivateOpenUrl by dexMethod()
 
-    private val ctorCgiLaunchWxaAppFunc1122 by dexConstructor {
-        matcher {
-            usingEqStrings(
-                "MicroMsg.AppBrand.CgiLaunchWxaApp|func:1122",
-                "<init> cgiHash[%d], username[%s] appId[%s] sync[%b] sessionId[%s] instanceId[%s] libVersion[%d], source:%s, launchMode:%d, migrate:%b, fallback:%b"
-            )
-        }
-    }
+    private val ctorCgiLaunchWxaAppFunc1122 by dexConstructor()
 }

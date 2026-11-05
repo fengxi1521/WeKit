@@ -23,9 +23,9 @@ import com.xiao.feng.BuildConfig
 import com.xiao.feng.R
 import com.xiao.feng.activity.settings.SettingsActivity
 import com.xiao.feng.constants.PackageNames
-import com.xiao.feng.dexkit.abc.IResolveDex
-import com.xiao.feng.dexkit.dsl.dexClass
-import com.xiao.feng.dexkit.dsl.dexMethod
+import com.xiao.feng.featurepoints.abc.IResolveDex
+import com.xiao.feng.featurepoints.dsl.dexClass
+import com.xiao.feng.featurepoints.dsl.dexMethod
 import com.xiao.feng.features.core.ApiFeature
 import com.xiao.feng.features.core.FeatureCategoryIds
 import com.xiao.feng.i18n.LocaleResourceMode
@@ -35,8 +35,6 @@ import com.xiao.feng.utils.HostInfo
 import com.xiao.feng.utils.WeLogger
 import com.xiao.feng.utils.reflection.bool
 import com.xiao.feng.utils.reflection.int
-import org.luckypray.dexkit.DexKitBridge
-import org.luckypray.dexkit.query.enums.StringMatchType
 import java.lang.reflect.Modifier
 
 object WeSettingsInjector : ApiFeature(), IResolveDex, WeChatInputBarApi.IInputBarListener {
@@ -51,79 +49,14 @@ object WeSettingsInjector : ApiFeature(), IResolveDex, WeChatInputBarApi.IInputB
     private val methodAddPref by dexMethod()
 
     // modern method
-    private val classSettingItemClassesProvider by dexClass(allowFailure = true) {
-        matcher {
-            usingEqStrings("Repairer_Setting")
-
-            superClass {
-                usingEqStrings("type")
-            }
-        }
-    }
-    private val classBaseSettingItem by dexClass(allowFailure = true) {
-        matcher {
-            usingEqStrings("", "activity", "context", "intent")
-
-            addMethod {
-                name = "<init>"
-                paramTypes("androidx.appcompat.app.AppCompatActivity")
-            }
-
-            addInterface {
-                className("com.tencent.mm.plugin.newtips.model", StringMatchType.StartsWith)
-            }
-        }
-    }
-    private val classBaseSettingSwitchItem by dexClass(allowFailure = true) {
-        matcher {
-            usingEqStrings("activity", "context", "itemView", "1", "0")
-
-            addMethod {
-                returnType = "int"
-                usingNumbers(2)
-            }
-
-            addMethod {
-                name = "<init>"
-                paramTypes("androidx.appcompat.app.AppCompatActivity")
-                usingNumbers(1)
-            }
-
-            superClass {
-                usingEqStrings("activity")
-            }
-        }
-    }
-    private val classSettingLocation by dexClass(allowFailure = true) {
-        matcher {
-            usingEqStrings("SettingLocation(parentGroup=", ", frontItem=")
-        }
-    }
-    private val methodSettingGroupAccountInfoGetStringId by dexMethod(allowFailure = true) {
-        matcher {
-            declaredClass = "com.tencent.mm.plugin.setting.ui.setting_new.settings.SettingGroupAccountInfo"
-            usingEqStrings("SettingGroup_Main_AccountInfo")
-            returnType = "java.lang.String"
-        }
-    }
-    private val methodSettingGroupAccountInfoReturns1 by dexMethod(allowFailure = true) {
-        matcher {
-            declaredClass = "com.tencent.mm.plugin.setting.ui.setting_new.settings.SettingGroupAccountInfo"
-            usingNumbers(1)
-            returnType = "int"
-        }
-    }
-    private val methodSettingGroupPersonalInfoGetGroupNameResId by dexMethod(allowFailure = true) {
-        matcher {
-            declaredClass = "com.tencent.mm.plugin.setting.ui.setting_new.settings.SettingGroupPersonalInfo"
-            returnType = "java.lang.Integer"
-        }
-    }
-    private val methodResourceHelperGetStringById by dexMethod(allowFailure = true) {
-        matcher {
-            usingEqStrings("MicroMsg.ResourceHelper", "get string, resId %d, but context is null")
-        }
-    }
+    private val classSettingItemClassesProvider by dexClass()
+    private val classBaseSettingItem by dexClass()
+    private val classBaseSettingSwitchItem by dexClass()
+    private val classSettingLocation by dexClass()
+    private val methodSettingGroupAccountInfoGetStringId by dexMethod()
+    private val methodSettingGroupAccountInfoReturns1 by dexMethod()
+    private val methodSettingGroupPersonalInfoGetGroupNameResId by dexMethod()
+    private val methodResourceHelperGetStringById by dexMethod()
 //    private val methodPluginHelperLaunchIntent by dexMethod(allowFailure = true) {
 //        matcher {
 //            usingEqStrings("MicroMsg.PluginHelper", "start activity, need try load plugin[%B], entry:%s", "start activity error, context is null")
@@ -163,74 +96,6 @@ object WeSettingsInjector : ApiFeature(), IResolveDex, WeChatInputBarApi.IInputB
     private const val PREFS_KEY = "xfeng_settings_entry"
     private const val PREFERENCE_CLASS_NAME = "com.tencent.mm.ui.base.preference.Preference"
 
-    @SuppressLint("NonUniqueDexKitData")
-    override fun resolveDex(dexKit: DexKitBridge) {
-        val prefClass = dexKit.findClass {
-            matcher { className = PREFERENCE_CLASS_NAME }
-        }.single()
-
-        methodSetKey.find(dexKit, allowMultiple = true) {
-            searchPackages("com.tencent.mm.ui.base.preference")
-            matcher {
-                declaredClass = PREFERENCE_CLASS_NAME
-                returnType = "void"
-                paramTypes("java.lang.String")
-                usingStrings("Preference")
-            }
-        }
-
-        val setTitleCandidates = prefClass.findMethod {
-            matcher {
-                returnType = "void"
-                paramTypes("java.lang.CharSequence")
-            }
-        }
-        if (setTitleCandidates.isNotEmpty()) {
-            methodSetTitle.setDescriptor(setTitleCandidates.last())
-        }
-
-        val getKeyCandidates = prefClass.findMethod {
-            matcher {
-                paramCount = 0
-                returnType = "java.lang.String"
-            }
-        }
-
-        val targetGetKey = getKeyCandidates.firstOrNull { it.name != "toString" }
-
-        if (targetGetKey != null) {
-            methodGetKey.setDescriptor(targetGetKey)
-        }
-
-        val adapterClass = dexKit.findClass {
-            searchPackages("com.tencent.mm.ui.base.preference")
-            matcher {
-                superClass = "android.widget.BaseAdapter"
-                methods {
-                    add {
-                        modifiers = Modifier.PUBLIC
-                        name = "getView"
-                        paramCount = 3
-                    }
-                    add {
-                        name = "<init>"
-                        paramCount = 3
-                    }
-                }
-            }
-        }.singleOrNull()
-
-        if (adapterClass != null) {
-            methodAddPref.find(dexKit, allowMultiple = true) {
-                searchPackages("com.tencent.mm.ui.base.preference")
-                matcher {
-                    declaredClass = adapterClass.name
-                    paramTypes(PREFERENCE_CLASS_NAME, "int")
-                    returnType = "void"
-                }
-            }
-        }
-    }
 
     override fun onEnable() {
         runCatching {

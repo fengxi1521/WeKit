@@ -11,10 +11,9 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import dev.ujhhgtg.reflekt.reflekt
 import com.xiao.feng.R
-import com.xiao.feng.dexkit.abc.IResolveDex
-import com.xiao.feng.dexkit.dsl.data
-import com.xiao.feng.dexkit.dsl.dexClass
-import com.xiao.feng.dexkit.dsl.dexMethod
+import com.xiao.feng.featurepoints.abc.IResolveDex
+import com.xiao.feng.featurepoints.dsl.dexClass
+import com.xiao.feng.featurepoints.dsl.dexMethod
 import com.xiao.feng.features.api.core.WeMessageApi
 import com.xiao.feng.features.core.ClickableFeature
 import com.xiao.feng.features.core.FeatureCategoryIds
@@ -36,38 +35,10 @@ object QuotedMessageDirectJump : ClickableFeature(), IResolveDex {
     private var messageListDirectJump by prefOption("chat_quoted_direct_jump_message_list", true)
     private var inputBoxDirectJump by prefOption("chat_quoted_direct_jump_input_box", true)
 
-    private val methodClickEvent by dexMethod {
-        searchPackages("com.tencent.mm.ui.chatting.viewitems")
-        matcher {
-            usingEqStrings(
-                "MicroMsg.msgquote.QuoteMsgSourceClickLogic",
-                "handleItemClickEvent,quotedMsg is null!"
-            )
-        }
-    }
-    private val methodClickToPositionEvent by dexMethod {
-        matcher {
-            declaredClass(methodClickEvent.data.declaredClassName)
-            usingEqStrings(
-                "MicroMsg.msgquote.QuoteMsgSourceClickLogic",
-                "handleItemClickToPositionEvent,quotedMsg is null!"
-            )
-        }
-    }
-    private val methodGetQuoteMessageInfo by dexMethod {
-        matcher {
-            declaredClass(methodClickEvent.data.declaredClassName)
-            usingStrings(
-                "MicroMsg.msgquote.QuoteMsgSourceClickLogic",
-                "%s msgId:%s msgSvrId:%s"
-            )
-        }
-    }
-    private val classEnumQuoteJumpToPositionSource by dexClass(allowFailure = true) {
-        matcher {
-            usingEqStrings("QuoteLongClickFromQuoteView", "QuoteClickFromTextPreviewLocateView")
-        }
-    }
+    private val methodClickEvent by dexMethod()
+    private val methodClickToPositionEvent by dexMethod()
+    private val methodGetQuoteMessageInfo by dexMethod()
+    private val classEnumQuoteJumpToPositionSource by dexClass()
     override fun onEnable() {
         methodClickEvent.hookBefore {
             val isInputBox = args[1] == null

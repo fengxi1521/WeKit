@@ -2,14 +2,12 @@ package com.xiao.feng.features.api.core
 
 import android.util.Pair
 import com.xiao.feng.R
-import com.xiao.feng.dexkit.abc.IResolveDex
-import com.xiao.feng.dexkit.dsl.dexField
-import com.xiao.feng.dexkit.dsl.dexMethod
+import com.xiao.feng.featurepoints.abc.IResolveDex
+import com.xiao.feng.featurepoints.dsl.dexField
+import com.xiao.feng.featurepoints.dsl.dexMethod
 import com.xiao.feng.features.core.ApiFeature
 import com.xiao.feng.features.core.FeatureCategoryIds
 import com.xiao.feng.utils.WeLogger
-import org.luckypray.dexkit.DexKitBridge
-import org.luckypray.dexkit.result.FieldUsingType
 import java.lang.reflect.Modifier
 
 object WeAppMsgApi : ApiFeature(), IResolveDex {
@@ -28,63 +26,6 @@ object WeAppMsgApi : ApiFeature(), IResolveDex {
 
     private const val TAG = "WeAppMsgApi"
 
-    override fun resolveDex(dexKit: DexKitBridge) {
-        val classAppMsgContent = dexKit.findClass {
-            matcher {
-                usingStrings("<appmsg appid=\"", "parse amessage xml failed")
-            }
-        }.single()
-
-        val classAppMsgLogic = dexKit.findClass {
-            matcher {
-                usingStrings("MicroMsg.AppMsgLogic", "summerbig sendAppMsg attachFilePath")
-            }
-        }.single()
-
-        methodParseXml.find(dexKit, true) {
-            matcher {
-                declaredClass = classAppMsgContent.name
-                modifiers = Modifier.PUBLIC or Modifier.STATIC
-                paramTypes(String::class.java.name)
-                returnType = classAppMsgContent.name
-                usingStrings("parse msg failed")
-            }
-        }
-
-        methodSendAppMsg.find(dexKit) {
-            matcher {
-                declaredClass = classAppMsgLogic.name
-                modifiers = Modifier.STATIC
-                paramCount = 6
-                paramTypes(
-                    classAppMsgContent.name,
-                    "java.lang.String",
-                    null,
-                    null,
-                    null,
-                    null
-                )
-            }
-        }
-
-        val quoteItemField = classAppMsgContent.fields.single {
-            it.typeName == "com.tencent.mm.plugin.msgquote.model.MsgQuoteItem"
-        }
-        fieldQuoteItem.setDescriptor(quoteItemField)
-        // AppMsgLogic reads the outgoing msgSource, not the quoted message's msgsource.
-        fieldQuoteMsgSource.setDescriptor(
-            classAppMsgLogic.methods.asSequence()
-                .flatMap { it.usingFields.asSequence() }
-                .filter { it.usingType == FieldUsingType.Read }
-                .map { it.field }
-                .filter {
-                    it.className == quoteItemField.typeName &&
-                        it.typeName == "java.lang.String"
-                }
-                .distinctBy { it.descriptor }
-                .single()
-        )
-    }
 
     fun sendXmlAppMsg(
         target: String,

@@ -3,9 +3,9 @@ package com.xiao.feng.features.items.miniapps
 import dev.ujhhgtg.reflekt.reflekt
 import dev.ujhhgtg.reflekt.utils.isBuiltin
 import com.xiao.feng.R
-import com.xiao.feng.dexkit.abc.IResolveDex
-import com.xiao.feng.dexkit.dsl.dexConstructor
-import com.xiao.feng.dexkit.dsl.dexMethod
+import com.xiao.feng.featurepoints.abc.IResolveDex
+import com.xiao.feng.featurepoints.dsl.dexConstructor
+import com.xiao.feng.featurepoints.dsl.dexMethod
 import com.xiao.feng.features.core.FeatureCategoryIds
 import com.xiao.feng.features.core.SwitchFeature
 import com.xiao.feng.utils.TargetProcess
@@ -33,21 +33,10 @@ object RemoveEmbeddedAds : SwitchFeature(), IResolveDex {
     // 广告数据请求: JS 侧通过 operateWXData / adOperateWXData 下发 webapi_getadvert,
     // 最终由 NetSceneJSOperateWxData 发出。构造时把 ad_unit_id 置空, 服务端就不会
     // 返回广告素材, 广告位自然不渲染。目标是让广告不出现, 而不是拦截点击后的跳转。
-    val ctorNetSceneJSOperateWxData by dexConstructor {
-        matcher {
-            declaredClass {
-                usingEqStrings("MicroMsg.NetSceneJSOperateWxData", "doScene hash=%d, funcid=%d")
-            }
-        }
-    }
+    val ctorNetSceneJSOperateWxData by dexConstructor()
 
     // 品牌服务 transfer 响应里的 ad_slot_data 清空。
-    private val methodBaseTransferRequestOnLoad by dexMethod {
-        matcher {
-            usingEqStrings("MicroMsg.BaseTransferRequest")
-            paramTypes("com.tencent.mm.plugin.brandservice.api.TransferResultInfo")
-        }
-    }
+    private val methodBaseTransferRequestOnLoad by dexMethod()
 
     private lateinit var protoField: Field
 

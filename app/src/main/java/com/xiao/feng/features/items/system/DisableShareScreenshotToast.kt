@@ -1,8 +1,8 @@
 package com.xiao.feng.features.items.system
 
 import com.xiao.feng.R
-import com.xiao.feng.dexkit.abc.IResolveDex
-import com.xiao.feng.dexkit.dsl.dexMethod
+import com.xiao.feng.featurepoints.abc.IResolveDex
+import com.xiao.feng.featurepoints.dsl.dexMethod
 import com.xiao.feng.features.core.FeatureCategoryIds
 import com.xiao.feng.features.core.SwitchFeature
 
@@ -13,12 +13,7 @@ object DisableShareScreenshotToast : SwitchFeature(), IResolveDex {
     override val categoryIds = listOf(FeatureCategoryIds.SYSTEM_PRIVACY)
     override val descriptionRes = R.string.feature_disable_share_screenshot_toast_description
 
-    private val methodDisplayToast by dexMethod {
-        searchPackages("com.tencent.mm.ui.feature.api.screenshot")
-        matcher {
-            usingEqStrings("MicroMsg.ScreenShotShareService", "showShareTongue, shareTongue already showing, reset onClick & countDown")
-        }
-    }
+    private val methodDisplayToast by dexMethod()
 
     override fun onEnable() {
         methodDisplayToast.hookBefore {

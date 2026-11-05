@@ -39,8 +39,8 @@ import com.xiao.feng.i18n.LocalXiaoFengLocalizedContext
 import dev.ujhhgtg.reflekt.utils.Modifiers
 import com.xiao.feng.activity.TransparentActivity
 import com.xiao.feng.constants.PackageNames
-import com.xiao.feng.dexkit.abc.IResolveDex
-import com.xiao.feng.dexkit.dsl.dexMethod
+import com.xiao.feng.featurepoints.abc.IResolveDex
+import com.xiao.feng.featurepoints.dsl.dexMethod
 import com.xiao.feng.features.core.ClickableFeature
 import com.xiao.feng.features.core.FeatureCategoryIds
 import com.xiao.feng.data.KvStore.prefOption
@@ -73,17 +73,7 @@ object ApplyGlobalBackground : ClickableFeature(), IResolveDex {
 
     private const val TAG = "ApplyGlobalBackground"
 
-    private val methodInitImageView by dexMethod {
-        matcher {
-            declaredClass = "com.tencent.mm.ui.base.MultiTouchImageView"
-            modifiers(Modifiers.FINAL)
-            returnType = "void"
-            addInvoke {
-                declaredClass = "android.widget.ImageView"
-                name = "setScaleType"
-            }
-        }
-    }
+    private val methodInitImageView by dexMethod()
 
     private var backgroundUri by prefOption("global_bg_uri", nul<String>())
     private var transparentStatusBar by prefOption("global_bg_transparent_status_bar", false)

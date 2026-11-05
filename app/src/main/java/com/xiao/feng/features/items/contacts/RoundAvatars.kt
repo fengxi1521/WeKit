@@ -10,9 +10,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.xiao.feng.R
-import com.xiao.feng.dexkit.abc.IResolveDex
-import com.xiao.feng.dexkit.dsl.dexConstructor
-import com.xiao.feng.dexkit.dsl.dexMethod
+import com.xiao.feng.featurepoints.abc.IResolveDex
+import com.xiao.feng.featurepoints.dsl.dexConstructor
+import com.xiao.feng.featurepoints.dsl.dexMethod
 import com.xiao.feng.features.core.ClickableFeature
 import com.xiao.feng.features.core.FeatureCategoryIds
 import com.xiao.feng.data.KvStore
@@ -24,7 +24,6 @@ import com.xiao.feng.ui.content.m3.SegmentedColumn
 import com.xiao.feng.ui.utils.showComposeDialog
 import com.xiao.feng.utils.HookParam
 import kotlin.math.roundToInt
-import org.luckypray.dexkit.DexKitBridge
 
 object RoundAvatars : ClickableFeature(), IResolveDex {
 
@@ -35,11 +34,7 @@ object RoundAvatars : ClickableFeature(), IResolveDex {
 
     private const val KEY_ROUND_AVATAR = "round_avatar_radius_factor"
 
-    private val ctorAvatarCreate by dexConstructor {
-        matcher {
-            usingEqStrings("workerScope", "username")
-        }
-    }
+    private val ctorAvatarCreate by dexConstructor()
     private val methodAvatarModify by dexMethod()
 
     private val radiusFactor: Float
@@ -67,23 +62,6 @@ object RoundAvatars : ClickableFeature(), IResolveDex {
         notifyCustomContactAvatarChanged()
     }
 
-    override fun resolveDex(dexKit: DexKitBridge) {
-        val modifyMethods = dexKit.findMethod {
-            matcher {
-                usingEqStrings("workerScope", "username")
-            }
-        }.filter { it.methodName != "<init>" }
-
-        val modifyMethod = modifyMethods.singleOrNull()
-        if (modifyMethod == null) {
-            methodAvatarModify.setPlaceholderDescriptor(
-                expectedFailure = true,
-                reason = "avatar modify method is absent in this host variant",
-            )
-        } else {
-            methodAvatarModify.setDescriptor(modifyMethod)
-        }
-    }
 
     override fun onClick(context: ComponentActivity) {
         showComposeDialog(context) {

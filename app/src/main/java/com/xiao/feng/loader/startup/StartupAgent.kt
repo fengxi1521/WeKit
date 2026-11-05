@@ -75,7 +75,7 @@ object StartupAgent {
             hideModuleLibraries(hookBridge)
         }
         // Isolated processes have no module features and must never touch the shared Room file.
-        // In particular, FeaturesLoader would otherwise initialize DexCache/Room while the main
+        // In particular, FeaturesLoader would otherwise initialize Room while the main
         // process is still relocating the legacy database.
         if (TargetProcesses.currentType != TargetProcess.ISOLATED) {
             WeLauncher.init(application)

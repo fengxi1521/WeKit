@@ -46,9 +46,9 @@ import dev.ujhhgtg.reflekt.utils.toClass
 import com.xiao.feng.R
 import com.composables.icons.materialsymbols.MaterialSymbols
 import com.composables.icons.materialsymbols.outlined.Close
-import com.xiao.feng.dexkit.abc.IResolveDex
-import com.xiao.feng.dexkit.dsl.dexClass
-import com.xiao.feng.dexkit.dsl.dexMethod
+import com.xiao.feng.featurepoints.abc.IResolveDex
+import com.xiao.feng.featurepoints.dsl.dexClass
+import com.xiao.feng.featurepoints.dsl.dexMethod
 import com.xiao.feng.features.core.ClickableFeature
 import com.xiao.feng.features.core.FeatureCategoryIds
 import com.xiao.feng.ui.content.AlertDialogContent
@@ -65,7 +65,6 @@ import com.xiao.feng.data.XiaoFengDatabase
 import com.xiao.feng.data.JsonDataMigration
 import com.xiao.feng.utils.android.copyToClipboard
 import com.xiao.feng.utils.android.showToast
-import com.xiao.feng.utils.reflection.withDexKit
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
@@ -73,8 +72,6 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.yield
-import org.luckypray.dexkit.query.matchers.ClassMatcher
-import java.lang.reflect.Modifier as JavaModifier
 
 /**
  * WeChat feature flag type names, matching [ly4.e.h()] return values.
@@ -103,35 +100,14 @@ object FeatureFlagManager : ClickableFeature(), IResolveDex {
      * Identified by its [i]() method containing "Int", "Float", "String", "Long", "".
      * Hierarchy: [ly4.h]->[ly4.e]->[ly4.d]->[ly4.i] (Int) or [ly4.e]->[ly4.f] (String).
      */
-    private val classFeatureFlagBase by dexClass {
-        matcher {
-            addMethod {
-                usingEqStrings("Int")
-            }
-            addMethod {
-                usingEqStrings("Int", "Float", "String", "Long", "")
-            }
-            addMethod {
-                usingEqStrings("")
-            }
-        }
-    }
+    private val classFeatureFlagBase by dexClass()
 
     /**
      * Central API method: [fd5.d1].[b](String, Object) -> Object.
      * Key format: splits input key by '_', uses last segment for type dispatch.
      * Type names: "Int", "Float", "Long", "String" — matched by last _-segment.
      */
-    private val methodRepairerConfigApiGet by dexMethod {
-        matcher {
-            declaredClass {
-                usingEqStrings("RepairerConfigThread", "ValueStrategy_")
-            }
-            usingEqStrings("String", "Int", "Long", "Float", "key", "defaultValue")
-            paramTypes(String::class.java, Any::class.java)
-            returnType(Any::class.java)
-        }
-    }
+    private val methodRepairerConfigApiGet by dexMethod()
 
     // ---------------------------------------------------------------------------
     // Flag details data model & reflective resolver
@@ -241,28 +217,11 @@ object FeatureFlagManager : ClickableFeature(), IResolveDex {
             }
         }
 
-        // DexKit class scanning
+        // Feature flag classes are no longer discoverable without runtime Dex scanning, so only
+        // the known base class is shown. Individual flags can still be inspected by name below.
         LaunchedEffect(Unit) {
-            withContext(Dispatchers.IO) {
-                val superClassName = classFeatureFlagBase.clazz.name
-
-                featureFlagClasses = withDexKit { dexKit ->
-                    dexKit.findClass {
-                        matcher {
-                            modifiers(JavaModifier.FINAL)
-                            anyOf(
-                                ClassMatcher().apply {
-                                    superClass { superClass = superClassName }
-                                },
-                                ClassMatcher().apply {
-                                    superClass { superClass { superClass = superClassName } }
-                                }
-                            )
-                        }
-                    }.map { it.name }.sorted()
-                }
-                isLoading = false
-            }
+            featureFlagClasses = listOf(classFeatureFlagBase.clazz.name)
+            isLoading = false
         }
 
         // Background lazy loading with viewport priority and dialog pause support

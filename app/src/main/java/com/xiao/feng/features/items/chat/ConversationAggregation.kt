@@ -48,8 +48,8 @@ import dev.ujhhgtg.reflekt.utils.Modifiers
 import dev.ujhhgtg.reflekt.utils.fastJavaMethod
 import dev.ujhhgtg.reflekt.utils.isSubclassOf
 import com.xiao.feng.R
-import com.xiao.feng.dexkit.abc.IResolveDex
-import com.xiao.feng.dexkit.dsl.dexMethod
+import com.xiao.feng.featurepoints.abc.IResolveDex
+import com.xiao.feng.featurepoints.dsl.dexMethod
 import com.xiao.feng.features.api.core.WeConversationApi
 import com.xiao.feng.features.api.core.WeDatabaseApi
 import com.xiao.feng.features.api.core.WeDatabaseListenerApi
@@ -126,29 +126,14 @@ object ConversationAggregation : ClickableFeature(),
 
 
     private const val CONTAINER_UI_NAME = "com.tencent.mm.ui.conversation.ConvBoxServiceConversationUI"
-    private val methodConversationStorageQueryByParent by dexMethod(allowFailure = true) {
-        matcher {
-            usingStrings(
-                "select * from rconversation where ",
-                " order by flag desc, conversationTime desc"
-            )
-            paramTypes("int", "java.util.List", "java.lang.String", "int")
-            returnType("android.database.Cursor")
-        }
-    }
+    private val methodConversationStorageQueryByParent by dexMethod()
 
     // SelectConversationUI#doClickUser(username) — the single entry point for all conversation
     // taps in the "share to conversation" picker. WeChat only intercepts known virtual usernames
     // ("conversationboxservice", "opencustomerservicemsg") before forwarding to its share logic.
     // Our folder rows (xfeng_folder_XXX) pass those guards and reach the share machinery, which
     // tries to open a chat thread for a non-existent contact → crash.
-    private val methodSelectConversationDoClickUser by dexMethod(allowFailure = true) {
-        matcher {
-            usingEqStrings("MicroMsg.SelectConversationUI", "doClickUser=%s")
-            paramTypes("java.lang.String")
-            returnType("void")
-        }
-    }
+    private val methodSelectConversationDoClickUser by dexMethod()
 
     // The MVVM "select contact" picker (com.tencent.mm.ui.mvvm.MvvmContactListUI) used for in-app
     // forwarding routes every row tap through its list item-click listener cj5.g2#g(View, item, int)
@@ -156,18 +141,8 @@ object ConversationAggregation : ClickableFeature(),
     // state center, which sets the "Select_Conv_User" result extra and finishes. Our folder rows
     // (xfeng_folder_XXX) reach that same path with a non-existent username → crash downstream.
     // We match the two concrete listeners (main list + search results) by their unique log tags.
-    private val methodMvvmMainListItemClick by dexMethod {
-        matcher {
-            usingStrings("MicroMsg.SelectContactMainRecycleViewUIC", "onItemClickListener data.type")
-        }
-    }
-    private val methodMvvmSearchItemClick by dexMethod {
-        matcher {
-            usingStrings("MicroMsg.SelectContactSearchMvvmListUIC", "onItemClick: isAlwaysCheck=")
-            paramTypes("android.view.View", null, "int")
-            returnType("void")
-        }
-    }
+    private val methodMvvmMainListItemClick by dexMethod()
+    private val methodMvvmSearchItemClick by dexMethod()
 
     // com.tencent.mm.storage.m4 (ConversationStorage)#b0(username) — "updateUnreadByTalker".
     // The folder container (ConvBoxServiceConversationUI) sets its superUsername to our folder id
@@ -179,18 +154,7 @@ object ConversationAggregation : ClickableFeature(),
     // com.tencent.mm.ui.widget.menu.MMPopupMenu#showMenu(view, pos, id, onCreateListener, selectCb, x, y)
     // The shared long-press popup used by both the homepage list and the folder container. We hook
     // it (gated on activeFolderId) to inject a "remove from folder" item only inside our folders.
-    private val methodShowPopupMenu by dexMethod(allowFailure = true) {
-        matcher {
-            declaredClass {
-                usingStrings("MicroMsg.MMPopupMenu")
-            }
-            paramTypes(
-                "android.view.View", "int", "long",
-                $$"android.view.View$OnCreateContextMenuListener", null, "int", "int"
-            )
-            returnType("void")
-        }
-    }
+    private val methodShowPopupMenu by dexMethod()
 
     @Volatile
     private var activeFolderId: String? = null

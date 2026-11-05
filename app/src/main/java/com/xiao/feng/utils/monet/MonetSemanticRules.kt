@@ -4,7 +4,6 @@ data class MonetSemanticRule(
     val id: String,
     val type: String,
     val requiredEvidence: Set<String>,
-    val requiredDexEvidence: Set<String> = emptySet(),
     val requiredAdjacentRoles: Map<Int, String> = emptyMap(),
     val preferredEvidence: Set<String> = emptySet(),
     val optional: Boolean = false,
@@ -96,9 +95,6 @@ val MONET_RULES = listOf(
         "theme.color.system-surface-container-light--system-surface-container-dark.slot-27",
         "color",
         setOf("config::literal:COLOR_RGB8:4280492835"),
-        requiredDexEvidence = setOf(
-            "method-shape:(java.lang.String,object,object,int):void", "string:text", "string:onClick",
-        ),
     ),
     MonetSemanticRule("theme.color.system-surface-container-light--system-surface-container-dark.slot-29", "color", setOf("usage:layout:FrameLayout/com.tencent.mm.ui.widget.RoundedCornerFrameLayout/LinearLayout/com.tencent.mm.ui.widget.RoundedCornerFrameLayout:16842964:background")),
     MonetSemanticRule("theme.color.system-surface-container-light--system-surface-container-dark.slot-30", "color", setOf("config::literal:COLOR_RGB8:4294967295", "usage:layout:LinearLayout/RelativeLayout:16842964:background")),

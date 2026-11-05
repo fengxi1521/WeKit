@@ -54,8 +54,6 @@ import com.xiao.feng.data.entity.AssetChunkEntity
 import com.xiao.feng.data.entity.AssetEntity
 import com.xiao.feng.agent.data.entity.BridgeToolAuditEntity
 import com.xiao.feng.agent.data.entity.ConditionalPromptEntity
-import com.xiao.feng.data.entity.DexCacheDescriptorEntity
-import com.xiao.feng.data.entity.DexCacheEntryEntity
 import com.xiao.feng.data.entity.DocumentEntity
 import com.xiao.feng.data.entity.ExtensionInstallEntity
 import com.xiao.feng.agent.data.entity.ExternalServiceEntity
@@ -109,8 +107,6 @@ import java.io.File
         ScriptCatalogEntity::class,
         ExtensionInstallEntity::class,
         ManagedDataEntryEntity::class,
-        DexCacheEntryEntity::class,
-        DexCacheDescriptorEntity::class,
         ConversationGroupEntity::class,
         ConversationGroupMemberEntity::class,
         ConversationFolderEntity::class,
@@ -127,7 +123,7 @@ import java.io.File
         MomentAutomationKeywordEntity::class,
         MomentAutomationContentTypeEntity::class,
     ],
-    version = 22,
+    version = 23,
     exportSchema = true,
     autoMigrations = [
         AutoMigration(from = 9, to = 10), // adds external_services table
@@ -306,10 +302,6 @@ abstract class XiaoFengDatabase : RoomDatabase() {
 
         val MIGRATION_19_20 = object : Migration(19, 20) {
             override fun migrate(db: SupportSQLiteDatabase) {
-                db.execSQL("CREATE TABLE IF NOT EXISTS `dex_cache_entries` (`hostVersion` TEXT NOT NULL, `technicalId` TEXT NOT NULL, `methodHash` TEXT NOT NULL, `timestamp` INTEGER NOT NULL, PRIMARY KEY(`hostVersion`, `technicalId`))")
-                db.execSQL("CREATE INDEX IF NOT EXISTS `index_dex_cache_entries_hostVersion` ON `dex_cache_entries` (`hostVersion`)")
-                db.execSQL("CREATE TABLE IF NOT EXISTS `dex_cache_descriptors` (`hostVersion` TEXT NOT NULL, `technicalId` TEXT NOT NULL, `descriptorKey` TEXT NOT NULL, `descriptorValue` TEXT NOT NULL, PRIMARY KEY(`hostVersion`, `technicalId`, `descriptorKey`))")
-                db.execSQL("CREATE INDEX IF NOT EXISTS `index_dex_cache_descriptors_hostVersion_technicalId` ON `dex_cache_descriptors` (`hostVersion`, `technicalId`)")
             }
         }
 
@@ -329,6 +321,13 @@ abstract class XiaoFengDatabase : RoomDatabase() {
         val MIGRATION_21_22 = object : Migration(21, 22) {
             override fun migrate(db: SupportSQLiteDatabase) {
                 migration21To22Sql.forEach(db::execSQL)
+            }
+        }
+
+        val MIGRATION_22_23 = object : Migration(22, 23) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("DROP TABLE IF EXISTS `dex_cache_descriptors`")
+                db.execSQL("DROP TABLE IF EXISTS `dex_cache_entries`")
             }
         }
 
@@ -465,7 +464,7 @@ abstract class XiaoFengDatabase : RoomDatabase() {
             dbFile.toString()
         )
             .setJournalMode(journalMode)
-            .addMigrations(MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14, MIGRATION_14_15, MIGRATION_15_16, MIGRATION_16_17, MIGRATION_17_18, MIGRATION_18_19, MIGRATION_19_20, MIGRATION_20_21, MIGRATION_21_22)
+            .addMigrations(MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14, MIGRATION_14_15, MIGRATION_15_16, MIGRATION_16_17, MIGRATION_17_18, MIGRATION_18_19, MIGRATION_19_20, MIGRATION_20_21, MIGRATION_21_22, MIGRATION_22_23)
             // Destructive fallback is scoped to the pre-release schemas (1–8) only, which no
             // migration path was ever written for. From 9 onwards every step must have a
             // migration: a missing one then fails loudly at open time instead of silently

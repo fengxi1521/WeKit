@@ -7,8 +7,8 @@ import com.tencent.kinda.framework.module.impl.WXPCommReqResp
 import dev.ujhhgtg.reflekt.reflekt
 import com.xiao.feng.R
 import com.xiao.feng.constants.Preferences
-import com.xiao.feng.dexkit.abc.IResolveDex
-import com.xiao.feng.dexkit.dsl.dexClass
+import com.xiao.feng.featurepoints.abc.IResolveDex
+import com.xiao.feng.featurepoints.dsl.dexClass
 import com.xiao.feng.features.api.core.WeMessageApi
 import com.xiao.feng.features.api.net.WePacketHelper
 import com.xiao.feng.features.api.net.WePacketManager
@@ -29,18 +29,7 @@ object WePacketDispatcher : ApiFeature(), IResolveDex {
 
     private const val TAG = "WePacketDispatcher"
 
-    private val classOnGYNetEnd by dexClass {
-        searchPackages("com.tencent.mm.network")
-        matcher {
-            methodCount(1)
-            methods {
-                add {
-                    name = "onGYNetEnd"
-                    paramCount = 6
-                }
-            }
-        }
-    }
+    private val classOnGYNetEnd by dexClass()
 
     private val recentRequests = ConcurrentHashMap<String, Long>()
 

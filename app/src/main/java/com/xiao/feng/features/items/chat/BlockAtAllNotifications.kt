@@ -14,8 +14,8 @@ import androidx.compose.ui.unit.dp
 import com.composables.icons.materialsymbols.MaterialSymbols
 import com.composables.icons.materialsymbols.outlined.Chevron_right
 import com.xiao.feng.R
-import com.xiao.feng.dexkit.abc.IResolveDex
-import com.xiao.feng.dexkit.dsl.dexMethod
+import com.xiao.feng.featurepoints.abc.IResolveDex
+import com.xiao.feng.featurepoints.dsl.dexMethod
 import com.xiao.feng.features.api.core.WeDatabaseApi
 import com.xiao.feng.features.api.core.WeMessageApi
 import com.xiao.feng.features.api.core.models.MessageInfo
@@ -161,27 +161,9 @@ object BlockAtAllNotificationsRuntime : ApiFeature(), IResolveDex {
     private val pendingLock = Any()
     private val pendingByGroup = HashMap<String, ArrayDeque<PendingAtAll>>()
 
-    private val methodDealNotify by dexMethod {
-        searchPackages("com.tencent.mm.booter.notification")
-        matcher {
-            paramCount(6)
-            returnType = "void"
-            usingEqStrings(
-                "jacks dealNotify, talker:%s, msgtype:%d, tipsFlag:%d, isRevokeMesasge:%B content:%s"
-            )
-        }
-    }
+    private val methodDealNotify by dexMethod()
 
-    private val methodNotifyForLightPush by dexMethod {
-        searchPackages("com.tencent.mm.booter.notification")
-        matcher {
-            paramCount(7)
-            returnType = "void"
-            usingEqStrings(
-                "LightPush [NO NOTIFICATION] Util.isNullOrNil(userName) || Util.isNullOrNil(nickName)"
-            )
-        }
-    }
+    private val methodNotifyForLightPush by dexMethod()
 
     override val targetProcesses = setOf(TargetProcess.MAIN, TargetProcess.PUSH)
 

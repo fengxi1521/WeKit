@@ -5,8 +5,8 @@ import android.widget.TextView
 import dev.ujhhgtg.reflekt.reflekt
 import dev.ujhhgtg.reflekt.utils.makeAccessible
 import com.xiao.feng.R
-import com.xiao.feng.dexkit.abc.IResolveDex
-import com.xiao.feng.dexkit.dsl.dexMethod
+import com.xiao.feng.featurepoints.abc.IResolveDex
+import com.xiao.feng.featurepoints.dsl.dexMethod
 import com.xiao.feng.features.api.core.WeMessageApi
 import com.xiao.feng.features.api.core.models.MessageInfo
 import com.xiao.feng.features.core.ApiFeature
@@ -86,30 +86,11 @@ object WeChatMessageViewApi : ApiFeature(), IResolveDex {
 
     private const val TAG = "WeChatMessageViewApi"
 
-    private val methodChatItemOnBindView by dexMethod {
-        matcher {
-            usingStrings(
-                "MicroMsg.MvvmChattingItem",
-                "[onBindView]"
-            )
-        }
-    }
+    private val methodChatItemOnBindView by dexMethod()
 
-    private val methodChatItemOnViewRecycled by dexMethod {
-        matcher {
-            usingStrings("rvnotify-test-onViewRecycled viewType=")
-        }
-    }
+    private val methodChatItemOnViewRecycled by dexMethod()
 
-    private val methodChatItemSetNickname by dexMethod {
-        matcher {
-            declaredClass {
-                usingStrings("MicroMsg.ChattingItem")
-            }
-            paramTypes(null, CharSequence::class.java)
-            returnType(Void.TYPE)
-        }
-    }
+    private val methodChatItemSetNickname by dexMethod()
 
     override fun onEnable() {
         methodChatItemSetNickname.hookAfter {

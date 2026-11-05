@@ -66,7 +66,7 @@ logcat -d > "$LOGFILE" 2>&1
 {
   echo
   echo "==== 关键日志（已过滤，末尾 400 行） ===="
-  grep -iE 'xfeng|zygisk|lsplant|dexkit|com\.xiao\.feng|fatal|androidruntime|sigsegv|sigabrt|libc|native crash|backtrace|linker' "$LOGFILE" 2>/dev/null | tail -n 400
+  grep -iE 'xfeng|zygisk|lsplant|com\.xiao\.feng|fatal|androidruntime|sigsegv|sigabrt|libc|native crash|backtrace|linker' "$LOGFILE" 2>/dev/null | tail -n 400
   echo
   echo "==== 结束 ===="
 } >> "$SUMMARY" 2>&1

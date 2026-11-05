@@ -3,8 +3,8 @@ package com.xiao.feng.features.items.miniapps
 import dev.ujhhgtg.reflekt.reflekt
 import dev.ujhhgtg.reflekt.utils.toClass
 import com.xiao.feng.R
-import com.xiao.feng.dexkit.abc.IResolveDex
-import com.xiao.feng.dexkit.dsl.dexMethod
+import com.xiao.feng.featurepoints.abc.IResolveDex
+import com.xiao.feng.featurepoints.dsl.dexMethod
 import com.xiao.feng.features.core.FeatureCategoryIds
 import com.xiao.feng.features.core.SwitchFeature
 import com.xiao.feng.utils.HostInfo
@@ -77,37 +77,14 @@ object SkipRewardedAds : SwitchFeature(), IResolveDex {
     // 能看到奖励广告数据放行、发奖关键请求 VerifyAdRewardEligibility。
     // 真正的 SDK 注入点: loadLibFiles 读到的脚本文本在这里被编译/求值。
     // e3.h(f9, jsruntime.t, path, name, version, ctxId, script, i3, b3)
-    private val methodInjectLibScript by dexMethod {
-        searchPackages("com.tencent.mm.plugin.appbrand.utils")
-        matcher {
-            usingEqStrings("MicroMsg.JsValidationInjector", "hy: injecting file %s")
-        }
-    }
+    private val methodInjectLibScript by dexMethod()
 
     // 远程 commlib reader 的 H0: 返回 AssetFileDescriptor 给 V8 直读, 文本补丁无效。
     // 置 null 后 loadLibFiles 回退到 iCommLibReader.a() -> e3.h 字符串路径。
-    private val methodPkgReaderH0 by dexMethod(allowFailure = true) {
-        searchPackages("com.tencent.mm.plugin.appbrand.appcache")
-        matcher {
-            paramTypes("java.lang.String")
-            returnType("android.content.res.AssetFileDescriptor")
-            declaredClass {
-                usingEqStrings("PkgReader[%d] [%s]")
-            }
-        }
-    }
+    private val methodPkgReaderH0 by dexMethod()
 
     // 本地 assets reader 同样处理 (老版本基础库)。
-    private val methodAssetReaderH0 by dexMethod(allowFailure = true) {
-        searchPackages("com.tencent.mm.plugin.appbrand.appcache")
-        matcher {
-            paramTypes("java.lang.String")
-            returnType("android.content.res.AssetFileDescriptor")
-            declaredClass {
-                usingEqStrings("AssetReader[%d][%s]")
-            }
-        }
-    }
+    private val methodAssetReaderH0 by dexMethod()
 
     /** 已 dump 过的 SDK 文件名 (每个进程一次)。 */
     private val dumpedNames = ConcurrentHashMap.newKeySet<String>()

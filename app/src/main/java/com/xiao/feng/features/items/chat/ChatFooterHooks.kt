@@ -4,8 +4,8 @@ import android.view.View
 import android.widget.ImageButton
 import com.tencent.mm.pluginsdk.ui.chat.ChatFooter
 import com.xiao.feng.R
-import com.xiao.feng.dexkit.abc.IResolveDex
-import com.xiao.feng.dexkit.dsl.dexMethod
+import com.xiao.feng.featurepoints.abc.IResolveDex
+import com.xiao.feng.featurepoints.dsl.dexMethod
 import com.xiao.feng.features.api.ui.WeChatInputBarMenuApi
 import com.xiao.feng.features.core.ApiFeature
 import com.xiao.feng.features.core.FeatureCategoryIds
@@ -19,12 +19,7 @@ object ChatFooterHooks : ApiFeature(), IResolveDex {
     override val categoryIds = listOf(FeatureCategoryIds.API)
     override val descriptionRes = R.string.feature_chat_footer_hooks_description
 
-    private val methodInitSmileyBtn by dexMethod {
-        searchPackages("com.tencent.mm.pluginsdk.ui.chat")
-        matcher {
-            usingEqStrings("initSmileyBtn")
-        }
-    }
+    private val methodInitSmileyBtn by dexMethod()
 
     override fun onEnable() {
         methodInitSmileyBtn.hookAfter {

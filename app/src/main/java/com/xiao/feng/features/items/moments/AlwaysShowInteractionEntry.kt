@@ -6,8 +6,8 @@ import androidx.core.view.isVisible
 import dev.ujhhgtg.reflekt.reflekt
 import com.xiao.feng.R
 import com.xiao.feng.constants.PackageNames
-import com.xiao.feng.dexkit.abc.IResolveDex
-import com.xiao.feng.dexkit.dsl.dexMethod
+import com.xiao.feng.featurepoints.abc.IResolveDex
+import com.xiao.feng.featurepoints.dsl.dexMethod
 import com.xiao.feng.features.core.FeatureCategoryIds
 import com.xiao.feng.features.core.SwitchFeature
 import com.xiao.feng.utils.android.Intent
@@ -39,45 +39,19 @@ object AlwaysShowInteractionEntry : SwitchFeature(), IResolveDex {
     private var noInteractionMessages = false
 
     /** ImproveHeaderUIC$onNotifyChange$1$1 — 有互动消息, 显示气泡并写入文案 */
-    private val methodShowNotifyBar by dexMethod {
-        matcher {
-            usingEqStrings(
-                "invokeSuspend",
-                $$"com.tencent.mm.plugin.sns.ui.improve.component.header.ImproveHeaderUIC$onNotifyChange$1$1"
-            )
-        }
-    }
+    private val methodShowNotifyBar by dexMethod()
 
     /** ImproveHeaderUIC$onNotifyChange$1$4 — 没有互动消息, 隐藏气泡 */
-    private val methodHideNotifyBar by dexMethod {
-        matcher {
-            usingEqStrings(
-                "invokeSuspend",
-                $$"com.tencent.mm.plugin.sns.ui.improve.component.header.ImproveHeaderUIC$onNotifyChange$1$4"
-            )
-        }
-    }
+    private val methodHideNotifyBar by dexMethod()
 
-    private val methodGetNotifyLayout by dexMethod {
-        matcher { usingEqStrings($$"access$getMsgNotifyLayout", HEADER_UIC) }
-    }
+    private val methodGetNotifyLayout by dexMethod()
 
-    private val methodGetNotifyContent by dexMethod {
-        matcher { usingEqStrings($$"access$getMsgNotifyContent", HEADER_UIC) }
-    }
+    private val methodGetNotifyContent by dexMethod()
 
-    private val methodGetNotifyImg by dexMethod {
-        matcher { usingEqStrings($$"access$getMsgNotifyImg", HEADER_UIC) }
-    }
+    private val methodGetNotifyImg by dexMethod()
 
     /** ImproveHeaderUIC.gotoNotifyMsgUI() — 点击入口后的跳转 */
-    private val methodGotoNotifyMsgUI by dexMethod {
-        matcher {
-            paramCount(0)
-            returnType(Void.TYPE)
-            usingEqStrings("gotoNotifyMsgUI", HEADER_UIC)
-        }
-    }
+    private val methodGotoNotifyMsgUI by dexMethod()
 
     private val headerUicClass: Class<*>
         get() = methodGetNotifyLayout.method.declaringClass

@@ -6,8 +6,8 @@ import dev.ujhhgtg.reflekt.reflekt
 import dev.ujhhgtg.reflekt.utils.Modifiers
 import dev.ujhhgtg.reflekt.utils.isBuiltin
 import com.xiao.feng.R
-import com.xiao.feng.dexkit.abc.IResolveDex
-import com.xiao.feng.dexkit.dsl.dexMethod
+import com.xiao.feng.featurepoints.abc.IResolveDex
+import com.xiao.feng.featurepoints.dsl.dexMethod
 import com.xiao.feng.features.api.net.models.protobuf.SnsCommentActionProto
 import com.xiao.feng.features.core.FeatureCategoryIds
 import com.xiao.feng.features.core.SwitchFeature
@@ -39,46 +39,20 @@ object AntiMomentCommentsDelete : SwitchFeature(), IResolveDex {
     // ── dex matchers ────────────────────────────────────────────────────────────
 
     // Safety-net: low-level SQL executor inside SnsSqliteDB / SnsCommentStorage
-    private val methodSnsSqliteDbExecSql1 by dexMethod {
-        matcher {
-            usingEqStrings("com.tencent.mm.plugin.sns.storage.SnsSqliteDB", "execSQL")
-            paramCount = 2
-        }
-    }
-    private val methodSnsSqliteDbExecSql2 by dexMethod(allowFailure = true) {
-        matcher {
-            usingEqStrings("com.tencent.mm.plugin.sns.storage.SnsSqliteDB", "execSQL")
-            paramCount = 3
-        }
-    }
+    private val methodSnsSqliteDbExecSql1 by dexMethod()
+    private val methodSnsSqliteDbExecSql2 by dexMethod()
 
     // SnsCommentStorage.deleteComment(snsId, commentSvrId, type)
-    private val methodSnsCommentStorageDeleteComment by dexMethod {
-        matcher {
-            usingEqStrings("deleteComment", "com.tencent.mm.plugin.sns.storage.SnsCommentStorage")
-        }
-    }
+    private val methodSnsCommentStorageDeleteComment by dexMethod()
 
     // SnsCommentStorage.deleteBySnsId(snsId)
-    private val methodSnsCommentStorageDeleteCommentBySnsId by dexMethod {
-        matcher {
-            usingEqStrings("deleteBySnsId", "com.tencent.mm.plugin.sns.storage.SnsCommentStorage")
-        }
-    }
+    private val methodSnsCommentStorageDeleteCommentBySnsId by dexMethod()
 
     // SnsComment.setCommentDelFlag() — prevents WeChat's in-memory soft-delete flag
-    private val methodSnsCommentSetCommentDelFlag by dexMethod {
-        matcher {
-            usingEqStrings("setCommentDelFlag", "com.tencent.mm.plugin.sns.storage.SnsComment")
-        }
-    }
+    private val methodSnsCommentSetCommentDelFlag by dexMethod()
 
     // SnsComment.convertFrom(Cursor) — called when WeChat reads a comment row from DB
-    private val methodSnsCommentConvertFromCursor by dexMethod {
-        matcher {
-            usingEqStrings("convertFrom", "com.tencent.mm.plugin.sns.storage.SnsComment")
-        }
-    }
+    private val methodSnsCommentConvertFromCursor by dexMethod()
 
     // ── DB helpers ───────────────────────────────────────────────────────────────
 

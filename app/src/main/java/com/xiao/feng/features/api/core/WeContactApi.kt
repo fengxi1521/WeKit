@@ -2,8 +2,8 @@ package com.xiao.feng.features.api.core
 
 import dev.ujhhgtg.reflekt.reflekt
 import com.xiao.feng.R
-import com.xiao.feng.dexkit.abc.IResolveDex
-import com.xiao.feng.dexkit.dsl.dexConstructor
+import com.xiao.feng.featurepoints.abc.IResolveDex
+import com.xiao.feng.featurepoints.dsl.dexConstructor
 import com.xiao.feng.features.api.core.models.MessageInfo
 import com.xiao.feng.features.api.core.WeContactApi.deleteContact
 import com.xiao.feng.features.api.net.WeNetSceneApi
@@ -100,26 +100,9 @@ object WeContactApi : ApiFeature(), IResolveDex {
             }
         }
 
-    private val ctorNetSceneVerifyUser by dexConstructor {
-        searchPackages("com.tencent.mm.pluginsdk.model")
-        matcher {
-            usingEqStrings("MicroMsg.NetSceneVerifyUser.dkverify", "getLabelIdList, %s")
-        }
-    }
+    private val ctorNetSceneVerifyUser by dexConstructor()
 
-    private val ctorNetSceneVerifyUserProbe by dexConstructor {
-        searchPackages("com.tencent.mm.pluginsdk.model")
-        matcher {
-            declaredClass {
-                usingEqStrings(
-                    "MicroMsg.NetSceneVerifyUser.dkverify",
-                    "This NetSceneVerifyUser init NEVER use opcode == MM_VERIFYUSER_VERIFYOK",
-                )
-            }
-            paramCount(5)
-            paramTypes(int, List::class.java, List::class.java, BString, BString)
-        }
-    }
+    private val ctorNetSceneVerifyUserProbe by dexConstructor()
 
     override fun onEnable() {
         ctorNetSceneVerifyUserProbe.constructor.declaringClass.reflekt()

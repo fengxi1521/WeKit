@@ -29,9 +29,8 @@ import com.tencent.mm.ui.LauncherUI
 import com.tencent.mm.ui.chatting.ChattingUI
 import dev.ujhhgtg.reflekt.reflekt
 import dev.ujhhgtg.reflekt.utils.isSubclassOf
-import com.xiao.feng.dexkit.abc.IResolveDex
-import com.xiao.feng.dexkit.dsl.data
-import com.xiao.feng.dexkit.dsl.dexMethod
+import com.xiao.feng.featurepoints.abc.IResolveDex
+import com.xiao.feng.featurepoints.dsl.dexMethod
 import com.xiao.feng.features.api.core.WeConversationApi
 import com.xiao.feng.features.api.core.WeDatabaseApi
 import com.xiao.feng.features.api.core.WeDatabaseListenerApi
@@ -62,8 +61,6 @@ import com.xiao.feng.utils.WeLogger
 import com.xiao.feng.utils.android.getSystemService
 import com.xiao.feng.utils.android.showToast
 import com.xiao.feng.utils.now
-import org.luckypray.dexkit.query.enums.MatchType
-import org.luckypray.dexkit.query.matchers.MethodMatcher
 import java.lang.ref.WeakReference
 import kotlin.math.sqrt
 import kotlin.time.Duration.Companion.milliseconds
@@ -661,12 +658,7 @@ object HideContacts : ClickableFeature(), IResolveDex, WeChatInputBarApi.IInputB
      * `AddressLiveList.e(List snapshotList)` — the 通讯录 MvvmList preprocessor.
      * See hidecontacts/HideContactsLists.kt for why this is the right cut point.
      */
-    val methodAddressMvvmListPreprocessList by dexMethod {
-        matcher {
-            declaredClass = "com.tencent.mm.ui.contact.address.AddressLiveList"
-            usingEqStrings("snapshotList")
-        }
-    }
+    val methodAddressMvvmListPreprocessList by dexMethod()
 
     /**
      * `AtSomeoneLiveList.e(List snapshotList)` — the @成员选择器's MvvmList preprocessor, structurally
@@ -680,12 +672,7 @@ object HideContacts : ClickableFeature(), IResolveDex, WeChatInputBarApi.IInputB
      * in 8.0.65–8.0.76 we want the @成员 list to stay unfiltered, not to fail dex resolution for the
      * whole feature and take every other hidden-contact surface down with it.
      */
-    val methodAtSomeoneMvvmListPreprocessList by dexMethod(allowFailure = true) {
-        matcher {
-            declaredClass = "com.tencent.mm.ui.chatting.atsomeone.AtSomeoneLiveList"
-            usingEqStrings("snapshotList")
-        }
-    }
+    val methodAtSomeoneMvvmListPreprocessList by dexMethod()
 
     /**
      * `cc.d(List usernames)` — `SeeRoomMemberUI`'s adapter rebuild (`tc.d` on 8.0.69).
@@ -694,15 +681,7 @@ object HideContacts : ClickableFeature(), IResolveDex, WeChatInputBarApi.IInputB
      * adapter and three listeners) exactly one declares a `void (List)` method: the adapter, at
      * `chatroom/ui/cc.java:96` on 8.0.76 and `chatroom/ui/tc.java:95` on 8.0.69.
      */
-    val methodSeeRoomMemberSetMemberList by dexMethod(allowFailure = true) {
-        matcher {
-            declaredClass {
-                usingEqStrings("MicroMsg.SeeRoomMemberUI")
-            }
-            paramTypes("java.util.List")
-            returnType("void")
-        }
-    }
+    val methodSeeRoomMemberSetMemberList by dexMethod()
 
     /**
      * `SelectMemberUI.V6()` — the member-username list the @全体成员 / 删除成员 / 邀请 adapters load
@@ -712,13 +691,7 @@ object HideContacts : ClickableFeature(), IResolveDex, WeChatInputBarApi.IInputB
      * trees (`chatroom/ui/SelectMemberUI.java:115` on 8.0.76, `:178` on 8.0.69), so class + arity +
      * return type is unambiguous without needing the obfuscated method name.
      */
-    val methodSelectMemberUiGetMemberList by dexMethod(allowFailure = true) {
-        matcher {
-            declaredClass = "com.tencent.mm.chatroom.ui.SelectMemberUI"
-            paramCount = 0
-            returnType("java.util.List")
-        }
-    }
+    val methodSelectMemberUiGetMemberList by dexMethod()
 
     /**
      * `c.r(List)` — `FavoriteAdapter`'s single data-list setter (`c.t(List)` on 8.0.69).
@@ -729,13 +702,7 @@ object HideContacts : ClickableFeature(), IResolveDex, WeChatInputBarApi.IInputB
      * `c.java:1054` on 8.0.76 / `c.java:1051` on 8.0.69), so the tag + shape pair resolves to `r`
      * alone. `d(List)` uses no string constants at all.
      */
-    val methodFavoriteAdapterSetDataList by dexMethod(allowFailure = true) {
-        matcher {
-            usingEqStrings("MicroMsg.FavoriteAdapter")
-            paramTypes("java.util.List")
-            returnType("void")
-        }
-    }
+    val methodFavoriteAdapterSetDataList by dexMethod()
 
     /**
      * The 视频号 like-drawer *refresh* callback — `jd.call(Object)` on 8.0.76
@@ -749,15 +716,7 @@ object HideContacts : ClickableFeature(), IResolveDex, WeChatInputBarApi.IInputB
      * each tree. Strings are preferred over a structural discriminator here because `allowFailure`
      * only guards the 0-hit case — a multi-hit would `error(...)` and take the whole feature down.
      */
-    val methodFinderLikeDrawerRefresh by dexMethod(allowFailure = true) {
-        matcher {
-            usingEqStrings(
-                "Finder.DrawerPresenter",
-                "[refreshData] Cost=",
-                "com/tencent/mm/plugin/finder/view/builder/FinderLikeDrawerBuilder"
-            )
-        }
-    }
+    val methodFinderLikeDrawerRefresh by dexMethod()
 
     /**
      * The 视频号 like-drawer *load-more* callback — `yc.call(Object)` on 8.0.76
@@ -770,15 +729,7 @@ object HideContacts : ClickableFeature(), IResolveDex, WeChatInputBarApi.IInputB
      * `FinderItem.getUnsignedId()` to stamp each entry with its feed id, the other never does.
      * `FinderItem` is an unobfuscated (kept) class, so that method name is stable across versions.
      */
-    val methodFinderLikeDrawerLoadMore by dexMethod(allowFailure = true) {
-        matcher {
-            usingEqStrings("Finder.DrawerPresenter", "[loadMoreData] empty!")
-            invokeMethods {
-                add { name = "getUnsignedId" }
-                matchType = MatchType.Contains
-            }
-        }
-    }
+    val methodFinderLikeDrawerLoadMore by dexMethod()
 
     /**
      * `fts.logic.q0.p(FTSResult)` — SearchChatroomMemberTask's body, the 群聊内搜索成员 task.
@@ -788,15 +739,7 @@ object HideContacts : ClickableFeature(), IResolveDex, WeChatInputBarApi.IInputB
      * class declares only `<init>(l, FTSRequest)`, `getName()` and `p(FTSResult)`, so class anchor +
      * one parameter + `void` resolves to `p` alone. See hidecontacts/HideContactsSearch.kt.
      */
-    val methodFtsSearchChatroomMemberTask by dexMethod(allowFailure = true) {
-        matcher {
-            declaredClass {
-                usingEqStrings("SearchChatroomMemberTask")
-            }
-            paramCount = 1
-            returnType("void")
-        }
-    }
+    val methodFtsSearchChatroomMemberTask by dexMethod()
 
     /**
      * `fts.logic.h.p(FTSResult)` — SearchCommonChatroomUserTask, the 共同群聊好友建议 task.
@@ -807,15 +750,7 @@ object HideContacts : ClickableFeature(), IResolveDex, WeChatInputBarApi.IInputB
      * `getName()` and `p(FTSResult)`. NB: the neighbouring tasks `g` and `s0` both report
      * `"SearchCommonChatroomTask"` — the `User` suffix is what makes this one unambiguous.
      */
-    val methodFtsSearchCommonChatroomUserTask by dexMethod(allowFailure = true) {
-        matcher {
-            declaredClass {
-                usingEqStrings("SearchCommonChatroomUserTask")
-            }
-            paramCount = 1
-            returnType("void")
-        }
-    }
+    val methodFtsSearchCommonChatroomUserTask by dexMethod()
 
     /**
      * `ContactStorage.getNormalContactCount(boolean includeBlack, String[], String...) -> int`
@@ -827,14 +762,7 @@ object HideContacts : ClickableFeature(), IResolveDex, WeChatInputBarApi.IInputB
      * (`j4.java:487` / `l3.java:461`), so an appended `AND ...` would bind to that OR's right
      * operand and silently do nothing. See hidecontacts/HideContactsLists.kt.
      */
-    val methodNormalContactCount by dexMethod(allowFailure = true) {
-        matcher {
-            usingEqStrings(
-                "MicroMsg.ContactStorage",
-                "getNormalContactCount, sql:%s, result:%d, includeBlack:%s, time:%d"
-            )
-        }
-    }
+    val methodNormalContactCount by dexMethod()
 
     /**
      * `PatMsgExtension.insertPatMsg(String talker, String fromUser, String pattedUser, String
@@ -844,11 +772,7 @@ object HideContacts : ClickableFeature(), IResolveDex, WeChatInputBarApi.IInputB
      * `"insert pat msg %d %s %s"` appears in exactly one method per tree (`nq3/l.java:620`,
      * `ti3/l.java:320`); pairing it with the class tag keeps the match method-local.
      */
-    val methodPatMsgInsert by dexMethod(allowFailure = true) {
-        matcher {
-            usingEqStrings("MicroMsg.PatMsgExtension", "insert pat msg %d %s %s")
-        }
-    }
+    val methodPatMsgInsert by dexMethod()
 
     /**
      * `fb4.z0.D0(SnsInfo, SnsObject, Context, rs, boolean, d8, String, Map, Map, List)` —
@@ -856,11 +780,7 @@ object HideContacts : ClickableFeature(), IResolveDex, WeChatInputBarApi.IInputB
      * struct for every Moments renderer. See hidecontacts/HideContactsMoments.kt for why this is
      * the right chokepoint for a hidden contact's inline likes/comments on someone else's post.
      */
-    val methodSnsInfoToSnsStruct by dexMethod {
-        matcher {
-            usingEqStrings("snsInfoToSnsStruct", "com.tencent.mm.plugin.sns.data.SnsUtil", "mSnsInfo is null, why?")
-        }
-    }
+    val methodSnsInfoToSnsStruct by dexMethod()
 
     /**
      * `static void c3.H(c3 netSceneSnsSync, SnsObject snsObject)` (8.0.76; the same method is
@@ -881,106 +801,41 @@ object HideContacts : ClickableFeature(), IResolveDex, WeChatInputBarApi.IInputB
      * method shape — `static void (c3, SnsObject)` — is identical on both trees, so the hook body
      * needs no per-version branching.
      */
-    val methodSnsSyncUpdateRedDotCache by dexMethod {
-        matcher {
-            usingEqStrings("updateSyncDataCache", "com.tencent.mm.plugin.sns.model.NetSceneSnsSync")
-        }
-    }
+    val methodSnsSyncUpdateRedDotCache by dexMethod()
 
     // ── VoIPMP / ILink (the stack that actually runs on 8.0.7x) ──────────────────────────────
     // See hidecontacts/HideContactsVoip.kt for how these fit together.
 
     /** `ZIDL_ibmKH7hbMB.ZIDL_FBV(long, int, int, long, long, byte[] username, byte[][], boolean)` */
-    val methodVoipMpLaunchIncomingCard by dexMethod {
-        matcher {
-            // 8.0.76 changed from "launchInComingCardAsync: " to "[volume report] launchInComingCardAsync: "
-            usingStrings("MicroMsg.VoIPMP.CoreV2", "launchInComingCardAsync: ")
-        }
-    }
+    val methodVoipMpLaunchIncomingCard by dexMethod()
 
     /**
      * `mp5.q2.qa(Context, int, is4.r, long, long, String username, ArrayList, boolean)` — the
      * banner/notification/ringtone dispatcher. q2 declares exactly one 8-parameter method, so the
      * class anchor plus the parameter count is unambiguous.
      */
-    val methodVoipMpLaunchBanner by dexMethod {
-        matcher {
-            declaredClass {
-                usingEqStrings("MicroMsg.VoIPMP.Launcher", "closeReceiverBanner")
-            }
-            paramCount = 8
-            returnType("void")
-        }
-    }
+    val methodVoipMpLaunchBanner by dexMethod()
 
     /** `mp5.q2.Qa()` — "rejectByShortCut", the entry WeChat's own quick-reject uses. */
-    val methodVoipMpReject by dexMethod(allowFailure = true) {
-        matcher {
-            usingEqStrings("MicroMsg.VoIPMP.CoreV2", "rejectByShortCut")
-            paramCount = 0
-            returnType("void")
-        }
-    }
+    val methodVoipMpReject by dexMethod()
 
     /**
      * `nq5.e.a(String username, boolean videoCall, boolean outCall, long, boolean)` — the incoming
      * ringtone. NB: this is NOT the old `MicroMsg.RingPlayer` / "playSound, type: ..." match, which
      * resolved to the call-ENDED tone and therefore never silenced anything.
      */
-    val methodVoipMpStartRing by dexMethod {
-        matcher {
-            usingEqStrings("MicroMsg.VoIPMPRingtoneController", "startRing() called with: username = ")
-        }
-    }
+    val methodVoipMpStartRing by dexMethod()
 
     /** `xp5.b.d(String username, boolean, boolean, boolean)` — starts the VoIP foreground service. */
-    val methodVoipMpStartFgs by dexMethod {
-        matcher {
-            usingEqStrings("MicroMsg.VoIPMPVoIPNotificationHelper", "startFGS isBindVoIPForegroundService ")
-        }
-    }
+    val methodVoipMpStartFgs by dexMethod()
 
     /** `mp5.q2.Ii(String toUser, ...)` — VoIPMP call-record insertion (未接听 / 已取消 / duration). */
-    val methodVoipMpInsertMsg by dexMethod {
-        matcher {
-            paramTypes(
-                "java.lang.String",
-                "boolean",
-                "int",
-                "long",
-                "long",
-                "long",
-                "int",
-            )
-            returnType("void")
-            anyOf(
-                MethodMatcher().apply {
-                    usingEqStrings(
-                        "MicroMsg.VoIPMP.Launcher",
-                        "insertMsg() called with: toUser = ",
-                    )
-                },
-                MethodMatcher().apply {
-                    declaredClass {
-                        usingEqStrings("MicroMsg.VoIPMP.Launcher", "closeReceiverBanner")
-                    }
-                },
-            )
-        }
-    }
+    val methodVoipMpInsertMsg by dexMethod()
 
     // ── multitalk (群通话), used when the VoIPMP multitalk experiment is off ───────────────────
 
     /** `v0.G(MultiTalkGroup)` — MultiTalkManager.onInviteMultiTalk. */
-    val methodMultiTalkOnInvite by dexMethod(allowFailure = true) {
-        matcher {
-            declaredClass(SplitGroupCall.methodExitMultiTalk.data.declaredClassName)
-            usingEqStrings(
-                "MicroMsg.MT.MultiTalkManager",
-                "onInviteMultiTalk All Var Value:\n isMute: %b isHandsFree: %b isCameraFace: %b multiTalkStatus: %s groupIsNull: %b",
-            )
-        }
-    }
+    val methodMultiTalkOnInvite by dexMethod()
 
     /**
      * `v0.g(isReject, isMissCall, isPhoneCall, isNetworkError, boolean, boolean)` —
@@ -991,12 +846,7 @@ object HideContacts : ClickableFeature(), IResolveDex, WeChatInputBarApi.IInputB
     // ── legacy v2protocal stack (only reached when the peer downgrades) ───────────────────────
 
     /** `nr4.y.x(...)` — the incoming float card. Shared by both stacks, so live on 8.0.76 as well. */
-    val methodVoipShowFloatingCard by dexMethod {
-        matcher {
-            usingEqStrings(".ui.voip.VoipFloatView")
-            paramCount = 8
-        }
-    }
+    val methodVoipShowFloatingCard by dexMethod()
 
     /**
      * `nr4.y.z(Context, String toUser)` — AnimatedVoipBaseFloatCardManager.showFinishCard, the
@@ -1007,41 +857,14 @@ object HideContacts : ClickableFeature(), IResolveDex, WeChatInputBarApi.IInputB
      * The bare "showFinishCard" string constant occurs only in this method (the lambda classes
      * carry longer `...$showFinishCard$3$2$...` constants, which `usingEqStrings` will not match).
      */
-    val methodVoipShowFinishCard by dexMethod(allowFailure = true) {
-        matcher {
-            usingEqStrings("showFinishCard", "(Landroid/content/Context;Ljava/lang/String;)V")
-            paramCount = 2
-        }
-    }
-    val methodVoipAcceptIncomingCall by dexMethod {
-        searchPackages("com.tencent.mm.plugin.voip")
-        matcher {
-            usingEqStrings("MicroMsg.VoipIncomingCallManager", "acceptIncomingCal, roomInfo:")
-        }
-    }
-    val methodVoipStartAcceptVoip by dexMethod {
-        searchPackages("com.tencent.mm.plugin.voip")
-        matcher {
-            usingEqStrings("MicroMsg.VoipIncomingCallManager", "startAcceptVoIP, roomInfo:")
-        }
-    }
-    val methodVoipServiceExSetInviteContent by dexMethod {
-        matcher {
-            usingEqStrings("MicroMsg.Voip.VoipServiceEx", "Failed to setInviteContent during calling, status =")
-        }
-    }
-    val methodVoipServiceExReject by dexMethod {
-        matcher {
-            usingEqStrings("MicroMsg.Voip.VoipServiceEx", "Failed to reject with calling, status =")
-        }
-    }
+    val methodVoipShowFinishCard by dexMethod()
+    val methodVoipAcceptIncomingCall by dexMethod()
+    val methodVoipStartAcceptVoip by dexMethod()
+    val methodVoipServiceExSetInviteContent by dexMethod()
+    val methodVoipServiceExReject by dexMethod()
 
     /** `j0.j(String content, a65.j4 addMsg)` — server-pushed `<voipmsg>` bubble (msg type 50). */
-    val methodVoipBubbleHandle by dexMethod {
-        matcher {
-            usingEqStrings("MicroMsg.VoIPBubbleHelper", "handlerBubbleMsg: parse bubble info error")
-        }
-    }
+    val methodVoipBubbleHandle by dexMethod()
 
     /**
      * `b2.d(String talker, String, int, int, String, boolean, k0, f16.l)` — legacy call-record
@@ -1052,15 +875,7 @@ object HideContacts : ClickableFeature(), IResolveDex, WeChatInputBarApi.IInputB
      * `args[0]` throw on every legacy call record. The callagain URL is unique to b2 itself, and
      * `d` is the only 8-parameter method it declares.
      */
-    val methodVoipLegacyInsertMsg by dexMethod(allowFailure = true) {
-        matcher {
-            declaredClass {
-                usingEqStrings("MicroMsg.VoipPluginManager", "weixin://voip/callagain/?username=")
-            }
-            paramCount = 8
-            returnType("void")
-        }
-    }
+    val methodVoipLegacyInsertMsg by dexMethod()
 
 //    private val classVoipService by dexClass()
 //    private val classVoipManager by dexClass()

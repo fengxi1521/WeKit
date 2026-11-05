@@ -4,9 +4,9 @@ import android.app.Activity
 import dev.ujhhgtg.reflekt.reflekt
 import dev.ujhhgtg.reflekt.utils.toClass
 import com.xiao.feng.R
-import com.xiao.feng.dexkit.abc.IResolveDex
-import com.xiao.feng.dexkit.dsl.dexClass
-import com.xiao.feng.dexkit.dsl.dexMethod
+import com.xiao.feng.featurepoints.abc.IResolveDex
+import com.xiao.feng.featurepoints.dsl.dexClass
+import com.xiao.feng.featurepoints.dsl.dexMethod
 import com.xiao.feng.features.core.FeatureCategoryIds
 import com.xiao.feng.features.core.SwitchFeature
 
@@ -17,17 +17,8 @@ object DisableLowAvailableStorageDetection : SwitchFeature(), IResolveDex {
     override val categoryIds = listOf(FeatureCategoryIds.SYSTEM_PRIVACY)
     override val descriptionRes = R.string.feature_disable_low_available_storage_detection_description
 
-    private val methodSplashActivitySplashFinished by dexMethod {
-        matcher {
-            declaredClass = "com.tencent.mm.splash.SplashActivity"
-            usingEqStrings("WxSplash.SplashActivity", "Call splashFinished.")
-        }
-    }
-    private val classStaticValuesHolder by dexClass {
-        matcher {
-            usingEqStrings("UIPageFragmentActivity", "LuckyMoneyNewPrepareUI", "RemittanceUI")
-        }
-    }
+    private val methodSplashActivitySplashFinished by dexMethod()
+    private val classStaticValuesHolder by dexClass()
 
     override fun onEnable() {
         methodSplashActivitySplashFinished.hookBefore {

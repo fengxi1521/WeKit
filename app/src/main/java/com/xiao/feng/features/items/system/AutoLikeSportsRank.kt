@@ -21,8 +21,8 @@ import androidx.compose.ui.unit.dp
 import com.composables.icons.materialsymbols.MaterialSymbols
 import com.composables.icons.materialsymbols.outlined.Chevron_right
 import com.xiao.feng.R
-import com.xiao.feng.dexkit.abc.IResolveDex
-import com.xiao.feng.dexkit.dsl.dexConstructor
+import com.xiao.feng.featurepoints.abc.IResolveDex
+import com.xiao.feng.featurepoints.dsl.dexConstructor
 import com.xiao.feng.features.api.core.WeApi
 import com.xiao.feng.features.api.core.WeDatabaseApi
 import com.xiao.feng.features.api.core.WeDatabaseListenerApi
@@ -64,13 +64,7 @@ object AutoLikeSportsRank : ClickableFeature(), IResolveDex,
     private const val MESSAGE_MAX_AGE_MS = 15 * 60 * 1000L
     private const val LIKE_DELAY_MS = 60_000L
 
-    private val ctorSportsRankLike by dexConstructor {
-        matcher {
-            usingEqStrings("/cgi-bin/mmbiz-bin/rank/addlike")
-            paramCount(4)
-            paramTypes(BString, BString, int, BString)
-        }
-    }
+    private val ctorSportsRankLike by dexConstructor()
 
     private var minScore by KvStore.prefOption("sports_rank_min_score", 0)
     private var useWhitelist by KvStore.prefOption("sports_rank_use_whitelist", false)

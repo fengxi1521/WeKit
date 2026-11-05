@@ -14,9 +14,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import com.xiao.feng.R
 import dev.ujhhgtg.reflekt.reflekt
-import com.xiao.feng.dexkit.abc.IResolveDex
-import com.xiao.feng.dexkit.dsl.data
-import com.xiao.feng.dexkit.dsl.dexClass
+import com.xiao.feng.featurepoints.abc.IResolveDex
+import com.xiao.feng.featurepoints.dsl.dexClass
 import com.xiao.feng.features.api.core.WeConversationApi
 import com.xiao.feng.features.api.core.WeDatabaseListenerApi
 import com.xiao.feng.features.api.ui.WeConversationContextMenuApi
@@ -185,23 +184,9 @@ object SuperConversationPinning : SwitchFeature(),
 //        }
 //    }
 
-    private val classConversation by dexClass {
-        matcher {
-            usingEqStrings("MicroMsg.Conversation", "[%s}]get mmkv editmsg is [%s],get conv editmsg is [%s]")
-        }
-    }
+    private val classConversation by dexClass()
 
-    private val classMvvmConversationAdapter by dexClass {
-        matcher {
-            superClass {
-                usingEqStrings("null cannot be cast to non-null type T of com.tencent.mm.plugin.mvvmlist.BaseMvvmListItem")
-            }
-
-            addField {
-                type(classConversation.data.name)
-            }
-        }
-    }
+    private val classMvvmConversationAdapter by dexClass()
 
     private fun hookMvvmConversationComparator() {
         if (classMvvmConversationAdapter.isPlaceholder) {

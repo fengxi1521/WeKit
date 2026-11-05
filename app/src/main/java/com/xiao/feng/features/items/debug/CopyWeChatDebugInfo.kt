@@ -7,8 +7,8 @@ import com.tencent.mm.plugin.setting.ui.setting.SettingsAboutMMHeaderPreference
 import dev.ujhhgtg.reflekt.reflekt
 import dev.ujhhgtg.reflekt.utils.createInstance
 import com.xiao.feng.R
-import com.xiao.feng.dexkit.abc.IResolveDex
-import com.xiao.feng.dexkit.dsl.dexMethod
+import com.xiao.feng.featurepoints.abc.IResolveDex
+import com.xiao.feng.featurepoints.dsl.dexMethod
 import com.xiao.feng.features.core.ClickableFeature
 import com.xiao.feng.features.core.FeatureCategoryIds
 import com.xiao.feng.utils.android.copyToClipboard
@@ -56,11 +56,5 @@ object CopyWeChatDebugInfo : ClickableFeature(), IResolveDex {
         unhook.unhook()
     }
 
-    private val methodOnClick by dexMethod {
-        searchPackages("com.tencent.mm.plugin.setting.ui.setting")
-        matcher {
-            name = "onClick"
-            usingEqStrings("com/tencent/mm/plugin/setting/ui/setting/SettingsAboutMMHeaderPreference$1", $$"android/view/View$OnClickListener", "onClick")
-        }
-    }
+    private val methodOnClick by dexMethod()
 }

@@ -17,8 +17,8 @@ import dev.ujhhgtg.reflekt.reflekt
 import dev.ujhhgtg.reflekt.utils.Modifiers
 import dev.ujhhgtg.reflekt.utils.toClass
 import com.xiao.feng.R
-import com.xiao.feng.dexkit.abc.IResolveDex
-import com.xiao.feng.dexkit.dsl.dexMethod
+import com.xiao.feng.featurepoints.abc.IResolveDex
+import com.xiao.feng.featurepoints.dsl.dexMethod
 import com.xiao.feng.features.core.ClickableFeature
 import com.xiao.feng.features.core.FeatureCategoryIds
 import com.xiao.feng.data.KvStore.prefOption
@@ -38,21 +38,7 @@ object CustomDpi : ClickableFeature(), IResolveDex {
     override val categoryIds = listOf(FeatureCategoryIds.BEAUTIFY, FeatureCategoryIds.SYSTEM_PRIVACY)
     override val descriptionRes = R.string.feature_custom_dpi_description
 
-    private val methodGetDisplayMetrics by dexMethod {
-        matcher {
-            declaredClass {
-                usingEqStrings("MicroMsg.MMDensityManager", "screenResolution_target_field")
-            }
-
-            modifiers = Modifiers.PUBLIC
-            returnType = DisplayMetrics::class.java.name
-            paramCount = 0
-
-            addInvoke {
-                returnType = "boolean"
-            }
-        }
-    }
+    private val methodGetDisplayMetrics by dexMethod()
 
     private var customDpi by prefOption("custom_dpi", 360)
 

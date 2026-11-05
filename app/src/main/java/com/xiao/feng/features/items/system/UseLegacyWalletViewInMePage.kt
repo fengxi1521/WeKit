@@ -3,8 +3,8 @@ package com.xiao.feng.features.items.system
 import com.tencent.mm.ui.base.preference.Preference
 import dev.ujhhgtg.reflekt.reflekt
 import com.xiao.feng.R
-import com.xiao.feng.dexkit.abc.IResolveDex
-import com.xiao.feng.dexkit.dsl.dexMethod
+import com.xiao.feng.featurepoints.abc.IResolveDex
+import com.xiao.feng.featurepoints.dsl.dexMethod
 import com.xiao.feng.features.core.FeatureCategoryIds
 import com.xiao.feng.features.core.SwitchFeature
 
@@ -34,15 +34,7 @@ object UseLegacyWalletViewInMePage : SwitchFeature(), IResolveDex {
         }
     }
 
-    private val methodGetOrderAndCardEntranceInfo by dexMethod {
-        matcher {
-            usingEqStrings("MicroMsg.EcsOrderService", "getOrderAndCardEntranceInfo use finder logic")
-        }
-    }
+    private val methodGetOrderAndCardEntranceInfo by dexMethod()
 
-    private val methodMoreTabUIHandlePrefOnClick by dexMethod {
-        matcher {
-            usingEqStrings("MicroMsg.MoreTabUI", "account has not already!", "onPreferenceTreeClick")
-        }
-    }
+    private val methodMoreTabUIHandlePrefOnClick by dexMethod()
 }

@@ -2,7 +2,6 @@
 
 本页介绍 XiaoFeng 的开发环境、构建命令和产物。专题说明请参阅：
 
-- [DexKit 解析器测试](linux-dex-test.md)
 - [国际化开发指南](i18n.md)
 - [文档站维护](documentation-site.md)
 - [翻译贡献](../translations/index.md)
@@ -95,7 +94,6 @@ exec cargo xtask "$@"
 | `./x check` | 对 Rust native 库执行 `cargo check` |
 | `./x clippy` | 对 Rust native 库执行 `cargo clippy -- -D warnings` |
 | `./x i18n-check` | 校验 Android 国际化资源目录 |
-| `./x dex-test` | 在桌面测试 DexKit 解析器 |
 | `./x dex-report-diff <report...>` | 离线比较版本报告中的方法和构造函数签名 |
 | `./x extensions` | 构建和管理按需下载的扩展包 |
 
@@ -184,7 +182,7 @@ LSpeciallyParanoid 在 debug 构建中默认关闭，在 release 构建中默认
 关闭保护会跳过字符串和资源转换，并生成空操作的加载入口；不会改用 JVM 字符串混淆。
 release 原有的 R8 优化不受此开关影响。`--native-only` 不生成 APK，因此忽略此开关。
 
-`dex-test` 和 Gradle 测试任务始终关闭保护，即使传入 `-Pprotect=true`。
+Gradle 测试任务始终关闭保护，即使传入 `-Pprotect=true`。
 请求名称含 `test` 的任务，以及 `check`、`connectedCheck`、`deviceCheck`、`build`、`buildNeeded`、`buildDependents`
 等包含测试的聚合任务时，整个 Gradle 调用都不保护，以免主代码和测试共用受保护产物。
 同时请求测试与 APK 构建也遵循该规则；需要受保护的发布 APK 时，单独运行

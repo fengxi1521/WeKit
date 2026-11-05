@@ -6,9 +6,9 @@ import dev.ujhhgtg.reflekt.utils.isSubclassOf
 import dev.ujhhgtg.reflekt.utils.makeAccessible
 import com.xiao.feng.R
 import com.xiao.feng.constants.PackageNames
-import com.xiao.feng.dexkit.abc.IResolveDex
-import com.xiao.feng.dexkit.dsl.dexClass
-import com.xiao.feng.dexkit.dsl.dexMethod
+import com.xiao.feng.featurepoints.abc.IResolveDex
+import com.xiao.feng.featurepoints.dsl.dexClass
+import com.xiao.feng.featurepoints.dsl.dexMethod
 import com.xiao.feng.features.core.FeatureCategoryIds
 import com.xiao.feng.features.core.SwitchFeature
 import com.xiao.feng.utils.WeLogger
@@ -31,11 +31,7 @@ object OpenDetailsOnItemClick : SwitchFeature(), IResolveDex {
      * 头像/昵称/图片/视频/评论按钮/地点/卡片等子 View 都注册了自己的点击监听, 正文是 longClickable,
      * 都会自行消费触摸; 只有它们都没吃掉的"空白"触摸才会冒泡到根 View。
      */
-    private val classImproveTimelineItem by dexClass {
-        matcher {
-            usingEqStrings("com.tencent.mm.plugin.sns.ui.improve.item.click.ImproveTimelineItemClick")
-        }
-    }
+    private val classImproveTimelineItem by dexClass()
 
     /**
      * `WxRecyclerAdapter$bindViewListener$2.onClick` — 微信自己挂在条目根 View 上的点击监听。
@@ -44,26 +40,10 @@ object OpenDetailsOnItemClick : SwitchFeature(), IResolveDex {
      * 是 `bindViewListener(itemView, item, position)`, 它每次绑定都会无条件重装 touch/click/longClick
      * 三个监听器, 把之前设的全部覆盖掉。所以直接 hook 它装上去的那个监听器, 在它派发完之后接着走。
      */
-    private val methodItemClickListenerOnClick by dexMethod {
-        matcher {
-            name = "onClick"
-            paramTypes("android.view.View")
-            returnType(Void.TYPE)
-            usingEqStrings($$"com/tencent/mm/view/recyclerview/WxRecyclerAdapter$bindViewListener$2")
-        }
-    }
+    private val methodItemClickListenerOnClick by dexMethod()
 
     /** `ImproveSnsInfo.getLocalIDString()` — 返回 `sns_table_<rowid>` (广告为 `ad_table_`) */
-    private val methodGetLocalIdString by dexMethod {
-        matcher {
-            paramCount(0)
-            returnType("java.lang.String")
-            usingEqStrings(
-                "getLocalIDString",
-                "com.tencent.mm.plugin.sns.ui.improve.model.ImproveSnsInfo"
-            )
-        }
-    }
+    private val methodGetLocalIdString by dexMethod()
 
     private lateinit var getImproveListItemMethod: Method
     private lateinit var getImproveSnsInfoMethod: Method

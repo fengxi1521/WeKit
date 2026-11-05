@@ -16,9 +16,9 @@ import com.composables.icons.materialsymbols.MaterialSymbols
 import com.composables.icons.materialsymbols.outlined.Block
 import com.tencent.mm.pluginsdk.ui.chat.ChatFooter
 import dev.ujhhgtg.reflekt.reflekt
-import com.xiao.feng.dexkit.abc.IResolveDex
+import com.xiao.feng.featurepoints.abc.IResolveDex
 import com.xiao.feng.R
-import com.xiao.feng.dexkit.dsl.dexMethod
+import com.xiao.feng.featurepoints.dsl.dexMethod
 import com.xiao.feng.features.core.ApiFeature
 import com.xiao.feng.features.core.FeatureCategoryIds
 import com.xiao.feng.ui.content.AlertDialogContent
@@ -62,18 +62,8 @@ object WeChatInputBarMenuApi : ApiFeature(), IResolveDex {
         providers -= provider
     }
 
-    val methodSendMessage by dexMethod {
-        searchPackages("com.tencent.mm.pluginsdk.ui.chat")
-        matcher {
-            usingEqStrings("MicroMsg.ChatFooter", "send msg onClick")
-        }
-    }
-    val methodAppGridGetView by dexMethod {
-        matcher {
-            usingStrings("MicroMsg.AppGrid", "pos:", "page:")
-            name = "getView"
-        }
-    }
+    val methodSendMessage by dexMethod()
+    val methodAppGridGetView by dexMethod()
 
     /**
      * 在 ChatFooter 内定位原生发送按钮 (第 0 个子视图中文本为 "发送"/"send" 的 Button)。

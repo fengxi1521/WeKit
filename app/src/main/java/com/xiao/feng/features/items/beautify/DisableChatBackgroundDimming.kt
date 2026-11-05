@@ -5,8 +5,8 @@ import android.view.View
 import android.widget.ImageView
 import dev.ujhhgtg.reflekt.reflekt
 import com.xiao.feng.R
-import com.xiao.feng.dexkit.abc.IResolveDex
-import com.xiao.feng.dexkit.dsl.dexMethod
+import com.xiao.feng.featurepoints.abc.IResolveDex
+import com.xiao.feng.featurepoints.dsl.dexMethod
 import com.xiao.feng.features.core.FeatureCategoryIds
 import com.xiao.feng.features.core.SwitchFeature
 
@@ -17,14 +17,7 @@ object DisableChatBackgroundDimming : SwitchFeature(), IResolveDex {
     override val categoryIds = listOf(FeatureCategoryIds.BEAUTIFY)
     override val descriptionRes = R.string.feature_disable_chat_background_dimming_description
 
-    private val methodSetChatBackground by dexMethod {
-        matcher {
-            usingEqStrings(
-                "MicroMsg.ChattingUI.ChattingBackgroundComponent",
-                "initBackground: info:%s bgId:%s",
-            )
-        }
-    }
+    private val methodSetChatBackground by dexMethod()
 
     override fun onEnable() {
         methodSetChatBackground.hookAfter {

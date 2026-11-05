@@ -9,8 +9,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.res.stringResource
 import com.xiao.feng.R
-import com.xiao.feng.dexkit.abc.IResolveDex
-import com.xiao.feng.dexkit.dsl.dexMethod
+import com.xiao.feng.featurepoints.abc.IResolveDex
+import com.xiao.feng.featurepoints.dsl.dexMethod
 import com.xiao.feng.features.core.ClickableFeature
 import com.xiao.feng.features.core.FeatureCategoryIds
 import com.xiao.feng.ui.content.AlertDialogContent
@@ -63,10 +63,5 @@ object LaunchInternalUrls : ClickableFeature(), IResolveDex {
         }
     }
 
-    private val methodOpenUrl by dexMethod {
-        searchPackages("com.tencent.mm.app.plugin")
-        matcher {
-            usingEqStrings("MicroMsg.MMURIJumpHandler", "openSpecificUI, context is null")
-        }
-    }
+    private val methodOpenUrl by dexMethod()
 }

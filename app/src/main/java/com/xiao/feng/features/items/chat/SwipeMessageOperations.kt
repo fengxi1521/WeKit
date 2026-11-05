@@ -27,10 +27,9 @@ import com.tencent.mm.pluginsdk.ui.chat.ChatFooter
 import dev.ujhhgtg.reflekt.reflekt
 import com.xiao.feng.R
 import com.xiao.feng.data.KvStore
-import com.xiao.feng.dexkit.abc.IResolveDex
-import com.xiao.feng.dexkit.dsl.data
-import com.xiao.feng.dexkit.dsl.dexClass
-import com.xiao.feng.dexkit.dsl.dexMethod
+import com.xiao.feng.featurepoints.abc.IResolveDex
+import com.xiao.feng.featurepoints.dsl.dexClass
+import com.xiao.feng.featurepoints.dsl.dexMethod
 import com.xiao.feng.features.api.core.WeMessageApi
 import com.xiao.feng.features.api.core.WeServiceApi
 import com.xiao.feng.features.api.core.models.MessageInfo
@@ -57,7 +56,6 @@ import com.xiao.feng.utils.now
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import org.luckypray.dexkit.DexKitBridge
 import java.lang.ref.WeakReference
 import java.util.Collections
 import java.util.WeakHashMap
@@ -146,43 +144,16 @@ object SwipeMessageOperations : ClickableFeature(), IResolveDex,
     // container only sees MOVE events after it intercepts them — which is why we must hook
     // onInterceptTouchEvent here rather than rely on an OnTouchListener alone. Scoping the hook to
     // this one class (instead of global ViewGroup) keeps the blast radius tiny.
-    private val classChattingItemContainer by dexClass {
-        searchPackages("com.tencent.mm.ui.chatting.viewitems")
-        matcher {
-            usingEqStrings(
-                "MicroMsg.ChattingItemContainer",
-                "warn!!! cacheSize:%s sysSize:%s"
-            )
-        }
-    }
+    private val classChattingItemContainer by dexClass()
 
     // ChattingUIFragment installs this listener on the chat list. On ACTION_DOWN it asks the
     // current ChatFooter to close the keyboard/panel, then returns false so normal list handling
     // continues. A blank-area DOWN claimed by our row never reaches that listener, so resolve the
     // exact ChatFooter call and mirror it at the point where we claim the stream.
-    private val methodChatListOnTouch by dexMethod {
-        searchPackages("com.tencent.mm.ui.chatting")
-        matcher {
-            usingEqStrings("onTouch: touch down", "onTouch: touch up")
-            paramTypes("android.view.View", "android.view.MotionEvent")
-            returnType = "boolean"
-        }
-    }
+    private val methodChatListOnTouch by dexMethod()
 
     private val methodHideChatInput by dexMethod()
 
-    override fun resolveDex(dexKit: DexKitBridge) {
-        methodHideChatInput.setDescriptor(
-            methodChatListOnTouch.data.invokes
-                .distinctBy { it.descriptor }
-                .single {
-                    it.declaredClassName == "com.tencent.mm.pluginsdk.ui.chat.ChatFooter" &&
-                        it.returnTypeName == "void" &&
-                        (it.paramTypeNames == listOf("boolean") ||
-                            it.paramTypeNames == listOf("int", "boolean"))
-                }
-        )
-    }
 
     // ── lifecycle ────────────────────────────────────────────────────────────
 
@@ -876,18 +847,7 @@ object SwipeMessageOperations : ClickableFeature(), IResolveDex,
         }
     }
 
-    private val classChattingUiFootComponent by dexClass {
-        searchPackages("com.tencent.mm.ui.chatting.component")
-        matcher {
-            usingEqStrings(
-                "MicroMsg.ChattingUI.FootComponent",
-                "onNotifyChange event %s talker %s"
-            )
-        }
-    }
+    private val classChattingUiFootComponent by dexClass()
 
-    private val methodGetMsgInfo by dexMethod {
-        searchPackages("com.tencent.mm.ui.chatting.viewitems")
-        matcher { usingEqStrings("ItemDataTag", "getCurrentMsg2 err") }
-    }
+    private val methodGetMsgInfo by dexMethod()
 }

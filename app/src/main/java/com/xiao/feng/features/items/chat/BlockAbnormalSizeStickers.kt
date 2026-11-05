@@ -1,8 +1,8 @@
 package com.xiao.feng.features.items.chat
 
 import com.xiao.feng.R
-import com.xiao.feng.dexkit.abc.IResolveDex
-import com.xiao.feng.dexkit.dsl.dexConstructor
+import com.xiao.feng.featurepoints.abc.IResolveDex
+import com.xiao.feng.featurepoints.dsl.dexConstructor
 import com.xiao.feng.features.core.FeatureCategoryIds
 import com.xiao.feng.features.core.SwitchFeature
 import com.xiao.feng.utils.android.showToast
@@ -41,10 +41,5 @@ object BlockAbnormalSizeStickers : SwitchFeature(), IResolveDex {
         }
     }
 
-    private val ctorMmWxgfDrawable by dexConstructor {
-        searchPackages("com.tencent.mm.plugin.gif")
-        matcher {
-            usingEqStrings("MicroMsg.GIF.MMWXGFDrawable", "Cpan WXGF get option failed. result:%d")
-        }
-    }
+    private val ctorMmWxgfDrawable by dexConstructor()
 }

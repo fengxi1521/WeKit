@@ -11,8 +11,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.xiao.feng.R
-import com.xiao.feng.dexkit.abc.IResolveDex
-import com.xiao.feng.dexkit.dsl.dexMethod
+import com.xiao.feng.featurepoints.abc.IResolveDex
+import com.xiao.feng.featurepoints.dsl.dexMethod
 import com.xiao.feng.features.core.ClickableFeature
 import com.xiao.feng.features.core.FeatureCategoryIds
 import com.xiao.feng.data.KvStore.prefOption
@@ -32,11 +32,7 @@ object BlockVoipRingtone : ClickableFeature(), IResolveDex {
     private var disableOutCall by prefOption("voip_disable_ringtone_out_call", true)
     private var disableInCall by prefOption("voip_disable_ringtone_in_call", false)
 
-    private val methodPlaySound by dexMethod {
-        matcher {
-            usingEqStrings("MicroMsg.BaseSceneSetting", "playSound Failed Throwable t = ")
-        }
-    }
+    private val methodPlaySound by dexMethod()
 
     override fun onEnable() {
         methodPlaySound.hookBefore {

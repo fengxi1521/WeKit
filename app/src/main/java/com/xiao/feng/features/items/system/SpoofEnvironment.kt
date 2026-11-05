@@ -3,8 +3,8 @@ package com.xiao.feng.features.items.system
 import android.provider.Settings
 import dev.ujhhgtg.reflekt.reflekt
 import com.xiao.feng.R
-import com.xiao.feng.dexkit.abc.IResolveDex
-import com.xiao.feng.dexkit.dsl.dexMethod
+import com.xiao.feng.featurepoints.abc.IResolveDex
+import com.xiao.feng.featurepoints.dsl.dexMethod
 import com.xiao.feng.features.core.FeatureCategoryIds
 import com.xiao.feng.features.core.SwitchFeature
 
@@ -41,14 +41,5 @@ object SpoofEnvironment : SwitchFeature(), IResolveDex {
         }
     }
 
-    private val methodIsVpnEnabled by dexMethod {
-        matcher {
-            declaredClass {
-                usingEqStrings("MicroMsg.WalletSecurityUtilService")
-            }
-
-            usingEqStrings("connectivity")
-            usingNumbers(4)
-        }
-    }
+    private val methodIsVpnEnabled by dexMethod()
 }

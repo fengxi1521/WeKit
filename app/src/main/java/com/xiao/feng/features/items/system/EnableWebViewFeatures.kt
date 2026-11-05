@@ -4,8 +4,8 @@ import android.app.Activity
 import com.tencent.mm.plugin.webview.ui.tools.WebViewUI
 import dev.ujhhgtg.reflekt.reflekt
 import com.xiao.feng.R
-import com.xiao.feng.dexkit.abc.IResolveDex
-import com.xiao.feng.dexkit.dsl.dexMethod
+import com.xiao.feng.featurepoints.abc.IResolveDex
+import com.xiao.feng.featurepoints.dsl.dexMethod
 import com.xiao.feng.features.core.FeatureCategoryIds
 import com.xiao.feng.features.core.SwitchFeature
 import com.xiao.feng.utils.reflection.bool
@@ -18,15 +18,7 @@ object EnableWebViewFeatures : SwitchFeature(), IResolveDex {
     override val categoryIds = listOf(FeatureCategoryIds.SYSTEM_PRIVACY)
     override val descriptionRes = R.string.feature_enable_web_view_features_description
 
-    private val methodInitWebViewFeatures by dexMethod {
-        matcher {
-            declaredClass = "com.tencent.mm.plugin.webview.ui.tools.WebViewUI"
-            usingEqStrings(
-                "banRightBtn:%b, showFixToolsBtn:%b",
-                "MicroMsg.WebViewFtsQuickHelper"
-            )
-        }
-    }
+    private val methodInitWebViewFeatures by dexMethod()
 
     override fun onEnable() {
         WebViewUI::class.reflekt().apply {

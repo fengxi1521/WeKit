@@ -18,7 +18,7 @@ object MonetModuleGenerator {
         }
         progress(MonetGenerationStage.BUILDING_RESOURCE_GRAPH, "ARSC/XML 引用图构建完成")
         progress(MonetGenerationStage.RESOLVING_ROLES, "准备解析语义角色")
-        val resolved = MonetStructureMatcher.resolveAll(graph, request.dexEvidenceProvider) { completed, total, detail ->
+        val resolved = MonetStructureMatcher.resolveAll(graph) { completed, total, detail ->
             progress(MonetGenerationStage.RESOLVING_ROLES, detail, completed, total)
         }
         val colors = MONET_RULES.filter { it.type == "color" && it.id != "main.tab.background" }.mapNotNull { rule ->

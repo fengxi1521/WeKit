@@ -21,12 +21,11 @@ import dev.ujhhgtg.reflekt.utils.isSubclassOf
 import dev.ujhhgtg.reflekt.utils.toClass
 import com.xiao.feng.R
 import com.xiao.feng.constants.PackageNames
-import com.xiao.feng.dexkit.abc.IResolveDex
-import com.xiao.feng.dexkit.dsl.data
-import com.xiao.feng.dexkit.dsl.dexClass
-import com.xiao.feng.dexkit.dsl.dexConstructor
-import com.xiao.feng.dexkit.dsl.dexField
-import com.xiao.feng.dexkit.dsl.dexMethod
+import com.xiao.feng.featurepoints.abc.IResolveDex
+import com.xiao.feng.featurepoints.dsl.dexClass
+import com.xiao.feng.featurepoints.dsl.dexConstructor
+import com.xiao.feng.featurepoints.dsl.dexField
+import com.xiao.feng.featurepoints.dsl.dexMethod
 import com.xiao.feng.features.api.core.WeMessageApi
 import com.xiao.feng.features.api.net.models.protobuf.TimelineObjectProto
 import com.xiao.feng.features.api.ui.WeMomentsApi.buildMusicTimelineBundle
@@ -146,103 +145,30 @@ object WeMomentsApi : ApiFeature(), IResolveDex {
     /** Star storage pages pinned Moments by create time; hosts keep only a handful per author. */
     private const val PINNED_SNS_LIMIT = 50
 
-    private val classSnsService by dexClass {
-        searchPackages("com.tencent.mm.plugin.sns.model")
-        matcher {
-            usingEqStrings(
-                "MicroMsg.SnsService",
-                "can not add Comment"
-            )
-        }
-    }
+    private val classSnsService by dexClass()
 
     // --- used by AutoMomentsBase ---
 
-    val classImproveSnsInfo by dexClass {
-        matcher {
-            usingEqStrings("ImproveInfo(name=")
-        }
-    }
+    val classImproveSnsInfo by dexClass()
 
-    val classImproveInteractionLayout by dexClass {
-        matcher {
-            usingEqStrings("MicroMsg.Improve.InteractionLayout")
-        }
-    }
+    val classImproveInteractionLayout by dexClass()
 
-    val fieldInteractionSnsInfo by dexField {
-        matcher {
-            declaredClass(classImproveInteractionLayout.data.name)
-            type(classImproveSnsInfo.data.name)
-        }
-    }
+    val fieldInteractionSnsInfo by dexField()
 
     // --- end used by AutoMomentsBase ---
-    private val methodSendLike by dexMethod(allowFailure = true) {
-        matcher {
-            declaredClass(classSnsService.data.name)
-            modifiers = Modifier.STATIC
-            paramTypes(SNS_INFO_CLASS, "int", null, "int")
-        }
-    }
-    private val methodCancelLike by dexMethod {
-        matcher {
-            declaredClass(classSnsService.data.name)
-            modifiers = Modifier.STATIC
-            paramTypes(String::class.java)
-            returnType(Void.TYPE)
-        }
-    }
-    private val methodGetSnsInfoByLocalId by dexMethod {
-        matcher {
-            paramTypes("int")
-            returnType(SNS_INFO_CLASS)
-            usingStrings(
-                "getByLocalId",
-                "select *,rowid from SnsInfo  where SnsInfo.rowid="
-            )
-        }
-    }
-    val methodGetSnsInfoStorage by dexMethod {
-        searchPackages("com.tencent.mm.plugin.sns.model")
-        matcher {
-            modifiers = Modifier.STATIC
-            paramCount(0)
-            returnType(methodGetSnsInfoByLocalId.data.declaredClassName)
-            usingStrings(
-                "com.tencent.mm.plugin.sns.model.SnsCore",
-                "getSnsInfoStorage"
-            )
-        }
-    }
-    private val methodGetSnsInfoBySnsId by dexMethod {
-        matcher {
-            declaredClass(methodGetSnsInfoByLocalId.data.declaredClassName)
-            paramTypes("long")
-            returnType(SNS_INFO_CLASS)
-            usingStrings("select *,rowid from SnsInfo  where SnsInfo.snsId=")
-        }
-    }
+    private val methodSendLike by dexMethod()
+    private val methodCancelLike by dexMethod()
+    private val methodGetSnsInfoByLocalId by dexMethod()
+    val methodGetSnsInfoStorage by dexMethod()
+    private val methodGetSnsInfoBySnsId by dexMethod()
 
     /**
      * Pinned Moments are kept in the host's separate star storage instead of the SnsInfo table,
      * so a plain SnsInfo query (used by "like all Moments of this author") never sees them.
      */
-    private val methodGetStarSnsInfoByLimit by dexMethod {
-        matcher {
-            paramTypes("java.lang.String", "int")
-            returnType("java.util.ArrayList")
-            usingEqStrings("getStarSnsInfoByLimit")
-        }
-    }
+    private val methodGetStarSnsInfoByLimit by dexMethod()
 
-    private val fieldSnsStarStorageInstance by dexField {
-        matcher {
-            declaredClass(methodGetStarSnsInfoByLimit.data.declaredClassName)
-            modifiers = Modifier.STATIC
-            type(methodGetStarSnsInfoByLimit.data.declaredClassName)
-        }
-    }
+    private val fieldSnsStarStorageInstance by dexField()
 
     private val snsInfoClass by lazy { SNS_INFO_CLASS.toClass() }
 
@@ -259,369 +185,101 @@ object WeMomentsApi : ApiFeature(), IResolveDex {
         }.self
     }
 
-    val classUploadPackHelper by dexClass {
-        searchPackages("com.tencent.mm.plugin.sns.model")
-        matcher {
-            usingEqStrings("MicroMsg.UploadPackHelper", "commit sns info ret %d, typeFlag %d sightMd5 %s")
-        }
-    }
+    val classUploadPackHelper by dexClass()
 
-    val classSnsMediaObj by dexClass {
-        matcher {
-            usingEqStrings("MicroMsg.snsMediaStorage", "convertImg2WxamWithoutZip origPath:%s OutOfMemoryError! rollback")
-        }
-    }
+    val classSnsMediaObj by dexClass()
 
-    val ctorUploadPackHelper by dexConstructor {
-        searchPackages("com.tencent.mm.plugin.sns.model")
-        matcher {
-            declaredClass(classUploadPackHelper.data.name)
-            paramCount(2)
-        }
-    }
+    val ctorUploadPackHelper by dexConstructor()
 
-    val methodCommit by dexMethod {
-        searchPackages("com.tencent.mm.plugin.sns.model")
-        matcher {
-            declaredClass(classUploadPackHelper.data.name)
-            usingEqStrings("commit", "com.tencent.mm.plugin.sns.model.UploadPackHelper")
-        }
-    }
+    val methodCommit by dexMethod()
 
-    val methodSetContentDes by dexMethod {
-        searchPackages("com.tencent.mm.plugin.sns.model")
-        matcher {
-            declaredClass(classUploadPackHelper.data.name)
-            usingEqStrings("setContentDes", "com.tencent.mm.plugin.sns.model.UploadPackHelper")
-        }
-    }
+    val methodSetContentDes by dexMethod()
 
-    val methodSetSdkId by dexMethod {
-        searchPackages("com.tencent.mm.plugin.sns.model")
-        matcher {
-            declaredClass(classUploadPackHelper.data.name)
-            usingEqStrings("setSdkId", "com.tencent.mm.plugin.sns.model.UploadPackHelper")
-        }
-    }
+    val methodSetSdkId by dexMethod()
 
-    val methodSetSdkAppName by dexMethod {
-        searchPackages("com.tencent.mm.plugin.sns.model")
-        matcher {
-            declaredClass(classUploadPackHelper.data.name)
-            usingEqStrings("setSdkAppName", "com.tencent.mm.plugin.sns.model.UploadPackHelper")
-        }
-    }
+    val methodSetSdkAppName by dexMethod()
 
-    val methodSetUploadList by dexMethod {
-        searchPackages("com.tencent.mm.plugin.sns.model")
-        matcher {
-            declaredClass(classUploadPackHelper.data.name)
-            usingEqStrings("setUploadList", "com.tencent.mm.plugin.sns.model.UploadPackHelper")
-        }
-    }
+    val methodSetUploadList by dexMethod()
 
-    val methodAddImageMediaObjByPath by dexMethod {
-        searchPackages("com.tencent.mm.plugin.sns.model")
-        matcher {
-            declaredClass(classUploadPackHelper.data.name)
-            returnType(bool)
-            paramCount(2)
-            usingStrings("addImageMediaObjByPath", "com.tencent.mm.plugin.sns.model.UploadPackHelper")
-        }
-    }
+    val methodAddImageMediaObjByPath by dexMethod()
 
-    val methodAddSightObjectByPath by dexMethod {
-        searchPackages("com.tencent.mm.plugin.sns.model")
-        matcher {
-            declaredClass(classUploadPackHelper.data.name)
-            returnType(bool)
-            usingStrings("addSightObjectByPath", "com.tencent.mm.plugin.sns.model.UploadPackHelper")
-        }
-    }
+    val methodAddSightObjectByPath by dexMethod()
 
     // setUploadList 的列表元素, 实况图片必须经此路径构造。
-    val classSnsUploadElement by dexClass {
-        matcher {
-            usingEqStrings("MicroMsg.SnsUploadElment", "path:%s model:%s")
-
-            addMethod {
-                name = "<init>"
-                paramTypes(BString, int)
-            }
-        }
-    }
+    val classSnsUploadElement by dexClass()
 
     // 媒体上传元素构造器: (path, type)。
-    val ctorSnsUploadElement by dexConstructor {
-        matcher {
-            declaredClass(classSnsUploadElement.data.name)
-            paramCount(2)
-            paramTypes("java.lang.String", "int")
-        }
-    }
+    val ctorSnsUploadElement by dexConstructor()
 
-    val classSnsUtil by dexClass {
-        matcher {
-            usingEqStrings("MicroMsg.SnsUtil", "getSnsBigName")
-        }
-    }
+    val classSnsUtil by dexClass()
 
-    val methodGetSnsBigName by dexMethod {
-        matcher {
-            declaredClass(classSnsUtil.data.name)
-            usingEqStrings("getSnsBigName")
-        }
-    }
+    val methodGetSnsBigName by dexMethod()
 
-    val methodGetSnsThumbName by dexMethod {
-        matcher {
-            declaredClass(classSnsUtil.data.name)
-            usingEqStrings("getSnsThumbName")
-        }
-    }
+    val methodGetSnsThumbName by dexMethod()
 
-    val classSnsPathHelper by dexClass {
-        matcher {
-            usingEqStrings("getImageFilePath", "com.tencent.mm.plugin.sns.model.SnsPathHelper")
-        }
-    }
+    val classSnsPathHelper by dexClass()
 
-    val methodGetMediaFilePath by dexMethod {
-        matcher {
-            declaredClass(classSnsPathHelper.data.name)
-            usingEqStrings("getMediaFilePath")
-        }
-    }
+    val methodGetMediaFilePath by dexMethod()
 
-    val classSnsVideoLogic by dexClass {
-        matcher {
-            usingEqStrings("MicroMsg.SnsVideoLogic", "getSnsVideoPath", "com.tencent.mm.plugin.sns.model.SnsVideoLogic")
-        }
-    }
+    val classSnsVideoLogic by dexClass()
 
-    val methodGetSnsVideoPath by dexMethod {
-        matcher {
-            declaredClass(classSnsVideoLogic.data.name)
-            usingEqStrings("getSnsVideoPath")
-        }
-    }
+    val methodGetSnsVideoPath by dexMethod()
 
-    val methodGenCdnMediaId by dexMethod(allowFailure = true) {
-        matcher {
-            declaredClass(classSnsVideoLogic.data.name)
-            modifiers = Modifier.STATIC
-            paramCount(2)
-            paramTypes("int", null)
-            returnType(String::class.java)
-            usingEqStrings("genCdnMediaId")
-        }
-    }
+    val methodGenCdnMediaId by dexMethod()
 
-    val methodGetSnsVideoFullPath by dexMethod {
-        matcher {
-            declaredClass(classSnsVideoLogic.data.name)
-            modifiers = Modifier.STATIC
-            paramCount(2)
-            paramTypes(String::class.java, null)
-            returnType(String::class.java)
-            usingEqStrings(
-                "getSnsVideoFullPath",
-                "getSnsVideoFullPath have flag %s, %s >>"
-            )
-        }
-    }
+    val methodGetSnsVideoFullPath by dexMethod()
 
-    val methodIsSnsVideoDownloadFinished by dexMethod {
-        matcher {
-            declaredClass(classSnsVideoLogic.data.name)
-            modifiers = Modifier.STATIC
-            paramCount(2)
-            paramTypes(String::class.java, null)
-            returnType(String::class.java)
-            usingEqStrings(
-                "isDownloadFinish",
-                "it don't download video[%s] finish. file[%b], return null."
-            )
-        }
-    }
+    val methodIsSnsVideoDownloadFinished by dexMethod()
 
-    val methodGetSnsVideoThumbImagePath by dexMethod {
-        matcher {
-            declaredClass(classSnsVideoLogic.data.name)
-            usingEqStrings("getSnsVideoThumbImagePath")
-        }
-    }
+    val methodGetSnsVideoThumbImagePath by dexMethod()
 
-    val classSnsCore by dexClass {
-        matcher {
-            usingEqStrings("com.tencent.mm.plugin.sns.model.SnsCore", "getSnsInfoStorage")
-        }
-    }
+    val classSnsCore by dexClass()
 
-    val methodGetAccSnsPath by dexMethod {
-        matcher {
-            declaredClass(classSnsCore.data.name)
-            modifiers = Modifier.STATIC
-            paramCount(0)
-            returnType(String::class.java)
-            usingStrings("getAccSnsPath", "com.tencent.mm.plugin.sns.model.SnsCore")
-        }
-    }
+    val methodGetAccSnsPath by dexMethod()
 
-    val methodGetSnsVideoService by dexMethod {
-        matcher {
-            declaredClass(classSnsCore.data.name)
-            modifiers = Modifier.STATIC
-            paramCount(0)
-            usingStrings("getSnsVideoService", "com.tencent.mm.plugin.sns.model.SnsCore")
-        }
-    }
+    val methodGetSnsVideoService by dexMethod()
 
-    val methodDownloadVideo by dexMethod {
-        matcher {
-            declaredClass(methodGetSnsVideoService.data.returnTypeName)
-            paramCount(7)
-            paramTypes(null, "int", "java.lang.String", "boolean", "boolean", "int", "java.lang.String")
-            returnType(bool)
-            usingEqStrings("addSnsVideoTask", "com.tencent.mm.plugin.sns.model.SnsVideoService")
-        }
-    }
+    val methodDownloadVideo by dexMethod()
 
     // 朋友圈图片下载服务 (DownloadManager), 相当于视频的 SnsVideoService。
     // 点击查看大图时微信正是走这里从 CDN 拉取大图到本地 image2/。
-    val classSnsDownloadManager by dexClass {
-        searchPackages("com.tencent.mm.plugin.sns.model")
-        matcher {
-            usingEqStrings("MicroMsg.DownloadManager", "addBatchDownloadSns do not need download.")
-        }
-    }
+    val classSnsDownloadManager by dexClass()
 
     // SnsCore.getSnsDownManager(): 取 DownloadManager 单例, 与 getSnsVideoService 同构。
-    val methodGetSnsDownManager by dexMethod {
-        matcher {
-            declaredClass(classSnsCore.data.name)
-            modifiers = Modifier.STATIC
-            paramCount(0)
-            usingStrings("getSnsDownManager", "com.tencent.mm.plugin.sns.model.SnsCore")
-        }
-    }
+    val methodGetSnsDownManager by dexMethod()
 
     // DownloadManager.addDownLoadSns(mediaObj, downType, decodeElement, sourceScene) 的 4 参便捷重载。
-    val methodAddDownLoadSns by dexMethod {
-        searchPackages("com.tencent.mm.plugin.sns.model")
-        matcher {
-            declaredClass(classSnsDownloadManager.data.name)
-            paramCount(4)
-            returnType(bool)
-            usingEqStrings("addDownLoadSns", "com.tencent.mm.plugin.sns.model.DownloadManager")
-        }
-    }
+    val methodAddDownLoadSns by dexMethod()
 
     // 图片来源场景枚举 (com.tencent.mm.storage.t6): 朋友圈图片用 "timeline" 实例。
-    val classSnsSourceScene by dexClass {
-        matcher {
-            usingEqStrings("timeline", "album_friend", "album_self", "album_stranger", "comment_detail")
-        }
-    }
+    val classSnsSourceScene by dexClass()
 
     // 富媒体音乐元数据对象 (r45.xs4, proto 字段名 "singerName"/"albumName" 等):
     // 内含歌手、专辑、歌词、musicId 等字段; 从 ContentObj.f387092w (字段 17) 反射取出。
     // 通过这几个在构造函数中出现的唯一字符串定位类, 避免依赖混淆类名。
-    val classXs4 by dexClass {
-        matcher {
-            usingEqStrings("singerName", "albumName", "musicOperationUrl", "albumCoverUrl")
-        }
-    }
+    val classXs4 by dexClass()
 
     // zy2.pc.a(xs4): xs4 → <musicShareItem>...</musicShareItem> XML。
     // 包含 mvObjectId / mvNonceId (feed 社交统计所需的身份), 这两个字段无法通过 WXMusicVideoObject 传递。
     // fy.i() 先把该 XML (Ksnsupload_music_share_object_xml) 解析为完整 xs4, 再用 WXMusicVideoObject 字段
     // 叠加覆盖, 最终提交时 mvObjectId/mvNonceId 一并写入 ContentObj — 点赞/分享/推荐数与评论因此能正确解析。
-    val methodSerializeMusicShareXml by dexMethod {
-        matcher {
-            modifiers = Modifier.STATIC
-            paramCount(1)
-            returnType(String::class.java)
-            usingEqStrings("<musicShareItem>", "</musicShareItem>", "<mvObjectId>", "<mvNonceId>", "<mid>")
-        }
-    }
+    val methodSerializeMusicShareXml by dexMethod()
 
-    val methodSerializeFinderFeed by dexMethod {
-        matcher {
-            modifiers = Modifier.STATIC
-            paramCount(1)
-            returnType(String::class.java)
-            usingEqStrings(
-                "<finderFeed>",
-                "</finderFeed>",
-                "<authIconType>",
-                "<fullClipInset>",
-                "<fullCoverUrl>"
-            )
-        }
-    }
+    val methodSerializeFinderFeed by dexMethod()
 
-    private val methodExportVideoToAlbum by dexMethod {
-        matcher {
-            modifiers = Modifier.STATIC
-            paramCount(4)
-            paramTypes(Context::class.java, String::class.java, String::class.java, null)
-            returnType(String::class.java)
-            usingEqStrings("[+] Called exportVideo, src: %s", "exportVideoImpl fail")
-        }
-    }
+    private val methodExportVideoToAlbum by dexMethod()
 
-    private val methodExportImageToAlbum by dexMethod {
-        matcher {
-            modifiers = Modifier.STATIC
-            paramCount(3)
-            paramTypes(Context::class.java, String::class.java, String::class.java)
-            returnType(String::class.java)
-            usingEqStrings("[+] Called exportImage, src: %s", "exportImageImpl")
-        }
-    }
+    private val methodExportImageToAlbum by dexMethod()
 
-    private val classGalleryEntryUi by dexClass {
-        matcher {
-            usingEqStrings("MicroMsg.GalleryEntryUI", "query souce: ", "doRedirect %s")
-        }
-    }
+    private val classGalleryEntryUi by dexClass()
 
-    private val classSnsUploadUi by dexClass {
-        matcher {
-            usingEqStrings("MicroMsg.SnsUploadUI", "customizeInputView", "initView")
-        }
-    }
+    private val classSnsUploadUi by dexClass()
 
-    private val classSnsUiAction by dexClass {
-        matcher {
-            usingEqStrings(
-                "MicroMsg.SnsActivity",
-                "onAcvityResult requestCode:",
-                "KTouchCameraTime"
-            )
-        }
-    }
+    private val classSnsUiAction by dexClass()
 
-    private val methodSnsUiActionOnActivityResult by dexMethod {
-        matcher {
-            declaredClass(classSnsUiAction.data.name)
-            paramCount(3)
-            paramTypes(Int::class.javaPrimitiveType, Int::class.javaPrimitiveType, Intent::class.java)
-            returnType(Void.TYPE)
-            usingEqStrings("onActivityResult", "com.tencent.mm.plugin.sns.ui.SnsUIAction")
-        }
-    }
+    private val methodSnsUiActionOnActivityResult by dexMethod()
 
-    private val methodSnsUploadOnCreate by dexMethod {
-        matcher {
-            declaredClass(classSnsUploadUi.data.name)
-            paramCount(1)
-            paramTypes(Bundle::class.java)
-            returnType(Void.TYPE)
-            usingEqStrings("onCreate", "com.tencent.mm.plugin.sns.ui.SnsUploadUI")
-        }
-    }
+    private val methodSnsUploadOnCreate by dexMethod()
 
     val vfsReadMethod by lazy {
         WeMessageApi.classVfs.reflekt().firstMethod {
@@ -677,11 +335,7 @@ object WeMomentsApi : ApiFeature(), IResolveDex {
         val size: Int
     )
 
-    private val classGalleryLivePhotoMediaItem by dexClass {
-        matcher {
-            className = $$"com.tencent.mm.plugin.gallery.model.GalleryItem$LivePhotoMediaItem"
-        }
-    }
+    private val classGalleryLivePhotoMediaItem by dexClass()
 
     private val galleryLivePhotoMediaItemClass: Class<*> by lazy {
         classGalleryLivePhotoMediaItem.clazz
