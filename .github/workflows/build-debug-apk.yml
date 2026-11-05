@@ -74,11 +74,22 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: ./x build
 
+      - name: Build release APKs
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: ./x build --release
+
       - name: Upload APK artifact
         uses: actions/upload-artifact@v7
         with:
           name: xfeng-debug-apk
           path: app/build/outputs/apk/standard/debug/*.apk
+
+      - name: Upload release APK artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: xfeng-release-apk
+          path: app/build/outputs/apk/standard/release/*.apk
 
       - name: Publish debug release
         continue-on-error: true
@@ -92,3 +103,16 @@ jobs:
             --prerelease \
             --notes "Fork debug build of ${COMMIT_SHA}." \
             app/build/outputs/apk/standard/debug/*.apk
+
+      - name: Publish optimized release
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          COMMIT_SHA: ${{ github.sha }}
+        run: |
+          gh release delete release-build --yes --cleanup-tag || true
+          gh release create release-build \
+            --title "Optimized build ${COMMIT_SHA:0:8}" \
+            --prerelease \
+            --notes "R8-optimized build of ${COMMIT_SHA}." \
+            app/build/outputs/apk/standard/release/*.apk
