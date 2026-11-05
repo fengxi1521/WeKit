@@ -29,8 +29,6 @@ import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
 import androidx.core.graphics.toColorInt
 import androidx.core.view.isVisible
-import dev.ujhhgtg.reflekt.reflekt
-import dev.ujhhgtg.reflekt.utils.makeAccessible
 import com.xiao.feng.R
 import com.xiao.feng.i18n.LocalXiaoFengLocalizedContext
 import com.xiao.feng.features.api.core.models.MessageInfo
@@ -52,8 +50,6 @@ import com.xiao.feng.utils.android.isDarkMode
 import com.xiao.feng.utils.android.showToast
 import com.xiao.feng.utils.formatEpoch
 import com.xiao.feng.utils.reflection.cachedField
-import java.lang.reflect.Method
-import java.util.Optional
 
 
 /** View tags shared with [ReadReceipts] while keeping its bind state on the time view. */
@@ -61,12 +57,6 @@ const val READ_RECEIPTS_MESSAGE_ID_TAG = 0x7E000010
 const val READ_RECEIPTS_BINDING_GENERATION_TAG = 0x7E000011
 const val READ_RECEIPTS_COUNT_TAG = 0x7E000012
 const val READ_RECEIPTS_NATIVE_TEXT_TAG = 0x7E000013
-
-/**
- * The bubble container that owns this row, cached on the time view so every render path
- * (bind and read-receipt updates) anchors the timestamp to the same view.
- */
-private const val TIME_BUBBLE_ANCHOR_TAG = 0x7E000014
 
 data class ReadReceiptCountState(val count: Int?)
 
@@ -207,8 +197,10 @@ object MessageTimeEnhancements : ClickableFeature(),
     ) {
         val enhancementActive = isActive
         // WeChat draws a translucent rounded pill behind the timestamp once a chat wallpaper is
-        // set. The enhanced time is already recolored, so drop the box to keep the wallpaper clean.
-        if (enhancementActive) time.background = null
+        // set, and re-applies that drawable while the list scrolls. Clearing the background
+        // discarded the padding the pill contributes, so the text kept jumping between the
+        // native metrics and ours. Keep the drawable and only hide it; the padding stays intact.
+        if (enhancementActive) time.background?.mutate()?.alpha = 0
         if (!enhancementActive && !forceVisible) return
         if (!forceVisible && !isAlwaysVisible && !time.isVisible) return
 
@@ -237,51 +229,51 @@ object MessageTimeEnhancements : ClickableFeature(),
 
         time.setTextSize(TypedValue.COMPLEX_UNIT_SP, textSize.toFloat())
 
-        // Horizontal spacing is controlled exclusively by the layout rules below. The native
-        // padding differs between recycled item layouts, which made the gap to the bubble change
-        // from row to row; only the vertical padding is kept uniform here.
+        // 1. Convert 12dp to pixels dynamically so it matches standard screen-edge spacing
+        val edgeMarginPx = TypedValue.applyDimension(
+            TypedValue.COMPLEX_UNIT_DIP,
+            12f,
+            context.resources.displayMetrics
+        ).toInt()
+
+        // 2. Make the paddings above and below the time smaller (2dp)
         val verticalPaddingPx = TypedValue.applyDimension(
             TypedValue.COMPLEX_UNIT_DIP,
             2f,
             context.resources.displayMetrics
         ).toInt()
-        time.setPadding(0, verticalPaddingPx, 0, verticalPaddingPx)
+        time.setPadding(time.paddingLeft, verticalPaddingPx, time.paddingRight, verticalPaddingPx)
 
         val lp = time.layoutParams as? RelativeLayout.LayoutParams
         if (lp != null) {
-            // Clear every horizontal rule left over from a recycled row before applying ours.
-            lp.removeRule(RelativeLayout.CENTER_HORIZONTAL)
-            lp.removeRule(RelativeLayout.ALIGN_PARENT_START)
-            lp.removeRule(RelativeLayout.ALIGN_PARENT_END)
-            lp.removeRule(RelativeLayout.ALIGN_START)
-            lp.removeRule(RelativeLayout.ALIGN_END)
-
             // System messages are always centered, regardless of user config or sender
             if (isAlwaysCentered || msgInfo.type?.isSystem == true) {
                 lp.addRule(RelativeLayout.CENTER_HORIZONTAL)
+                lp.removeRule(RelativeLayout.ALIGN_PARENT_START)
+                lp.removeRule(RelativeLayout.ALIGN_PARENT_END)
                 lp.marginStart = 0
                 lp.marginEnd = 0
                 time.gravity = Gravity.CENTER_HORIZONTAL
             } else {
-                // Anchor the timestamp to the bubble so its distance never depends on the row
-                // width. Fall back to the row edge when the bubble is not a sibling view.
-                val anchor = time.getTag(TIME_BUBBLE_ANCHOR_TAG) as? View
+                lp.removeRule(RelativeLayout.CENTER_HORIZONTAL)
+
+                // 3. Conditional alignment based on who sent the message
                 if (msgInfo.isSelfSender) {
-                    if (anchor != null) {
-                        lp.addRule(RelativeLayout.ALIGN_END, anchor.id)
-                    } else {
-                        lp.addRule(RelativeLayout.ALIGN_PARENT_END)
-                    }
+                    // Align to the Right (End)
+                    lp.removeRule(RelativeLayout.ALIGN_PARENT_START)
+                    lp.addRule(RelativeLayout.ALIGN_PARENT_END)
+
+                    lp.marginEnd = edgeMarginPx
                     lp.marginStart = 0 // Clear opposing margin to prevent bugs on view recycling
-                    lp.marginEnd = 0
+
                     time.gravity = Gravity.END
                 } else {
-                    if (anchor != null) {
-                        lp.addRule(RelativeLayout.ALIGN_START, anchor.id)
-                    } else {
-                        lp.addRule(RelativeLayout.ALIGN_PARENT_START)
-                    }
-                    lp.marginStart = 0
+                    // Align to the Left (Start)
+                    lp.removeRule(RelativeLayout.ALIGN_PARENT_END)
+                    lp.addRule(RelativeLayout.ALIGN_PARENT_START)
+
+                    lp.marginStart = edgeMarginPx
+
                     lp.marginEnd = 0
                     time.gravity = Gravity.START
                 }
@@ -301,9 +293,6 @@ object MessageTimeEnhancements : ClickableFeature(),
 
         val time = tag.cachedField("timeTV").get(tag) as? TextView? ?: return
 
-        val anchor = bubbleAnchorOf(tag, time)
-        time.setTag(TIME_BUBBLE_ANCHOR_TAG, anchor)
-
         val nextGeneration = ((time.getTag(READ_RECEIPTS_BINDING_GENERATION_TAG) as? Long) ?: 0L) + 1L
         time.setTag(READ_RECEIPTS_BINDING_GENERATION_TAG, nextGeneration)
 
@@ -320,28 +309,6 @@ object MessageTimeEnhancements : ClickableFeature(),
             null
         }
         renderMessageTime(msgInfo, time, forceVisible = tracked, readReceiptCount = count)
-    }
-
-    /**
-     * Resolves the bubble container of this row once per holder class. The time view can only
-     * reference it through [RelativeLayout] rules when both share the same parent, so an
-     * unrelated container falls back to the row edge in [renderMessageTime].
-     */
-    private val bubbleAnchorMethodCache = HashMap<Class<*>, Optional<Method>>()
-
-    private fun bubbleAnchorOf(tag: Any, time: TextView): View? {
-        val method = bubbleAnchorMethodCache.getOrPut(tag.javaClass) {
-            Optional.ofNullable(
-                tag.reflekt()
-                    .firstMethodOrNull { name = "getMainContainerView"; parameterCount = 0; superclass() }
-                    ?.self
-                    ?.makeAccessible()
-            )
-        }.orElse(null) ?: return null
-        val anchor = method.invoke(tag) as? View ?: return null
-        if (anchor === time || anchor.parent !== time.parent) return null
-        if (anchor.id == View.NO_ID) anchor.id = View.generateViewId()
-        return anchor
     }
 
     override fun onClick(context: ComponentActivity) {
