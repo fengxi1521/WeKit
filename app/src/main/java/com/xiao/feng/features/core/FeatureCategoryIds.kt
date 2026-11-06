@@ -17,6 +17,7 @@ object FeatureCategoryIds {
     const val SCRIPTING_JAVA = "scripting_java"
     const val SCRIPTING_PYTHON = "scripting_python"
     const val ENTERTAIN = "entertain"
+    const val BOT = "bot"
     const val BATCH = "batch"
     const val HOME_SCREEN_MENU = "home_screen_menu"
     const val CONTACT_DETAILS = "contact_details"
@@ -39,6 +40,7 @@ object FeatureCategoryIds {
         SCRIPTING_JAVA,
         SCRIPTING_PYTHON,
         ENTERTAIN,
+        BOT,
         BATCH,
         HOME_SCREEN_MENU,
         CONTACT_DETAILS,

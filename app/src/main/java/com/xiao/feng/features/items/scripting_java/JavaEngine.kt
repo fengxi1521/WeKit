@@ -700,6 +700,32 @@ object JavaEngine {
                     }.getOrDefault(emptyList<Any>())
                 })
 
+            // getGroupListInfo() → [{roomId, name}] for group-picker style scripts
+            setMethod(
+                BshMethod(
+                    "getGroupListInfo", emptyArray<Class<*>>()
+                ) {
+                    return@BshMethod runCatchingBsh("getGroupListInfo") {
+                        WeDatabaseApi.getGroups().map {
+                            mapOf("roomId" to it.wxId, "name" to it.nickname)
+                        }
+                    }.getOrDefault(emptyList<Map<String, String>>())
+                })
+
+            // getGroupMemberName(a, b) → display name within a group, tolerant of argument order
+            setMethod(
+                BshMethod(
+                    "getGroupMemberName", arrayOf(BString, BString)
+                ) {
+                    val first = it[0] as String
+                    val second = it[1] as String
+                    val groupId = if (first.endsWith("@chatroom")) first else second
+                    val memberId = if (first == groupId) second else first
+                    return@BshMethod runCatchingBsh("getGroupMemberName") {
+                        WeDatabaseApi.getGroupMemberDisplayName(groupId, memberId)
+                    }.getOrDefault(memberId)
+                })
+
             // getGroupMemberList(groupId) → list of member object
             setMethod(
                 BshMethod(
@@ -769,13 +795,16 @@ object JavaEngine {
                     }.getOrDefault(wxId)
                 })
 
-            // getFriendDisplayName(groupId, memberId) → display name within a group
+            // getFriendDisplayName(a, b) → display name within a group
+            // 兼容两种调用顺序：(groupId, memberId) 与 (memberId, groupId)
             setMethod(
                 BshMethod(
                     "getFriendDisplayName", arrayOf(BString, BString)
                 ) {
-                    val groupId = it[0] as String
-                    val memberId = it[1] as String
+                    val first = it[0] as String
+                    val second = it[1] as String
+                    val groupId = if (first.endsWith("@chatroom")) first else second
+                    val memberId = if (first == groupId) second else first
                     return@BshMethod runCatchingBsh("getFriendDisplayName") {
                         WeDatabaseApi.getGroupMemberDisplayName(groupId, memberId)
                     }.getOrDefault(memberId)

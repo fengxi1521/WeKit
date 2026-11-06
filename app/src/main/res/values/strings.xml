@@ -494,6 +494,13 @@
     <string name="feature_category_scripting_java_title">Java scripting</string>
     <string name="feature_category_scripting_python_title">Python scripting</string>
     <string name="feature_category_entertain_title">Entertainment</string>
+    <string name="feature_category_bot_title">Chat bots</string>
+    <string name="feature_bot_games_name">Entertainment games</string>
+    <string name="feature_bot_games_description">Idiom chain and character guessing. Send #成语接龙 or #猜人物 in a chat to start. Author: 小淇</string>
+    <string name="feature_bot_group_robot_name">Group entertainment bot</string>
+    <string name="feature_bot_group_robot_description">Points, robbery, marriage, auctions, song requests and more group games. Send 菜单 in a group. Author: 小淇</string>
+    <string name="feature_bot_moin_menu_name">Entertainment menu system</string>
+    <string name="feature_bot_moin_menu_description">Send 菜单 in a group to open pet, fishing, weather, song request and other mini-games. Author: 小淇</string>
     <string name="feature_category_batch_title">Batch actions</string>
     <string name="feature_category_home_screen_menu_title">Home screen menu</string>
     <string name="feature_category_contact_details_title">Contact details</string>

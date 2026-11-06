@@ -1,6 +1,7 @@
 package com.xiao.feng.features.items.scripting_java
 
 import android.content.ContentValues
+import android.content.res.AssetManager
 import androidx.activity.ComponentActivity
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
@@ -16,6 +17,7 @@ import androidx.compose.ui.unit.dp
 import bsh.Interpreter
 import com.tencent.mm.pluginsdk.ui.chat.ChatFooter
 import dev.ujhhgtg.reflekt.reflekt
+import com.xiao.feng.BuildConfig
 import com.xiao.feng.R
 import com.xiao.feng.featurepoints.abc.IResolveDex
 import com.xiao.feng.featurepoints.dsl.dexMethod
@@ -27,11 +29,13 @@ import com.xiao.feng.features.core.ClickableFeature
 import com.xiao.feng.features.core.FeatureCategoryIds
 import com.xiao.feng.extensions.ExtensionPackDialogs
 import com.xiao.feng.extensions.ScriptDepsPack
+import com.xiao.feng.loader.startup.StartupInfo
 import com.xiao.feng.ui.content.AlertDialogContent
 import com.xiao.feng.ui.content.TextButton
 import com.xiao.feng.ui.content.m3.SwitchWidget
 import com.xiao.feng.ui.content.m3.lazySegmentedItems
 import com.xiao.feng.ui.utils.showComposeDialog
+import com.xiao.feng.utils.HostInfo
 import com.xiao.feng.utils.WeLogger
 import com.xiao.feng.utils.android.getTopMostActivity
 import com.xiao.feng.utils.fs.KnownPaths
@@ -46,8 +50,10 @@ import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.launch
 import com.xiao.feng.wauxv.data.bean.MsgInfoBean
 import com.xiao.feng.wauxv.data.bean.PayMsgBean
+import java.io.File
 import java.nio.file.Path
 import java.util.concurrent.ConcurrentHashMap
+import java.util.zip.ZipFile
 import kotlin.io.path.deleteIfExists
 import kotlin.io.path.div
 import kotlin.io.path.exists
@@ -82,7 +88,175 @@ object JavaScriptingHook : ClickableFeature(), IResolveDex, WeDatabaseListenerAp
 
     private val methodPayMsg by dexMethod()
 
+    private const val BUNDLED_SCRIPTS_ASSET_DIR = "scripts_java"
+    private const val BUNDLED_SCRIPT_MARKER = ".bundled_version"
+
+    @Volatile
+    private var bundledScriptsChecked = false
+
+    /** 展开 APK 内置脚本到 [SCRIPTS_DIR]，只在首次访问时执行一次。 */
+    private fun ensureBundledScriptsInstalled() {
+        if (bundledScriptsChecked) return
+        synchronized(lifecycleLock) {
+            if (bundledScriptsChecked) return
+            runCatching { installBundledScripts() }
+                .onSuccess { bundledScriptsChecked = true }
+                .onFailure { WeLogger.e(TAG, "failed to install bundled scripts", it) }
+        }
+    }
+
+    private fun installBundledScripts() {
+        val root = SCRIPTS_DIR.toFile()
+        if (installBundledScriptsFromModuleApk(root)) return
+        installBundledScriptsFromAssets(root)
+    }
+
+    private fun installBundledScriptsFromModuleApk(root: File): Boolean = runCatching {
+        val apk = File(StartupInfo.modulePath)
+        if (!apk.isFile) return@runCatching false
+        ZipFile(apk).use { zip ->
+            val prefix = "$BUNDLED_SCRIPTS_ASSET_DIR/"
+            val ids = zip.entries().asSequence()
+                .filter { it.name.startsWith(prefix) && !it.isDirectory }
+                .map { it.name.removePrefix(prefix).substringBefore('/') }
+                .filter { it.isNotEmpty() }
+                .distinct()
+                .toList()
+            if (ids.isEmpty()) return@runCatching false
+            ids.forEach { id -> installScriptFromZip(zip, root, id) }
+            true
+        }
+    }.getOrElse {
+        WeLogger.e(TAG, "failed to read bundled scripts from module apk", it)
+        false
+    }
+
+    private fun installScriptFromZip(zip: ZipFile, root: File, id: String) {
+        val base = "$BUNDLED_SCRIPTS_ASSET_DIR/$id/"
+        val scriptEntries = zip.entries().asSequence()
+            .filter { it.name.startsWith(base) && !it.isDirectory }
+            .sortedBy { it.name }
+            .toList()
+        if (scriptEntries.isEmpty()) return
+
+        // 用资源条目的 CRC 等元信息作为版本标记，脚本内容一有变化就会重新展开
+        val version = scriptEntries.joinToString("|") { "${it.name}:${it.size}:${it.crc}" }
+        val dir = File(root, id)
+        val marker = File(dir, BUNDLED_SCRIPT_MARKER)
+        val installedVersion = marker.takeIf { it.isFile }?.readText()
+        if (installedVersion == version) return
+
+        val freshInstall = !dir.isDirectory || installedVersion == null
+        scriptEntries.forEach { entry ->
+            val dest = File(dir, entry.name.removePrefix(base))
+            dest.parentFile?.mkdirs()
+            zip.getInputStream(entry).use { input ->
+                dest.outputStream().use { output -> input.copyTo(output) }
+            }
+        }
+        marker.writeText(version)
+        if (freshInstall) File(dir, DISABLED_FLAG).writeText("")
+        WeLogger.i(TAG, "installed bundled script '$id'")
+    }
+
+    private fun installBundledScriptsFromAssets(root: File) {
+        val assets = HostInfo.application.assets
+        val ids = runCatching { assets.list(BUNDLED_SCRIPTS_ASSET_DIR) }.getOrNull() ?: return
+        ids.forEach { id ->
+            val dir = File(root, id)
+            val marker = File(dir, BUNDLED_SCRIPT_MARKER)
+            val installedVersion = marker.takeIf { it.isFile }?.readText()
+            if (installedVersion == BuildConfig.VERSION_NAME) return@forEach
+
+            val freshInstall = !dir.isDirectory || installedVersion == null
+            copyAssetTree(assets, "$BUNDLED_SCRIPTS_ASSET_DIR/$id", dir)
+            marker.writeText(BuildConfig.VERSION_NAME)
+            if (freshInstall) File(dir, DISABLED_FLAG).writeText("")
+            WeLogger.i(TAG, "installed bundled script '$id' from assets")
+        }
+    }
+
+    private fun copyAssetTree(assets: AssetManager, assetPath: String, dest: File) {
+        val children = runCatching { assets.list(assetPath) }.getOrNull()
+        if (children.isNullOrEmpty()) {
+            dest.parentFile?.mkdirs()
+            assets.open(assetPath).use { input ->
+                dest.outputStream().use { output -> input.copyTo(output) }
+            }
+            return
+        }
+        dest.mkdirs()
+        children.forEach { copyAssetTree(assets, "$assetPath/$it", File(dest, it)) }
+    }
+
+    /**
+     * 为内置脚本设置启用状态。脚本引擎已运行时即时加载/卸载该脚本；未运行时按需开启引擎，
+     * 由引擎启动流程统一加载。
+     */
+    fun setBundledScriptEnabled(scriptId: String, enabled: Boolean) {
+        ensureBundledScriptsInstalled()
+        val scriptDir = SCRIPTS_DIR / scriptId
+        if (!scriptDir.isDirectory()) {
+            WeLogger.e(TAG, "bundled script '$scriptId' is missing")
+            return
+        }
+        if (!setScriptEnabled(scriptDir, enabled)) return
+
+        if (!isActive) {
+            if (enabled) applyToggle(true)
+            return
+        }
+        applyScriptStateWhenIdle(scriptDir, enabled)
+    }
+
+    private fun applyScriptStateWhenIdle(scriptDir: Path, enabled: Boolean) {
+        val apply = {
+            CoroutineScope(Dispatchers.IO).launch {
+                if (!isActive) return@launch
+                synchronized(lifecycleLock) {
+                    if (isScriptEnabled(scriptDir) == enabled) applyScriptState(scriptDir, enabled)
+                }
+            }
+        }
+        val job = loadJob
+        if (job != null && job.isActive) job.invokeOnCompletion { apply() } else apply()
+    }
+
+    private fun applyScriptState(scriptDir: Path, enabled: Boolean) {
+        if (enabled) loadScript(scriptDir) else unloadScript(scriptDir.name)
+    }
+
+    private fun loadScript(scriptDir: Path) {
+        val dirName = scriptDir.name
+        if (scripts.containsKey(dirName)) return
+
+        val mainFile = scriptDir / "main.java"
+        val infoFile = scriptDir / "info.prop"
+        if (!mainFile.exists() || !infoFile.exists()) {
+            WeLogger.w(TAG, "skipping '$dirName': missing main.java or info.prop")
+            return
+        }
+
+        val plugin = JavaPlugin(
+            name = dirName,
+            dir = scriptDir,
+            info = JavaPlugin.parseInfoProp(infoFile.readText()),
+            content = mainFile.readText(),
+            interpreter = Interpreter(null, ""),
+        )
+        scripts[dirName] = plugin
+        WeLogger.i(TAG, "loading bundled script '$dirName'")
+        JavaEngine.executeAllOnLoad(mapOf(dirName to plugin))
+    }
+
+    private fun unloadScript(dirName: String) {
+        val plugin = scripts.remove(dirName) ?: return
+        WeLogger.i(TAG, "unloading bundled script '$dirName'")
+        JavaEngine.executeAllOnUnload(mapOf(dirName to plugin))
+    }
+
     override fun onEnable() {
+        ensureBundledScriptsInstalled()
         val generation = synchronized(lifecycleLock) {
             lifecycleGeneration += 1
             lifecycleGeneration
@@ -214,8 +388,9 @@ object JavaScriptingHook : ClickableFeature(), IResolveDex, WeDatabaseListenerAp
         }
     }
 
-    private fun listScriptEntries(): List<ScriptEntry> =
-        SCRIPTS_DIR.listDirectoryEntries()
+    private fun listScriptEntries(): List<ScriptEntry> {
+        ensureBundledScriptsInstalled()
+        return SCRIPTS_DIR.listDirectoryEntries()
             .filter { it.isDirectory() }
             .sortedBy { it.name }
             .mapNotNull { scriptDir ->
@@ -232,6 +407,7 @@ object JavaScriptingHook : ClickableFeature(), IResolveDex, WeDatabaseListenerAp
                     enabled = isScriptEnabled(scriptDir),
                 )
             }
+    }
 
     private fun isScriptEnabled(scriptDir: Path): Boolean =
         !(scriptDir / DISABLED_FLAG).exists()

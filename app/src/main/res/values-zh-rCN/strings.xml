@@ -459,6 +459,13 @@
     <string name="feature_category_scripting_java_title">脚本 (Java)</string>
     <string name="feature_category_scripting_python_title">脚本 (Python)</string>
     <string name="feature_category_entertain_title">娱乐</string>
+    <string name="feature_category_bot_title">机器人</string>
+    <string name="feature_bot_games_name">娱乐游戏</string>
+    <string name="feature_bot_games_description">成语接龙与猜人物，在聊天中发送 #成语接龙 或 #猜人物 即可开始（作者：小淇）</string>
+    <string name="feature_bot_group_robot_name">群娱乐机器人</string>
+    <string name="feature_bot_group_robot_description">积分、打劫、婚恋、拍卖、点歌等群玩法，群里发送「菜单」查看（作者：小淇）</string>
+    <string name="feature_bot_moin_menu_name">娱乐菜单系统</string>
+    <string name="feature_bot_moin_menu_description">群里发送「菜单」打开宠物、钓鱼、天气、点歌等小游戏（作者：小淇）</string>
     <string name="feature_category_batch_title">批量操作</string>
     <string name="feature_category_home_screen_menu_title">首页右上角菜单</string>
     <string name="feature_category_contact_details_title">联系人详情页面</string>

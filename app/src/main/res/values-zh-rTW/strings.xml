@@ -448,6 +448,13 @@
     <string name="feature_category_scripting_java_title">腳本 (Java)</string>
     <string name="feature_category_scripting_python_title">腳本 (Python)</string>
     <string name="feature_category_entertain_title">娛樂</string>
+    <string name="feature_category_bot_title">機器人</string>
+    <string name="feature_bot_games_name">娛樂遊戲</string>
+    <string name="feature_bot_games_description">成語接龍與猜人物，在聊天中傳送 #成語接龍 或 #猜人物 即可開始（作者：小淇）</string>
+    <string name="feature_bot_group_robot_name">群娛樂機器人</string>
+    <string name="feature_bot_group_robot_description">積分、打劫、婚戀、拍賣、點歌等群玩法，群裡傳送「菜單」查看（作者：小淇）</string>
+    <string name="feature_bot_moin_menu_name">娛樂選單系統</string>
+    <string name="feature_bot_moin_menu_description">群裡傳送「菜單」開啟寵物、釣魚、天氣、點歌等小遊戲（作者：小淇）</string>
     <string name="feature_category_batch_title">批量操作</string>
     <string name="feature_category_home_screen_menu_title">首頁右上角菜單</string>
     <string name="feature_category_contact_details_title">聯繫人詳情頁面</string>
