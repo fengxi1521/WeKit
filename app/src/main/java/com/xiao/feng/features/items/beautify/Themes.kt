@@ -273,7 +273,7 @@ object Themes : ClickableFeature(), IResolveDex {
             }.getOrNull() ?: return@forEach
             if (shouldSkipThemeInstall(root, id, version)) return@forEach
             copyAssetTree(assets, prefix, File(root, id))
-            File(root, id, BUNDLED_THEMES_MARKER).writeText(version)
+            File(File(root, id), BUNDLED_THEMES_MARKER).writeText(version)
             WeLogger.i(TAG, "installed bundled theme $id from assets (version $version)")
         }
     }
