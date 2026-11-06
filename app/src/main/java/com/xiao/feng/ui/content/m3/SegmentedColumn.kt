@@ -3,16 +3,9 @@
 
 package com.xiao.feng.ui.content.m3
 
-import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -20,9 +13,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.key
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
@@ -148,32 +139,14 @@ fun SegmentedColumn(
 
     Column(modifier = modifier.padding(contentPadding)) {
         if (title.isNotEmpty()) {
-            Row(
+            // iOS grouped-list section header: plain secondary caption, no capsule or rule.
+            Text(
+                text = title,
                 modifier = Modifier.padding(titlePadding),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                // Chapter marker: tinted capsule, then a violet rule to the right edge.
-                Box(
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(50))
-                        .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.14f))
-                        .padding(horizontal = 11.dp, vertical = 4.dp),
-                ) {
-                    Text(
-                        text = title,
-                        style = MaterialTheme.typography.labelMedium,
-                        fontWeight = FontWeight.SemiBold,
-                        color = MaterialTheme.colorScheme.primary,
-                    )
-                }
-                Spacer(Modifier.width(10.dp))
-                Box(
-                    modifier = Modifier
-                        .weight(1f)
-                        .height(1.dp)
-                        .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.16f)),
-                )
-            }
+                style = MaterialTheme.typography.labelMedium.copy(letterSpacing = 0.6.sp),
+                fontWeight = FontWeight.Medium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
         }
 
         visibleItems.forEachIndexed { index, itemData ->
@@ -188,7 +161,7 @@ fun SegmentedColumn(
                     index == visibleItems.lastIndex -> CornerRadius
                     else -> ConnectionRadius
                 }
-                val shape = RoundedCornerShape(
+                val shape = ContinuousRoundedCornerShape(
                     topStart = topRadius,
                     topEnd = topRadius,
                     bottomStart = bottomRadius,
@@ -203,8 +176,9 @@ fun SegmentedColumn(
                     ) {
                         if (index > 0) {
                             HorizontalDivider(
-                                thickness = 1.dp,
-                                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.10f),
+                                modifier = Modifier.padding(start = 16.dp),
+                                thickness = 0.5.dp,
+                                color = liquidGlassDividerColor(),
                             )
                         }
                         itemData.content(shape)

@@ -313,6 +313,8 @@
     <string name="settings_dynamic_wallpaper_summary">使用系統壁紙的強調色作爲種子\n需系統 Android SDK &gt;= 31</string>
     <string name="settings_seed_color_title">種子顏色</string>
     <string name="settings_seed_color_summary">點擊選擇配色的種子顏色</string>
+    <string name="settings_liquid_glass_title">液態玻璃</string>
+    <string name="settings_liquid_glass_summary">控制玻璃材質的通透度，從極致通透到完全著色</string>
     <string name="settings_palette_style_title">調色板樣式</string>
     <string name="palette_style_tonal_spot">色調點</string>
     <string name="palette_style_neutral">中性</string>

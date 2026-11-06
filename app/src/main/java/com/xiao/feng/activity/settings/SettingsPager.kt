@@ -41,6 +41,7 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
@@ -113,6 +114,7 @@ import com.xiao.feng.ui.content.m3.CornerRadius
 import com.xiao.feng.ui.content.m3.DropDownMenuWidget
 import com.xiao.feng.ui.content.m3.DropdownOption
 import com.xiao.feng.ui.content.m3.ExpressiveBackButton
+import com.xiao.feng.ui.content.m3.IntNumberPickerWidget
 import com.xiao.feng.ui.content.m3.SegmentedColumn
 import com.xiao.feng.ui.content.m3.SwitchWidget
 import com.xiao.feng.ui.content.m3.XfMasthead
@@ -544,6 +546,25 @@ private fun ThemeSection() {
                 )
             }
         }
+        item {
+            var glassLevel by remember { mutableIntStateOf(ThemeSettings.liquidGlassLevel) }
+            BaseItemContainer {
+                IntNumberPickerWidget(
+                    title = stringResource(R.string.settings_liquid_glass_title),
+                    description = stringResource(R.string.settings_liquid_glass_summary),
+                    value = glassLevel,
+                    startInt = 0,
+                    endInt = 100,
+                    stepSize = 0,
+                    valueSuffix = "%",
+                    onValueChange = {
+                        glassLevel = it
+                        ThemeSettings.updateLiquidGlassLevel(it)
+                    },
+                )
+            }
+        }
+
         item {
             DropDownMenuWidget(
                 title = stringResource(R.string.settings_palette_style_title),

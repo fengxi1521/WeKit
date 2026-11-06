@@ -21,6 +21,7 @@ object Preferences {
     const val THEME_NUKE_PAGE_EXIT_OPTIMIZATION = "settings_theme_nuke_page_exit_optimization"
     const val THEME_NUKE_IMMEDIATE_PRESS_FEEDBACK = "settings_theme_nuke_immediate_press_feedback"
     const val THEME_DYNAMIC_WALLPAPER = "settings_theme_dynamic_wallpaper"
+    const val THEME_LIQUID_GLASS_LEVEL = "settings_theme_liquid_glass_level"
     const val THEME_PALETTE_STYLE = "settings_theme_palette_style"
     const val THEME_COLOR_SPEC = "settings_theme_color_spec"
     const val THEME_SEED_COLOR = "settings_theme_seed_color"

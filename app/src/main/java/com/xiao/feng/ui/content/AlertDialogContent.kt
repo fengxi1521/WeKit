@@ -1,5 +1,6 @@
 package com.xiao.feng.ui.content
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -19,6 +20,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import com.xiao.feng.ui.content.m3.ContinuousRoundedCornerShape
+import com.xiao.feng.ui.content.m3.GlassDialogRadius
+import com.xiao.feng.ui.content.m3.liquidGlassDialogColor
+import com.xiao.feng.ui.content.m3.liquidGlassDividerColor
+import com.xiao.feng.ui.content.m3.liquidGlassRimColor
 
 // drop-in replacement for AlertDialog that should be used in showComposeDialog()
 // to avoid creating 2 Windows for one Dialog
@@ -33,8 +39,11 @@ fun AlertDialogContent(
     textTopSpacing: Dp = 12.dp,
 ) {
     Surface(
-        shape = MaterialTheme.shapes.extraLarge,
-        tonalElevation = 6.dp,
+        shape = ContinuousRoundedCornerShape(GlassDialogRadius),
+        color = liquidGlassDialogColor(),
+        tonalElevation = 0.dp,
+        shadowElevation = 18.dp,
+        border = BorderStroke(0.5.dp, liquidGlassRimColor()),
         modifier = modifier
             .padding(4.dp)
             .fillMaxWidth()
@@ -65,7 +74,11 @@ fun AlertDialogContent(
                 }
             }
 
-            HorizontalDivider(Modifier.padding(top = 12.dp))
+            HorizontalDivider(
+                Modifier.padding(top = 12.dp),
+                thickness = 0.5.dp,
+                color = liquidGlassDividerColor(),
+            )
 
             text?.let {
                 val bodyStyle = MaterialTheme.typography.bodyMedium

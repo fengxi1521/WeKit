@@ -352,6 +352,8 @@
     <string name="settings_dynamic_wallpaper_summary">Use the system wallpaper accent as the seed color\nRequires Android SDK 31 or later</string>
     <string name="settings_seed_color_title">Seed color</string>
     <string name="settings_seed_color_summary">Tap to choose the palette seed color</string>
+    <string name="settings_liquid_glass_title">Liquid Glass</string>
+    <string name="settings_liquid_glass_summary">How tinted the glass surfaces are, from ultra-clear to fully tinted</string>
     <string name="settings_palette_style_title">Palette style</string>
     <string name="palette_style_tonal_spot">Tonal Spot</string>
     <string name="palette_style_neutral">Neutral</string>

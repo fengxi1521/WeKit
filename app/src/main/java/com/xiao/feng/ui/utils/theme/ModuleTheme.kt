@@ -3,7 +3,9 @@ package com.xiao.feng.ui.utils.theme
 import androidx.compose.material3.MaterialExpressiveTheme
 import androidx.compose.material3.MotionScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.platform.LocalContext
+import com.xiao.feng.ui.content.m3.LocalLiquidGlassLevel
 
 /**
  * Material 3 theme for the module's own UI (settings page + module dialogs), driven by
@@ -28,9 +30,11 @@ fun ModuleTheme(
         darkTheme,
     )
 
-    MaterialExpressiveTheme(
-        colorScheme = materialScheme,
-        motionScheme = MotionScheme.expressive(),
-        content = content,
-    )
+    CompositionLocalProvider(LocalLiquidGlassLevel provides ThemeSettings.liquidGlassLevel) {
+        MaterialExpressiveTheme(
+            colorScheme = materialScheme,
+            motionScheme = MotionScheme.expressive(),
+            content = content,
+        )
+    }
 }

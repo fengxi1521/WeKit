@@ -16,7 +16,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
@@ -47,7 +46,7 @@ import androidx.compose.ui.unit.dp
  * A [CompositionLocal] that provides the dynamically calculated [Shape] for items
  * inside a [SegmentedColumn]. Defaults to a rounded corner shape with [CornerRadius].
  */
-val LocalSegmentedItemShape = compositionLocalOf<Shape> { RoundedCornerShape(CornerRadius) }
+val LocalSegmentedItemShape = compositionLocalOf<Shape> { ContinuousRoundedCornerShape(CornerRadius) }
 
 /**
  * A base widget component designed for setting items and list entries.
@@ -121,7 +120,7 @@ fun BaseWidget(
     val backgroundColor = if (selected) {
         MaterialTheme.colorScheme.primary.copy(alpha = 0.16f)
     } else {
-        MaterialTheme.colorScheme.surface.copy(alpha = 0.64f)
+        liquidGlassSurfaceColor()
     }
 
     val baseContentColor = MaterialTheme.colorScheme.onSurface
@@ -132,7 +131,7 @@ fun BaseWidget(
     val finalDescriptionColor = when {
         isError -> MaterialTheme.colorScheme.error
         descriptionColor != null -> descriptionColor
-        else -> baseContentColor.copy(alpha = 0.7f)
+        else -> baseContentColor.copy(alpha = 0.62f)
     }
 
     /*
@@ -182,11 +181,11 @@ fun BaseWidget(
                     contentAlignment = Alignment.Center
                 ) {
                     if (icon != null) {
-                        // Round violet badge so settings rows match the capsule language.
+                        // iOS Settings-style tinted squircle badge.
                         Box(
                             modifier = Modifier
                                 .size(36.dp)
-                                .clip(RoundedCornerShape(50))
+                                .clip(ContinuousRoundedCornerShape(11.dp))
                                 .background(
                                     if (selected) {
                                         MaterialTheme.colorScheme.primary

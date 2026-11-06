@@ -169,6 +169,12 @@ object ThemeSettings {
     var seedColor by mutableIntStateOf(KvStore.getIntOrDef(Preferences.THEME_SEED_COLOR, BRAND_SEED_COLOR))
         private set
 
+    /** iOS 27 Liquid Glass appearance: 0 = ultra clear, 100 = fully tinted. */
+    var liquidGlassLevel by mutableIntStateOf(
+        KvStore.getIntOrDef(Preferences.THEME_LIQUID_GLASS_LEVEL, 50)
+    )
+        private set
+
     /**
      * Whether the selected color also applies to WeChat itself (injected XiaoFeng ComposeUI + native
      * recoloring via [com.xiao.feng.features.items.beautify.MonetEngine]). Does NOT take effect live — requires restarting WeChat.
@@ -266,6 +272,11 @@ object ThemeSettings {
         KvStore.putInt(Preferences.THEME_SEED_COLOR, value)
     }
 
+    fun updateLiquidGlassLevel(value: Int) {
+        liquidGlassLevel = value.coerceIn(0, 100)
+        KvStore.putInt(Preferences.THEME_LIQUID_GLASS_LEVEL, liquidGlassLevel)
+    }
+
     fun updateApplyToWechat(value: Boolean) {
         applyToWechat = value
         KvStore.putBool(Preferences.THEME_APPLY_TO_WECHAT, value)
@@ -273,9 +284,9 @@ object ThemeSettings {
 
     /**
      * XiaoFeng's own accent, used by the module app and the settings UI when the user has never
-     * picked a color. Deliberately distinct from WeChat green so the module reads as its own brand.
+     * picked a color. iOS system blue pairs with the Liquid Glass surfaces used by the settings UI.
      */
-    const val BRAND_SEED_COLOR: Int = 0xFF6D5DF6.toInt()
+    const val BRAND_SEED_COLOR: Int = 0xFF007AFF.toInt()
 
     /** WeChat green; the default seed for UI injected into WeChat. */
     const val DEFAULT_SEED_COLOR: Int = 0xFF07C160.toInt()

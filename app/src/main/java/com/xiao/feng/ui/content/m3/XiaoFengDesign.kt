@@ -1,32 +1,24 @@
 package com.xiao.feng.ui.content.m3
 
 import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
-import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -39,11 +31,10 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
-import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontFamily
@@ -66,59 +57,60 @@ data class XfTab(
 )
 
 /**
- * Violet-aurora page backdrop.
+ * iOS 27 Liquid Glass page backdrop.
  *
- * A vertical wash plus three large radial blooms (primary / tertiary / secondary) and a sparse
- * field of light dust. Everything is described once inside [drawWithCache], so the page pays for
- * three gradients and a couple dozen tiny circles at draw time — no blur, no per-frame work.
+ * A porcelain wash, three wide ambient blooms and a diagonal specular streak. Blooms are pure
+ * gradients with no hard edges, so translucent cards read as frosted glass without an actual
+ * backdrop blur pass. Everything is described once inside [drawWithCache].
  */
 @Composable
 fun Modifier.xfPageBackground(): Modifier {
     val scheme = MaterialTheme.colorScheme
-    val dark = isSystemInDarkTheme()
+    val dark = scheme.surface.luminance() < 0.5f
     return drawWithCache {
         val wash = Brush.verticalGradient(
-            0f to scheme.surfaceContainerLowest,
-            0.4f to scheme.surfaceContainer,
-            1f to scheme.surfaceContainerLow,
+            0f to if (dark) Color(0xFF060810) else Color(0xFFF7F8FC),
+            0.42f to if (dark) Color(0xFF0B1020) else Color(0xFFF0F3F9),
+            1f to if (dark) Color(0xFF05060A) else Color(0xFFE9EEF6),
         )
         val bloomPrimary = Brush.radialGradient(
             colors = listOf(
-                scheme.primary.copy(alpha = if (dark) 0.42f else 0.26f),
+                scheme.primary.copy(alpha = if (dark) 0.34f else 0.20f),
                 Color.Transparent,
             ),
-            center = Offset(size.width * 0.94f, -size.height * 0.04f),
-            radius = size.width * 1.05f,
+            center = Offset(size.width * 0.96f, size.height * 0.02f),
+            radius = size.width * 1.0f,
         )
-        val bloomTertiary = Brush.radialGradient(
+        val bloomLavender = Brush.radialGradient(
             colors = listOf(
-                scheme.tertiary.copy(alpha = if (dark) 0.30f else 0.17f),
+                Color(0xFFAF52DE).copy(alpha = if (dark) 0.18f else 0.10f),
                 Color.Transparent,
             ),
-            center = Offset(size.width * 0.02f, size.height * 0.42f),
-            radius = size.width * 0.8f,
+            center = Offset(size.width * 0.02f, size.height * 0.38f),
+            radius = size.width * 0.86f,
         )
-        val bloomSecondary = Brush.radialGradient(
+        val bloomTeal = Brush.radialGradient(
             colors = listOf(
-                scheme.secondary.copy(alpha = if (dark) 0.18f else 0.10f),
+                Color(0xFF30B0C7).copy(alpha = if (dark) 0.16f else 0.10f),
                 Color.Transparent,
             ),
-            center = Offset(size.width * 0.72f, size.height * 1.04f),
-            radius = size.width * 0.74f,
+            center = Offset(size.width * 0.82f, size.height * 1.02f),
+            radius = size.width * 0.78f,
         )
-        val dust = List(24) { index ->
-            val x = ((index * 73 + 11) % 97) / 97f
-            val y = ((index * 47 + 23) % 101) / 101f
-            Offset(x * size.width, y * size.height)
-        }
-        val dustColor = scheme.primary.copy(alpha = if (dark) 0.20f else 0.11f)
-        val dustRadius = 1.3.dp.toPx()
+        // Diagonal light sweep across the top third, like light grazing a glass sheet.
+        val sheen = Brush.linearGradient(
+            0f to Color.White.copy(alpha = if (dark) 0.05f else 0.52f),
+            0.32f to Color.White.copy(alpha = if (dark) 0.015f else 0.15f),
+            1f to Color.Transparent,
+            start = Offset(0f, 0f),
+            end = Offset(size.width * 1.15f, size.height * 0.9f),
+        )
         onDrawBehind {
             drawRect(wash)
             drawRect(brush = bloomPrimary)
-            drawRect(brush = bloomTertiary)
-            drawRect(brush = bloomSecondary)
-            dust.forEach { drawCircle(dustColor, dustRadius, it) }
+            drawRect(brush = bloomLavender)
+            drawRect(brush = bloomTeal)
+            drawRect(brush = sheen)
         }
     }
 }
@@ -140,22 +132,24 @@ fun XfMasthead(
     actions: (@Composable RowScope.() -> Unit)? = null,
 ) {
     val scheme = MaterialTheme.colorScheme
+    val glassBrush = liquidGlassBrush()
+    val glassShadow = liquidGlassShadow()
     Column(modifier = modifier.fillMaxWidth().padding(horizontal = 20.dp)) {
         if (navigation != null || actions != null) {
-            val barShape = RoundedCornerShape(28.dp)
+            val barShape = ContinuousRoundedCornerShape(28.dp)
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(56.dp)
                     .shadow(
-                        elevation = 10.dp,
+                        elevation = 14.dp,
                         shape = barShape,
-                        ambientColor = scheme.primary.copy(alpha = 0.20f),
-                        spotColor = scheme.primary.copy(alpha = 0.28f),
+                        ambientColor = glassShadow.copy(alpha = 0.30f),
+                        spotColor = glassShadow,
                     )
                     .clip(barShape)
-                    .background(scheme.surface.copy(alpha = 0.72f))
-                    .border(1.dp, scheme.primary.copy(alpha = 0.16f), barShape)
+                    .background(glassBrush)
+                    .border(0.5.dp, liquidGlassDockRimColor(), barShape)
                     .padding(horizontal = 6.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
@@ -173,29 +167,22 @@ fun XfMasthead(
             Spacer(Modifier.height(12.dp))
         }
         if (eyebrow != null) {
-            Box(
-                Modifier
-                    .clip(RoundedCornerShape(50))
-                    .background(scheme.primary.copy(alpha = 0.14f))
-                    .padding(horizontal = 12.dp, vertical = 5.dp),
-            ) {
-                Text(
-                    text = eyebrow,
-                    style = MaterialTheme.typography.labelMedium,
-                    fontWeight = FontWeight.SemiBold,
-                    letterSpacing = 1.2.sp,
-                    color = scheme.primary,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-            }
-            Spacer(Modifier.height(10.dp))
+            Text(
+                text = eyebrow,
+                style = MaterialTheme.typography.labelMedium.copy(letterSpacing = 1.4.sp),
+                fontWeight = FontWeight.SemiBold,
+                color = scheme.onSurfaceVariant,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Spacer(Modifier.height(6.dp))
         }
         Text(
             text = title,
             style = MaterialTheme.typography.displaySmall,
-            fontWeight = FontWeight.ExtraBold,
-            lineHeight = 38.sp,
+            fontWeight = FontWeight.Bold,
+            letterSpacing = (-0.6).sp,
+            lineHeight = 37.sp,
             color = scheme.onSurface,
             maxLines = 2,
             overflow = TextOverflow.Ellipsis,
@@ -210,63 +197,31 @@ fun XfMasthead(
                 overflow = TextOverflow.Ellipsis,
             )
         }
-        Spacer(Modifier.height(16.dp))
-        Box(
-            Modifier
-                .fillMaxWidth()
-                .height(2.dp)
-                .clip(RoundedCornerShape(1.dp))
-                .background(
-                    Brush.horizontalGradient(
-                        listOf(scheme.primary, scheme.tertiary, Color.Transparent),
-                    ),
-                ),
-        )
-        Spacer(Modifier.height(16.dp))
+        Spacer(Modifier.height(18.dp))
     }
 }
 
 /**
- * Chapter label used above lazy groups: a tinted capsule followed by a violet hairline.
+ * Chapter label used above lazy groups, mirroring the plain secondary caption of iOS settings.
  */
 @Composable
 fun SectionLabel(
     text: String,
     modifier: Modifier = Modifier,
 ) {
-    val scheme = MaterialTheme.colorScheme
-    Row(
-        modifier = modifier.fillMaxWidth().padding(top = 10.dp, bottom = 8.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Box(
-            Modifier
-                .clip(RoundedCornerShape(50))
-                .background(scheme.primary.copy(alpha = 0.14f))
-                .padding(horizontal = 11.dp, vertical = 4.dp),
-        ) {
-            Text(
-                text = text,
-                style = MaterialTheme.typography.labelMedium,
-                fontWeight = FontWeight.SemiBold,
-                letterSpacing = 0.4.sp,
-                color = scheme.primary,
-                maxLines = 1,
-            )
-        }
-        Spacer(Modifier.width(10.dp))
-        Box(
-            Modifier
-                .weight(1f)
-                .height(1.dp)
-                .background(scheme.primary.copy(alpha = 0.16f)),
-        )
-    }
+    Text(
+        text = text,
+        modifier = modifier.fillMaxWidth().padding(top = 14.dp, bottom = 8.dp, start = 4.dp),
+        style = MaterialTheme.typography.labelMedium.copy(letterSpacing = 0.6.sp),
+        fontWeight = FontWeight.Medium,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        maxLines = 1,
+    )
 }
 
 /**
- * Metric tile for the dashboard/bento areas: a translucent violet-rimmed glass cell with a
- * rounded icon badge, a large figure and a compact label.
+ * Metric tile for the dashboard/bento areas: a Liquid Glass cell with a continuous-corner
+ * icon badge, a large figure and a compact label.
  */
 @Composable
 fun XfStatTile(
@@ -278,19 +233,19 @@ fun XfStatTile(
     onClick: (() -> Unit)? = null,
 ) {
     val scheme = MaterialTheme.colorScheme
-    val shape = RoundedCornerShape(22.dp)
+    val shape = ContinuousRoundedCornerShape(22.dp)
     Column(
         modifier = modifier
             .height(height)
             .shadow(
-                elevation = 10.dp,
+                elevation = 12.dp,
                 shape = shape,
-                ambientColor = scheme.primary.copy(alpha = 0.16f),
-                spotColor = scheme.primary.copy(alpha = 0.22f),
+                ambientColor = liquidGlassShadow().copy(alpha = 0.26f),
+                spotColor = liquidGlassShadow(),
             )
             .clip(shape)
-            .background(scheme.surface.copy(alpha = 0.68f))
-            .border(width = 1.dp, color = scheme.primary.copy(alpha = 0.13f), shape = shape)
+            .background(liquidGlassBrush())
+            .border(width = 0.5.dp, color = liquidGlassRimColor(), shape = shape)
             .then(
                 if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier,
             )
@@ -304,7 +259,7 @@ fun XfStatTile(
             Box(
                 Modifier
                     .size(34.dp)
-                    .clip(RoundedCornerShape(50))
+                    .clip(ContinuousRoundedCornerShape(10.dp))
                     .background(scheme.primary.copy(alpha = 0.13f)),
                 contentAlignment = Alignment.Center,
             ) {
@@ -376,8 +331,8 @@ fun XfSpecRow(
 }
 
 /**
- * Capsule search field: a translucent pill with a leading glyph and an inline clear action.
- * Used by the feature index and the license list.
+ * Capsule search field, styled like the iOS search bar: a quiet translucent pill with a leading
+ * glyph and an inline clear action.
  */
 @Composable
 fun XfSearchBar(
@@ -388,21 +343,21 @@ fun XfSearchBar(
     modifier: Modifier = Modifier,
 ) {
     val scheme = MaterialTheme.colorScheme
-    val shape = RoundedCornerShape(50)
+    val shape = ContinuousRoundedCornerShape(26.dp)
     Row(
         modifier = modifier
             .fillMaxWidth()
             .height(52.dp)
             .clip(shape)
-            .background(scheme.surface.copy(alpha = 0.70f))
-            .border(1.dp, scheme.primary.copy(alpha = 0.16f), shape)
+            .background(liquidGlassBrush())
+            .border(0.5.dp, liquidGlassRimColor(), shape)
             .padding(start = 16.dp, end = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Icon(
             imageVector = MaterialSymbols.Outlined.Search,
             contentDescription = null,
-            tint = scheme.primary,
+            tint = scheme.onSurfaceVariant,
             modifier = Modifier.size(19.dp),
         )
         Spacer(Modifier.width(10.dp))
@@ -442,9 +397,8 @@ fun XfSearchBar(
 }
 
 /**
- * Floating violet capsule dock. The bar itself is a gradient pill lifted off the page; the
- * selected tab grows into a lighter inner capsule and reveals its label. Cheap to draw: one
- * gradient plus a cached highlight, animated tint/background only.
+ * Floating Liquid Glass dock, matching the iOS 27 tab bar: a translucent capsule lifted off the
+ * page where the selected tab becomes an accent-tinted inner capsule and reveals its label.
  */
 @Composable
 fun XfTabBar(
@@ -455,7 +409,7 @@ fun XfTabBar(
 ) {
     if (tabs.isEmpty()) return
     val scheme = MaterialTheme.colorScheme
-    val shape = RoundedCornerShape(50)
+    val shape = ContinuousRoundedCornerShape(32.dp)
     Row(
         modifier = modifier
             .fillMaxWidth()
@@ -466,22 +420,12 @@ fun XfTabBar(
             .shadow(
                 elevation = 22.dp,
                 shape = shape,
-                ambientColor = scheme.primary.copy(alpha = 0.42f),
-                spotColor = scheme.primary.copy(alpha = 0.52f),
+                ambientColor = liquidGlassShadow().copy(alpha = 0.34f),
+                spotColor = liquidGlassShadow(),
             )
             .clip(shape)
-            .background(
-                Brush.horizontalGradient(listOf(scheme.primary, scheme.primary, scheme.tertiary)),
-            )
-            .drawWithCache {
-                val glow = Brush.radialGradient(
-                    colors = listOf(Color.White.copy(alpha = 0.22f), Color.Transparent),
-                    center = Offset(size.width * 0.5f, 0f),
-                    radius = size.width * 0.9f,
-                )
-                onDrawBehind { drawRect(brush = glow) }
-            }
-            .border(1.dp, Color.White.copy(alpha = 0.20f), shape)
+            .background(liquidGlassBrush())
+            .border(0.5.dp, liquidGlassDockRimColor(), shape)
             .padding(6.dp),
         horizontalArrangement = Arrangement.spacedBy(4.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -489,18 +433,18 @@ fun XfTabBar(
         tabs.forEachIndexed { index, tab ->
             val selected = index == selectedIndex
             val tint by animateColorAsState(
-                targetValue = if (selected) Color.White else Color.White.copy(alpha = 0.72f),
+                targetValue = if (selected) scheme.primary else scheme.onSurfaceVariant,
                 label = "tabTint",
             )
             val inner by animateColorAsState(
-                targetValue = if (selected) Color.White.copy(alpha = 0.20f) else Color.Transparent,
+                targetValue = if (selected) scheme.primary.copy(alpha = 0.14f) else Color.Transparent,
                 label = "tabInner",
             )
             Row(
                 modifier = Modifier
                     .weight(1f)
                     .fillMaxHeight()
-                    .clip(RoundedCornerShape(50))
+                    .clip(ContinuousRoundedCornerShape(26.dp))
                     .background(inner)
                     .clickable(role = Role.Tab, onClick = { onSelected(index) }),
                 horizontalArrangement = Arrangement.Center,
@@ -537,19 +481,18 @@ fun XfPanel(
     modifier: Modifier = Modifier,
     content: @Composable BoxScope.() -> Unit,
 ) {
-    val scheme = MaterialTheme.colorScheme
-    val shape = RoundedCornerShape(26.dp)
+    val shape = ContinuousRoundedCornerShape(26.dp)
     Box(
         modifier = modifier
             .shadow(
                 elevation = 12.dp,
                 shape = shape,
-                ambientColor = scheme.primary.copy(alpha = 0.16f),
-                spotColor = scheme.primary.copy(alpha = 0.22f),
+                ambientColor = liquidGlassShadow().copy(alpha = 0.26f),
+                spotColor = liquidGlassShadow(),
             )
             .clip(shape)
-            .background(scheme.surface.copy(alpha = 0.70f))
-            .border(width = 1.dp, color = scheme.primary.copy(alpha = 0.13f), shape = shape),
+            .background(liquidGlassBrush())
+            .border(width = 0.5.dp, color = liquidGlassRimColor(), shape = shape),
         content = content,
     )
 }
