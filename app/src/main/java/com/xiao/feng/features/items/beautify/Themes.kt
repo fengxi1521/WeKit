@@ -176,10 +176,16 @@ object Themes : ClickableFeature(), IResolveDex {
     private fun getThemePath(themeId: String): File = (THEMES_PATH / themeId).toFile()
 
     /** 主题根目录；主题工坊直接在这里创建、编辑主题。 */
-    fun themesDirectory(): File = THEMES_PATH.toFile()
+    fun themesDirectory(): File {
+        ensureBundledThemes()
+        return THEMES_PATH.toFile()
+    }
 
     /** 主题工坊读取的主题列表（仅包含含 manifest.json 的目录）。 */
-    fun availableThemes(): List<ThemeInfo> = scanThemes()
+    fun availableThemes(): List<ThemeInfo> {
+        ensureBundledThemes()
+        return scanThemes()
+    }
 
     /** 当前选中的主题 id，「0」表示无主题。 */
     fun selectedThemeId(): String = currentThemeId
@@ -230,6 +236,19 @@ object Themes : ClickableFeature(), IResolveDex {
     }
 
     /**
+     * 内置主题的安装入口。功能开关关闭时主题工坊仍可打开，因此这里不能只依赖 [onEnable]，
+     * 列表/目录访问时也会兜底安装一次。
+     */
+    private var bundledThemesChecked = false
+
+    private fun ensureBundledThemes() {
+        if (bundledThemesChecked) return
+        runCatching { installBundledThemes() }
+            .onSuccess { bundledThemesChecked = true }
+            .onFailure { WeLogger.e(TAG, "failed to install bundled themes", it) }
+    }
+
+    /**
      * 内置主题：随 APK 打包在 `assets/themes/<主题ID>/`，首次启用时展开到 [THEMES_PATH]。
      *
      * 已安装版本与内置版本一致时跳过；用户自行导入或编辑过的同名主题不做覆盖，
@@ -253,6 +272,7 @@ object Themes : ClickableFeature(), IResolveDex {
             if (installedVersion == version) return@forEach
             copyAssetTree(assets, prefix, dir)
             marker.writeText(version)
+            WeLogger.i(TAG, "installed bundled theme $id (version $version)")
         }
     }
 
@@ -1458,7 +1478,7 @@ object Themes : ClickableFeature(), IResolveDex {
     // ------------------------------------------------------------------
 
     override fun onEnable() {
-        installBundledThemes()
+        ensureBundledThemes()
         loadCurrentTheme()
         // With the "none" theme selected every hook below is a no-op visually, yet several of them
         // still walk and rewrite the whole chat/home view tree on each enter/exit (clearing
