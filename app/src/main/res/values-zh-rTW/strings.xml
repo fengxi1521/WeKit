@@ -4028,4 +4028,34 @@
     <string name="feature_export_feature_points_description">把目前微信版本已解析的 Dex 特徵點匯出為 JSON 到下載目錄。</string>
     <string name="debug_export_feature_points_success">已匯出到 %1$s</string>
     <string name="debug_export_feature_points_failed">匯出失敗</string>
+
+    <string name="feature_bubble_colors_transparency_name">氣泡顏色與透明度</string>
+    <string name="feature_bubble_colors_transparency_description">設定自己與對方訊息氣泡的顏色和透明度</string>
+    <string name="feature_avatar_shape_name">訊息頭像形狀</string>
+    <string name="feature_avatar_shape_description">將訊息頭像設定成圓形、圓角或方形</string>
+    <string name="feature_chat_background_dim_level_name">聊天背景壓暗程度</string>
+    <string name="feature_chat_background_dim_level_description">調節聊天背景壁紙遮罩的壓暗程度</string>
+    <string name="feature_message_text_appearance_name">訊息文字外觀</string>
+    <string name="feature_message_text_appearance_description">調整訊息文字的字號與行距</string>
+
+    <string name="chat_bubble_self_title">自己發送的氣泡</string>
+    <string name="chat_bubble_other_title">對方發送的氣泡</string>
+    <string name="chat_bubble_color_label">氣泡顏色</string>
+    <string name="chat_bubble_opacity_label">氣泡透明度</string>
+    <string name="chat_bubble_reset">恢復預設氣泡顏色</string>
+    <string name="chat_bubble_reset_description">恢復原始氣泡顏色和完全不透明</string>
+
+    <string name="chat_avatar_shape_title">頭像形狀</string>
+    <string name="chat_avatar_shape_circle">圓形</string>
+    <string name="chat_avatar_shape_rounded">圓角</string>
+    <string name="chat_avatar_shape_square">方形</string>
+    <string name="chat_avatar_shape_radius">圓角半徑</string>
+
+    <string name="chat_background_dim_title">壓暗程度</string>
+    <string name="chat_background_dim_level">壓暗程度</string>
+    <string name="chat_background_dim_level_description">0% 保持壁紙原樣，100% 完全變黑</string>
+
+    <string name="chat_message_text_appearance_title">文字外觀</string>
+    <string name="chat_message_text_size_title">文字大小</string>
+    <string name="chat_message_line_spacing_title">行距</string>
 </resources>

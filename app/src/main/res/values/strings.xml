@@ -4040,4 +4040,34 @@
     <string name="feature_export_feature_points_description">Dump this host version\'s resolved Dex descriptors as JSON into Downloads.</string>
     <string name="debug_export_feature_points_success">Exported to %1$s</string>
     <string name="debug_export_feature_points_failed">Export failed</string>
+
+    <string name="feature_bubble_colors_transparency_name">Bubble color and transparency</string>
+    <string name="feature_bubble_colors_transparency_description">Set the color and transparency of sent and received message bubbles</string>
+    <string name="feature_avatar_shape_name">Avatar shape</string>
+    <string name="feature_avatar_shape_description">Set message avatars to circle, rounded or square</string>
+    <string name="feature_chat_background_dim_level_name">Chat background dim level</string>
+    <string name="feature_chat_background_dim_level_description">Adjust the darkness of the chat wallpaper overlay</string>
+    <string name="feature_message_text_appearance_name">Message text appearance</string>
+    <string name="feature_message_text_appearance_description">Adjust message text size and line spacing</string>
+
+    <string name="chat_bubble_self_title">Sent bubble</string>
+    <string name="chat_bubble_other_title">Received bubble</string>
+    <string name="chat_bubble_color_label">Bubble color</string>
+    <string name="chat_bubble_opacity_label">Bubble opacity</string>
+    <string name="chat_bubble_reset">Reset bubble colors</string>
+    <string name="chat_bubble_reset_description">Restore the original bubble colors and full opacity</string>
+
+    <string name="chat_avatar_shape_title">Avatar shape</string>
+    <string name="chat_avatar_shape_circle">Circle</string>
+    <string name="chat_avatar_shape_rounded">Rounded</string>
+    <string name="chat_avatar_shape_square">Square</string>
+    <string name="chat_avatar_shape_radius">Corner radius</string>
+
+    <string name="chat_background_dim_title">Dim level</string>
+    <string name="chat_background_dim_level">Dim level</string>
+    <string name="chat_background_dim_level_description">0% leaves the wallpaper unchanged, 100% makes it fully black</string>
+
+    <string name="chat_message_text_appearance_title">Text appearance</string>
+    <string name="chat_message_text_size_title">Text size</string>
+    <string name="chat_message_line_spacing_title">Line spacing</string>
 </resources>

@@ -1388,6 +1388,13 @@
             "descriptors": {
                 "methodSyncChatroomMembers": "Lb41/u1;->N(Ljava/lang/String;Ljava/lang/String;Lpc5/zz;IIILjava/lang/String;Lso/a;ZZI)Z"
             }
+        },
+        {
+            "technicalId": "聊天背景压暗程度",
+            "methodHash": "34cc6e5fac95520a674dd4495fe9b3e4",
+            "descriptors": {
+                "methodSetChatBackground": "Lcom/tencent/mm/ui/chatting/component/v2;->y0()V"
+            }
         }
     ]
 }
