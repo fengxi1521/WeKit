@@ -4,6 +4,7 @@ import android.annotation.SuppressLint
 import android.app.Activity
 import android.content.Context
 import android.content.Intent
+import android.content.res.AssetManager
 import android.content.res.ColorStateList
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
@@ -138,6 +139,10 @@ object Themes : ClickableFeature(), IResolveDex {
     /** 「无」主题 id，与 cherrywechat ThemeManager 的默认主题 id 一致 */
     private const val DEFAULT_THEME_ID = "0"
 
+    /** 随 APK 打包的内置主题资源目录（assets/themes/<主题ID>/...） */
+    private const val BUNDLED_THEMES_ASSET_DIR = "themes"
+    private const val BUNDLED_THEMES_MARKER = ".bundled_version"
+
     private var currentThemeId by prefOption(KEY_CURRENT_THEME, DEFAULT_THEME_ID)
 
     // ------------------------------------------------------------------
@@ -222,6 +227,46 @@ object Themes : ClickableFeature(), IResolveDex {
     /** 主题图片缓存，避免每次 hook 回调都重新解码 */
     private val drawableCache = object : LruCache<String, Bitmap>(24 * 1024 * 1024) {
         override fun sizeOf(key: String, value: Bitmap): Int = value.byteCount
+    }
+
+    /**
+     * 内置主题：随 APK 打包在 `assets/themes/<主题ID>/`，首次启用时展开到 [THEMES_PATH]。
+     *
+     * 已安装版本与内置版本一致时跳过；用户自行导入或编辑过的同名主题不做覆盖，
+     * 只有此前由本逻辑安装（存在版本标记）的主题才会随版本升级刷新。
+     */
+    private fun installBundledThemes() {
+        val root = THEMES_PATH.toFile()
+        val assets = HostInfo.application.assets
+        val ids = runCatching { assets.list(BUNDLED_THEMES_ASSET_DIR) }.getOrNull() ?: return
+        ids.forEach { id ->
+            val prefix = "$BUNDLED_THEMES_ASSET_DIR/$id"
+            val version = runCatching {
+                assets.open("$prefix/manifest.json").use { input ->
+                    JSONObject(input.readBytes().decodeToString()).optString("version", "1.0")
+                }
+            }.getOrNull() ?: return@forEach
+            val dir = File(root, id)
+            val marker = File(dir, BUNDLED_THEMES_MARKER)
+            val installedVersion = marker.takeIf { it.isFile }?.readText()
+            if (dir.isDirectory && installedVersion == null) return@forEach
+            if (installedVersion == version) return@forEach
+            copyAssetTree(assets, prefix, dir)
+            marker.writeText(version)
+        }
+    }
+
+    private fun copyAssetTree(assets: AssetManager, assetPath: String, dest: File) {
+        val children = runCatching { assets.list(assetPath) }.getOrNull()
+        if (children.isNullOrEmpty()) {
+            dest.parentFile?.mkdirs()
+            assets.open(assetPath).use { input ->
+                dest.outputStream().use { output -> input.copyTo(output) }
+            }
+            return
+        }
+        dest.mkdirs()
+        for (child in children) copyAssetTree(assets, "$assetPath/$child", File(dest, child))
     }
 
     /** 启动时加载当前主题配置 */
@@ -1413,6 +1458,7 @@ object Themes : ClickableFeature(), IResolveDex {
     // ------------------------------------------------------------------
 
     override fun onEnable() {
+        installBundledThemes()
         loadCurrentTheme()
         // With the "none" theme selected every hook below is a no-op visually, yet several of them
         // still walk and rewrite the whole chat/home view tree on each enter/exit (clearing
