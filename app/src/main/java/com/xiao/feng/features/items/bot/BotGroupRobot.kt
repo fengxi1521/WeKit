@@ -5,6 +5,7 @@ import com.xiao.feng.R
 import com.xiao.feng.features.core.ClickableFeature
 import com.xiao.feng.features.core.FeatureCategoryIds
 import java.util.Properties
+import kotlin.io.path.div
 import kotlin.io.path.exists
 import kotlin.io.path.reader
 import kotlin.io.path.writer
