@@ -656,7 +656,7 @@ if (text.equals("999")) {
 }
 
 // ---- 查看我的 wxid ----
-if (text.equals("我的微信 id")) {
+if (text.equals("我的微信 id") || text.equals("我的微信id") || text.equals("我的wxid")) {
     sendText(room, "你的 wxid 是：" + getLoginWxid());
     return;
 }
