@@ -3530,6 +3530,12 @@
     <string name="payment_red_packet_skip_keywords">Skip keywords</string>
     <string name="payment_red_packet_skip_keyword_label">Skip keywords</string>
     <string name="payment_red_packet_skip_keywords_unrestricted">Do not restrict skip keywords</string>
+    <string name="payment_red_packet_pause_keywords">Pause on trigger words</string>
+    <string name="payment_red_packet_pause_keyword_label">Pause trigger words</string>
+    <string name="payment_red_packet_pause_unrestricted">Do not pause on messages</string>
+    <string name="payment_red_packet_pause_summary">Pause grabbing for %1$s s when a trigger word is sent</string>
+    <string name="payment_red_packet_pause_seconds">Pause duration (seconds)</string>
+    <string name="payment_red_packet_pause_invalid_seconds">Pause duration must be greater than 0 seconds</string>
     <string name="payment_red_packet_delay">Claim delay</string>
     <string name="payment_red_packet_immediate">Claim immediately after receipt</string>
     <string name="payment_red_packet_notification">Notify after claiming</string>

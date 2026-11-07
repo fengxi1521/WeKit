@@ -3571,6 +3571,12 @@
     <string name="payment_red_packet_skip_keywords">关键词不抢红包</string>
     <string name="payment_red_packet_skip_keyword_label">不抢关键词</string>
     <string name="payment_red_packet_skip_keywords_unrestricted">不限制跳过关键词</string>
+    <string name="payment_red_packet_pause_keywords">发言暂停抢红包</string>
+    <string name="payment_red_packet_pause_keyword_label">暂停关键词</string>
+    <string name="payment_red_packet_pause_unrestricted">不因发言暂停</string>
+    <string name="payment_red_packet_pause_summary">发送指定文字后暂停 %1$s 秒抢红包</string>
+    <string name="payment_red_packet_pause_seconds">暂停时长 (秒)</string>
+    <string name="payment_red_packet_pause_invalid_seconds">暂停时长需大于 0 秒</string>
     <string name="payment_red_packet_delay">延迟抢红包</string>
     <string name="payment_red_packet_immediate">收到后立即抢红包</string>
     <string name="payment_red_packet_notification">抢到后通知</string>

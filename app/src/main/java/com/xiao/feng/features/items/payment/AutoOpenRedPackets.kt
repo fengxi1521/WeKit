@@ -77,6 +77,10 @@ object AutoOpenRedPackets : ClickableFeature(), WeDatabaseListenerApi.IInsertLis
 
     private val currentRedPacketMap = ConcurrentHashMap<String, RedPacketInfo>()
 
+    /** 命中暂停关键词后的恢复时间点 (毫秒时间戳), 0 表示未暂停。 */
+    @Volatile
+    private var pausedUntil = 0L
+
     private var scope = newScope()
 
     private data class RedPacketInfo(
@@ -141,13 +145,48 @@ object AutoOpenRedPackets : ClickableFeature(), WeDatabaseListenerApi.IInsertLis
         if (table != "message") return
 
         val type = values.getAsInteger("type") ?: 0
-        if (MessageType.fromCode(type)?.isRedPacket ?: false) {
+        val messageType = MessageType.fromCode(type)
+        if (messageType?.isRedPacket == true) {
             WeLogger.i(TAG, "detected red packet message; type=$type")
             handleRedPacket(values)
+            return
+        }
+        if (messageType?.isText == true) {
+            handlePauseKeywordMessage(values)
+        }
+    }
+
+    /** 有人发出指定文字时暂停抢红包 [RedPacketSettings.PauseRule] 设定的秒数, 到点后自动恢复。 */
+    private fun handlePauseKeywordMessage(values: ContentValues) {
+        try {
+            val msgInfo = MessageInfo.fromContentValues(values)
+            if (msgInfo.isSelfSender) return
+
+            val settings = RedPacketSettings.resolve(
+                msgInfo.talker,
+                msgInfo.sender.takeIf { msgInfo.isInGroupChat },
+            )
+            if (!settings.pause.enabled) return
+
+            val duration = settings.pause.durationMillis()
+            if (duration <= 0L) return
+            if (!settings.pause.keywords.matches(msgInfo.content)) return
+
+            pausedUntil = System.currentTimeMillis() + duration
+            WeLogger.i(
+                TAG,
+                "paused grabbing for ${duration}ms after keyword message in ${msgInfo.talker}",
+            )
+        } catch (e: Throwable) {
+            WeLogger.e(TAG, "failed to check pause keyword message", e)
         }
     }
 
     private fun handleRedPacket(values: ContentValues) {
+        if (System.currentTimeMillis() < pausedUntil) {
+            WeLogger.i(TAG, "skipping red packet: grabbing paused by keyword")
+            return
+        }
         try {
             val msgInfo = MessageInfo.fromContentValues(values)
             val talker = msgInfo.talker
@@ -405,6 +444,7 @@ object AutoOpenRedPackets : ClickableFeature(), WeDatabaseListenerApi.IInsertLis
         WeDatabaseListenerApi.removeListener(this)
         scope.cancel()
         currentRedPacketMap.clear()
+        pausedUntil = 0L
     }
 
     private fun newScope() = CoroutineScope(Dispatchers.IO + SupervisorJob())

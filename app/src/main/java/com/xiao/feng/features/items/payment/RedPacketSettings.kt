@@ -18,6 +18,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.xiao.feng.R
 import com.xiao.feng.i18n.LocalXiaoFengLocalizedContext
@@ -78,6 +79,16 @@ object RedPacketSettings {
         val text: String = ""
     )
 
+    /** 群里有人发出指定文字时, 暂停自动抢红包一段时间后自动恢复。 */
+    @Serializable
+    data class PauseRule(
+        val enabled: Boolean = false,
+        val keywords: AutomationKeywordRule = AutomationKeywordRule(),
+        val seconds: String = "30"
+    ) {
+        fun durationMillis(): Long = (seconds.toLongOrNull() ?: 0L).coerceAtLeast(0L) * 1000L
+    }
+
     @Serializable
     data class RuleSet(
         val grab: AutomationToggleRule = AutomationToggleRule(enabled = true),
@@ -86,6 +97,7 @@ object RedPacketSettings {
         val timeRange: AutomationTimeRangeRule = AutomationTimeRangeRule(),
         val keyword: AutomationKeywordRule = AutomationKeywordRule(),
         val skipKeyword: AutomationKeywordRule = AutomationKeywordRule(),
+        val pause: PauseRule = PauseRule(),
         val delay: DelayRule = DelayRule(),
         val notification: AutomationToggleRule = AutomationToggleRule(),
         val autoReply: ReplyRule = ReplyRule()
@@ -113,6 +125,7 @@ object RedPacketSettings {
         val timeRange: AutomationTimeRangeRule? = null,
         val keyword: AutomationKeywordRule? = null,
         val skipKeyword: AutomationKeywordRule? = null,
+        val pause: PauseRule? = null,
         val delay: DelayRule? = null,
         val notification: AutomationToggleRule? = null,
         val autoReply: ReplyRule? = null
@@ -126,6 +139,7 @@ object RedPacketSettings {
             timeRange,
             keyword,
             skipKeyword,
+            pause,
             delay,
             notification,
             autoReply
@@ -154,6 +168,7 @@ object RedPacketSettings {
         TIME_RANGE,
         KEYWORD,
         SKIP_KEYWORD,
+        PAUSE,
         DELAY,
         NOTIFICATION,
         AUTO_REPLY
@@ -695,6 +710,62 @@ object RedPacketSettings {
                     onEditText = onEditText,
                 )
 
+                item(key = "pause") {
+                    PaymentRuleRow(
+                        title = stringResource(R.string.payment_red_packet_pause_keywords),
+                        summary = if (rules.pause.enabled) {
+                            stringResource(
+                                R.string.payment_red_packet_pause_summary,
+                                rules.pause.seconds.ifBlank { "0" },
+                            )
+                        } else {
+                            stringResource(R.string.payment_red_packet_pause_unrestricted)
+                        },
+                        checked = rules.pause.enabled,
+                        overridden = overridden(RuleKey.PAUSE),
+                        parentLabel = parentLabel,
+                        onActivate = { onActivate(RuleKey.PAUSE) },
+                        onReset = { onReset(RuleKey.PAUSE) },
+                        onCheckedChange = {
+                            onChange(RuleKey.PAUSE, rules.copy(pause = rules.pause.copy(enabled = it)))
+                        },
+                    )
+                }
+                keywordItems(
+                    keyPrefix = "pause",
+                    rule = rules.pause.keywords,
+                    editable = editable(RuleKey.PAUSE),
+                    visible = rules.pause.enabled,
+                    modes = RED_PACKET_KEYWORD_MODES,
+                    onChange = { onChange(RuleKey.PAUSE, rules.copy(pause = rules.pause.copy(keywords = it))) },
+                    onEditText = onEditText,
+                )
+                item(key = "pause_seconds", animatedVisibility = rules.pause.enabled) {
+                    val secondsTitle = stringResource(R.string.payment_red_packet_pause_seconds)
+                    PaymentValueRow(
+                        title = secondsTitle,
+                        value = rules.pause.seconds,
+                        enabled = editable(RuleKey.PAUSE),
+                        valueHint = "30",
+                        onClick = {
+                            onEditText(
+                                PaymentTextEditMode(
+                                    title = secondsTitle,
+                                    initial = rules.pause.seconds,
+                                    keyboardType = KeyboardType.Number,
+                                    filter = { it.filter(Char::isDigit).take(5) },
+                                    onCommit = {
+                                        onChange(
+                                            RuleKey.PAUSE,
+                                            rules.copy(pause = rules.pause.copy(seconds = it)),
+                                        )
+                                    },
+                                )
+                            )
+                        },
+                    )
+                }
+
                 item(key = "delay") {
                     PaymentRuleRow(
                         title = stringResource(R.string.payment_red_packet_delay),
@@ -815,6 +886,7 @@ object RedPacketSettings {
             timeRange = overrides.timeRange ?: timeRange,
             keyword = overrides.keyword ?: keyword,
             skipKeyword = overrides.skipKeyword ?: skipKeyword,
+            pause = overrides.pause ?: pause,
             delay = overrides.delay ?: delay,
             notification = overrides.notification ?: notification,
             autoReply = overrides.autoReply ?: autoReply
@@ -828,6 +900,7 @@ object RedPacketSettings {
         if (timeRange != null) add(RuleKey.TIME_RANGE)
         if (keyword != null) add(RuleKey.KEYWORD)
         if (skipKeyword != null) add(RuleKey.SKIP_KEYWORD)
+        if (pause != null) add(RuleKey.PAUSE)
         if (delay != null) add(RuleKey.DELAY)
         if (notification != null) add(RuleKey.NOTIFICATION)
         if (autoReply != null) add(RuleKey.AUTO_REPLY)
@@ -840,6 +913,7 @@ object RedPacketSettings {
         RuleKey.TIME_RANGE -> copy(timeRange = rules.timeRange)
         RuleKey.KEYWORD -> copy(keyword = rules.keyword)
         RuleKey.SKIP_KEYWORD -> copy(skipKeyword = rules.skipKeyword)
+        RuleKey.PAUSE -> copy(pause = rules.pause)
         RuleKey.DELAY -> copy(delay = rules.delay)
         RuleKey.NOTIFICATION -> copy(notification = rules.notification)
         RuleKey.AUTO_REPLY -> copy(autoReply = rules.autoReply)
@@ -852,6 +926,7 @@ object RedPacketSettings {
         RuleKey.TIME_RANGE -> copy(timeRange = null)
         RuleKey.KEYWORD -> copy(keyword = null)
         RuleKey.SKIP_KEYWORD -> copy(skipKeyword = null)
+        RuleKey.PAUSE -> copy(pause = null)
         RuleKey.DELAY -> copy(delay = null)
         RuleKey.NOTIFICATION -> copy(notification = null)
         RuleKey.AUTO_REPLY -> copy(autoReply = null)
@@ -873,6 +948,15 @@ object RedPacketSettings {
         }
         if (validates(RuleKey.SKIP_KEYWORD)) {
             rules.skipKeyword.validationError(context.getString(R.string.payment_red_packet_skip_keyword_label))?.let { return it }
+        }
+        if (validates(RuleKey.PAUSE) && rules.pause.enabled) {
+            rules.pause.keywords.validationError(
+                context.getString(R.string.payment_red_packet_pause_keyword_label)
+            )?.let { return it }
+            val seconds = rules.pause.seconds.toLongOrNull()
+            if (seconds == null || seconds <= 0) {
+                return context.getString(R.string.payment_red_packet_pause_invalid_seconds)
+            }
         }
         if (validates(RuleKey.AUTO_REPLY) && rules.autoReply.enabled && rules.autoReply.text.isBlank()) {
             return context.getString(R.string.automation_reply_required)

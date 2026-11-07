@@ -3530,6 +3530,12 @@
     <string name="payment_red_packet_skip_keywords">關鍵詞不搶紅包</string>
     <string name="payment_red_packet_skip_keyword_label">不搶關鍵詞</string>
     <string name="payment_red_packet_skip_keywords_unrestricted">不限制跳過關鍵詞</string>
+    <string name="payment_red_packet_pause_keywords">發言暫停搶紅包</string>
+    <string name="payment_red_packet_pause_keyword_label">暫停關鍵詞</string>
+    <string name="payment_red_packet_pause_unrestricted">不因發言暫停</string>
+    <string name="payment_red_packet_pause_summary">發送指定文字後暫停 %1$s 秒搶紅包</string>
+    <string name="payment_red_packet_pause_seconds">暫停時長 (秒)</string>
+    <string name="payment_red_packet_pause_invalid_seconds">暫停時長需大於 0 秒</string>
     <string name="payment_red_packet_delay">延遲搶紅包</string>
     <string name="payment_red_packet_immediate">收到後立即搶紅包</string>
     <string name="payment_red_packet_notification">搶到後通知</string>
