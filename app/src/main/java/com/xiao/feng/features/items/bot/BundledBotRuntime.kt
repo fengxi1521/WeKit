@@ -76,6 +76,12 @@ object BundledBotRuntime {
         }
     }
 
+    /** 内置脚本目录；首次调用时先展开 APK 内的脚本资源。 */
+    fun scriptDir(scriptId: String): Path {
+        ensureInstalled()
+        return scriptsDir / scriptId
+    }
+
     private fun ensureMessageHook() {
         synchronized(lock) {
             if (messageHookInstalled) return

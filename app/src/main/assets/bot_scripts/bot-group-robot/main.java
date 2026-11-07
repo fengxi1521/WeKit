@@ -19,8 +19,8 @@ import com.alibaba.fastjson2.JSONArray;
 // ========== 全局状态 ==========
 boolean isLoaded = true;
 boolean openSimpleLog = false;
-final String ROOT_WXID = myWxId;    // 内置版：管理员默认是当前登录账号
 final String ALLOW_GROUP_KEY = "allow_group_list";
+final String ROOT_WXID_KEY = "root_wxid";
 
 ConcurrentHashMap<String, ScheduledFuture<?>> taskMap = new ConcurrentHashMap<String, ScheduledFuture<?>>();
 ScheduledExecutorService timerPool = Executors.newScheduledThreadPool(3);
@@ -43,8 +43,17 @@ return arr[(int)(Math.random() * arr.length)];
 
 // ========== 权限检查 ==========
 
+String getRootWxid() {
+    String configured = getString(ROOT_WXID_KEY, "");
+    if (configured != null && !configured.trim().isEmpty()) return configured.trim();
+    String login = getLoginWxid();
+    if (login != null && !login.isEmpty()) return login;
+    return myWxId;
+}
+
 boolean isRoot(String uid) {
-    return ROOT_WXID != null && !ROOT_WXID.isEmpty() && ROOT_WXID.equals(uid);
+    String root = getRootWxid();
+    return root != null && !root.isEmpty() && root.equals(uid);
 }
 
 // ========== 生效群管理（不再自动添加）==========
@@ -1041,7 +1050,7 @@ if (text.equals("查看生效群")) {
         sendText(room, nick + " 向 " + getFriendDisplayName(targetUid, room) + " 求婚！对方发送【同意求婚】即可结为伴侣");
         return;
     }
-    if (text.equals("同意求婚")) {
+    if (text.equals("同意求婚") || text.equals("同意结婚")) {
         String suitor = getPropose(sender, room);
         if (suitor.isEmpty()) {
             sendText(room, "目前没有人对你发起求婚~ 让对方发送：结婚 @你");
