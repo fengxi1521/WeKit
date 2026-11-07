@@ -379,6 +379,7 @@ dependencies {
     ksp(project(":libs:common:annotation-scanner"))
 
     implementation(libs.okhttp3.okhttp)
+    implementation(libs.alibaba.fastjson2)
     implementation(libs.jsoup)
 
     scriptDeps(libs.alibaba.fastjson2)

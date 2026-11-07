@@ -3,7 +3,6 @@ package com.xiao.feng.features.items.bot
 import com.xiao.feng.R
 import com.xiao.feng.features.core.FeatureCategoryIds
 import com.xiao.feng.features.core.SwitchFeature
-import com.xiao.feng.features.items.scripting_java.JavaScriptingHook
 
 /**
  * 内置脚本「娱乐菜单系统」：宠物、钓鱼、天气、点歌等群小游戏。
@@ -17,10 +16,10 @@ object BotMoinMenu : SwitchFeature() {
     override val displayOrder = 12
 
     override fun onEnable() {
-        JavaScriptingHook.setBundledScriptEnabled("bot-moin-menu", true)
+        BundledBotRuntime.setScriptEnabled("bot-moin-menu", true)
     }
 
     override fun onDisable() {
-        JavaScriptingHook.setBundledScriptEnabled("bot-moin-menu", false)
+        BundledBotRuntime.setScriptEnabled("bot-moin-menu", false)
     }
 }

@@ -3,7 +3,6 @@ package com.xiao.feng.features.items.bot
 import com.xiao.feng.R
 import com.xiao.feng.features.core.FeatureCategoryIds
 import com.xiao.feng.features.core.SwitchFeature
-import com.xiao.feng.features.items.scripting_java.JavaScriptingHook
 
 /**
  * 内置脚本「群娱乐机器人」：积分、打劫、婚恋、拍卖、点歌等群玩法。
@@ -17,10 +16,10 @@ object BotGroupRobot : SwitchFeature() {
     override val displayOrder = 11
 
     override fun onEnable() {
-        JavaScriptingHook.setBundledScriptEnabled("bot-group-robot", true)
+        BundledBotRuntime.setScriptEnabled("bot-group-robot", true)
     }
 
     override fun onDisable() {
-        JavaScriptingHook.setBundledScriptEnabled("bot-group-robot", false)
+        BundledBotRuntime.setScriptEnabled("bot-group-robot", false)
     }
 }

@@ -8,3 +8,7 @@
     @androidx.annotation.Keep <fields>;
     @androidx.annotation.Keep <methods>;
 }
+
+# The bundled bot scripts call fastjson2 through BeanShell, so no Kotlin/Java code references
+# these classes directly and R8 would otherwise strip them.
+-keep class com.alibaba.fastjson2.** { *; }
