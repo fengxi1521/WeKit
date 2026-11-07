@@ -9,6 +9,7 @@
     @androidx.annotation.Keep <methods>;
 }
 
-# The bundled bot scripts call fastjson2 through BeanShell, so no Kotlin/Java code references
-# these classes directly and R8 would otherwise strip them.
+# The bundled bot scripts call fastjson2 and OkHttp through BeanShell, so no Kotlin/Java code
+# references these classes directly and R8 would otherwise strip or rename them.
 -keep class com.alibaba.fastjson2.** { *; }
+-keep class okhttp3.** { *; }
