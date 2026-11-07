@@ -146,6 +146,9 @@ class MsgInfoBean(
         return msg.sender
     }
 
+    /** Alias of [getSendTalker] used by WAuxiliary-compatible scripts. */
+    fun getSender(): String = getSendTalker()
+
     fun getContent(): String {
         return when {
             isText() -> msg.actualContent
