@@ -164,6 +164,7 @@ object FloatingChatFooter : ClickableFeature(), IResolveDex {
     private var sideMarginDp by prefOption("floating_chat_footer_side_margin", DEFAULT_SIDE_MARGIN)
     private var bottomGapDp by prefOption("floating_chat_footer_bottom_gap", DEFAULT_BOTTOM_GAP)
     private var elevationDp by prefOption("floating_chat_footer_elevation", DEFAULT_ELEVATION)
+    private var glassEnabled by prefOption("floating_chat_footer_glass", false)
 
     /**
      * Locates ChatFooter.refreshBottomHeight() by the unique log string WeChat emits at the
@@ -548,7 +549,7 @@ object FloatingChatFooter : ClickableFeature(), IResolveDex {
         }
         footer.clipToOutline = true
         footer.elevation = elevationDp * density
-        FloatingChatCardVisuals.applyDarkSurface(footer, cornerRadiusDp)
+        FloatingChatCardVisuals.applySurface(footer, cornerRadiusDp, glassEnabled)
         if (!movePanelAbove) trackOutlineWhileScrolling(footer)
     }
 
@@ -990,6 +991,7 @@ object FloatingChatFooter : ClickableFeature(), IResolveDex {
             var gap by remember { mutableIntStateOf(bottomGapDp) }
             var elev by remember { mutableIntStateOf(elevationDp) }
             var panelAbove by remember { mutableStateOf(movePanelAbove) }
+            var glass by remember { mutableStateOf(glassEnabled) }
 
             AlertDialogContent(
                 title = { Text(stringResource(R.string.chat_floating_footer_title)) },
@@ -1004,6 +1006,18 @@ object FloatingChatFooter : ClickableFeature(), IResolveDex {
                                 onCheckedChange = {
                                     panelAbove = it
                                     movePanelAbove = it
+                                },
+                            )
+                        }
+                        item {
+                            SwitchWidget(
+                                iconPlaceholder = false,
+                                title = stringResource(R.string.chat_floating_glass_title),
+                                description = stringResource(R.string.chat_floating_glass_summary),
+                                checked = glass,
+                                onCheckedChange = {
+                                    glass = it
+                                    glassEnabled = it
                                 },
                             )
                         }

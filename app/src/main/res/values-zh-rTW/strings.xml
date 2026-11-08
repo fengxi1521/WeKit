@@ -537,6 +537,8 @@
     <string name="feature_beautify_activity_transition_animation_description">將部分活動過渡動畫替換爲默認過渡或元素級共享動畫 (沒做完)</string>
     <string name="feature_beautify_conversation_list_name">美化對話列表</string>
     <string name="feature_beautify_conversation_list_description">爲會話列表提供島式佈局、未讀突出和分隔線設置</string>
+    <string name="feature_beautify_home_lists_name">美化主頁列表</string>
+    <string name="feature_beautify_home_lists_description">把通訊錄、發現、我頁面的列表行改成圓角島卡片</string>
     <string name="feature_beautify_view_press_effect_name">美化組件按下效果</string>
     <string name="feature_beautify_view_press_effect_description">將 View 的背景替換爲 RippleDrawable (沒寫完)</string>
     <string name="feature_center_profile_card_name">資料卡居中</string>
@@ -2386,6 +2388,13 @@
     <string name="chat_floating_header_style_label">標題欄樣式</string>
     <string name="chat_floating_header_style_integrated">一體式</string>
     <string name="chat_floating_header_style_separated">分體式</string>
+    <string name="chat_floating_glass_title">玻璃質感</string>
+    <string name="chat_floating_glass_summary">半透明漸變表面 + 高光描邊，透出聊天背景</string>
+    <string name="chat_floating_hide_tips_overflow_title">隱藏超出的提示條</string>
+    <string name="chat_floating_hide_tips_overflow_summary">分體式下置頂訊息等提示條會超出標題卡片，開啓後直接隱藏</string>
+    <string name="chat_floating_avatar_title">標題顯示雙頭像</string>
+    <string name="chat_floating_avatar_title_summary">左側為對方頭像，右側為自己頭像</string>
+    <string name="chat_floating_avatar_symbol_title">中間符號</string>
     <string name="chat_floating_component_gap_label">最小組件間距</string>
     <string name="chat_floating_corner_radius">圓角半徑：%1$d dp</string>
     <string name="chat_floating_side_margin">側邊距：%1$d dp</string>
@@ -2981,6 +2990,9 @@
     <string name="beautify_conversation_layout_summary">置頂與非置頂會話分別顯示爲圓角島</string>
     <string name="beautify_conversation_highlight_unread">突出未讀會話</string>
     <string name="beautify_conversation_hide_dividers">隱藏分隔線</string>
+    <string name="beautify_home_lists_title">美化主頁列表</string>
+    <string name="beautify_home_lists_island">圓角島卡片</string>
+    <string name="beautify_home_lists_island_summary">通訊錄、發現、我頁面的列表行顯示爲圓角卡片</string>
     <string name="beautify_profile_card_title">資料卡居中</string>
     <string name="beautify_profile_card_visibility">內容可見性</string>
     <string name="beautify_profile_card_show_nickname">顯示暱稱</string>

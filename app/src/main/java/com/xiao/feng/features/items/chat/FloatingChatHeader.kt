@@ -48,6 +48,8 @@ import androidx.compose.ui.unit.dp
 import androidx.core.view.WindowCompat
 import androidx.core.view.isGone
 import androidx.core.view.isVisible
+import coil3.load
+import coil3.request.crossfade
 import com.tencent.mm.pluginsdk.ui.chat.ChatFooter
 import com.tencent.mm.pluginsdk.ui.chat.ChattingUILayout
 import com.tencent.mm.ui.chatting.view.MMChattingListView
@@ -56,6 +58,8 @@ import dev.ujhhgtg.reflekt.utils.toClass
 import com.xiao.feng.R
 import com.xiao.feng.featurepoints.abc.IResolveDex
 import com.xiao.feng.featurepoints.dsl.dexMethod
+import com.xiao.feng.features.api.core.WeApi
+import com.xiao.feng.features.api.core.WeDatabaseApi
 import com.xiao.feng.features.core.ClickableFeature
 import com.xiao.feng.features.core.FeatureCategoryIds
 import com.xiao.feng.data.KvStore.prefOption
@@ -67,12 +71,19 @@ import com.xiao.feng.ui.content.m3.DropDownMenuWidget
 import com.xiao.feng.ui.content.m3.DropdownOption
 import com.xiao.feng.ui.content.m3.IntNumberPickerWidget
 import com.xiao.feng.ui.content.m3.SegmentedColumn
+import com.xiao.feng.ui.content.m3.SwitchWidget
+import com.xiao.feng.ui.content.m3.TextFieldDialogWidget
 import com.xiao.feng.ui.utils.allViews
 import com.xiao.feng.ui.utils.findViewWhich
 import com.xiao.feng.ui.utils.findViewsWhich
 import com.xiao.feng.ui.utils.showComposeDialog
 import com.xiao.feng.utils.WeLogger
+import com.xiao.feng.utils.android.currentWxId
 import com.xiao.feng.utils.android.isDarkMode
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import com.xiao.feng.utils.reflection.int
 import java.lang.reflect.Field
 import java.util.WeakHashMap
@@ -107,6 +118,9 @@ object FloatingChatHeader : ClickableFeature(), IResolveDex {
     private const val MAX_ELEVATION = 16
     private const val MIN_COMPONENT_GAP = 0
     private const val MAX_COMPONENT_GAP = 24
+
+    private const val DEFAULT_AVATAR_SYMBOL = "♡"
+    private const val AVATAR_TEXT_PADDING_DP = 4
 
     private const val RECONCILE_LAYOUT = 1
     private const val RECONCILE_TIPS = 1 shl 1
@@ -162,6 +176,10 @@ object FloatingChatHeader : ClickableFeature(), IResolveDex {
         "floating_chat_header_layout_style",
         HeaderLayoutStyle.INTEGRATED.name,
     )
+    private var glassEnabled by prefOption("floating_chat_header_glass", false)
+    private var hideTipsOverflow by prefOption("floating_chat_header_hide_tips_overflow", false)
+    private var avatarTitleEnabled by prefOption("floating_chat_header_avatar_title", false)
+    private var avatarTitleSymbol by prefOption("floating_chat_header_avatar_symbol", DEFAULT_AVATAR_SYMBOL)
 
     private var headerLayoutStyle: HeaderLayoutStyle
         get() = runCatching { HeaderLayoutStyle.valueOf(headerLayoutStyleName) }
@@ -369,6 +387,29 @@ object FloatingChatHeader : ClickableFeature(), IResolveDex {
     /** 已报过“找不到标题栏三段结构”的会话布局。 */
     private val separatedHeaderWarned = WeakHashMap<View, Boolean>()
 
+    /** 替换成「对方头像 + 自定义符号 + 自己头像」的标题行, key 是 ChattingUILayout。 */
+    private val avatarTitleStates = WeakHashMap<View, AvatarTitleState>()
+
+    /** 标题头像行的逐帧校正监听, 退后台/切换会话后自动恢复。 */
+    private val avatarTitlePreDraws = WeakHashMap<View, ViewTreeObserver.OnPreDrawListener>()
+
+    /** 头像 URL 缓存; 头像只会在会话切换时重新查询。 */
+    private val avatarUrls = java.util.concurrent.ConcurrentHashMap<String, String>()
+
+    private class AvatarTitleState(
+        val row: LinearLayout,
+        val title: TextView,
+        val symbolView: TextView,
+        val peerAvatar: ImageView,
+        val selfAvatar: ImageView,
+        var wxId: String,
+        var symbol: String,
+    )
+
+    private val avatarRowTag = Any()
+    private val avatarTitleTag = Any()
+    private val avatarSymbolTag = Any()
+
     private data class HeaderStyle(val cornerRadiusDp: Int, val elevationDp: Int)
 
     private data class HeaderVisualState(
@@ -452,6 +493,7 @@ object FloatingChatHeader : ClickableFeature(), IResolveDex {
             elevationPx: Float,
             surfaceColor: Int,
             darkMode: Boolean,
+            glass: Boolean,
             density: Float,
         ) {
             val leftLeft = left.left + offset
@@ -469,7 +511,7 @@ object FloatingChatHeader : ClickableFeature(), IResolveDex {
             val nextShadowRadius = elevationPx * 1.5f
             val nextShadowOffsetY = elevationPx * 0.5f
             val nextShadowColor = if (darkMode) 0x99000000.toInt() else 0x52000000
-            val nextStrokeWidth = if (darkMode) density.coerceAtLeast(1f) else 0f
+            val nextStrokeWidth = if (darkMode || glass) density.coerceAtLeast(1f) else 0f
             if (leftRect.left == leftLeft && leftRect.top == leftTop &&
                 leftRect.right == leftRight && leftRect.bottom == leftBottom &&
                 titleRect.left == titleLeft && titleRect.top == titleTop &&
@@ -495,7 +537,11 @@ object FloatingChatHeader : ClickableFeature(), IResolveDex {
             shadowOffsetY = nextShadowOffsetY
             shadowColor = nextShadowColor
             strokeWidth = nextStrokeWidth
-            strokeColor = 0x24FFFFFF
+            strokeColor = if (glass) {
+                if (darkMode) 0x40FFFFFF else 0x99FFFFFF.toInt()
+            } else {
+                0x24FFFFFF
+            }
             invalidate()
         }
 
@@ -834,9 +880,11 @@ object FloatingChatHeader : ClickableFeature(), IResolveDex {
         reparentIfNeeded(layout, header)
         applyHeaderStyle(layout, header)
         applyMargins(layout, header)
+        applyTipsOverflowVisibility(layout)
         applyHeaderZoneCards(layout, header)
         val tipsCovered = applyHeaderZoneOverlays(layout, header)
         suppressTipsBarDimFor(layout)
+        applyTitleAvatars(layout, header)
         applyChatListPadding(layout, header)
         val quickSelectCovered = applyQuickSelectOffset(layout, header)
         applyNewMsgChipOffset(layout, header)
@@ -848,6 +896,218 @@ object FloatingChatHeader : ClickableFeature(), IResolveDex {
         }
         trackQuickSelectInputs(tracker, layout)
         return covered
+    }
+
+    /**
+     * 分体式标题栏下, 置顶消息/新消息提示条会横跨整屏并越过标题卡片边界。
+     * 开启该开关后直接把提示条组隐藏。
+     */
+    private fun applyTipsOverflowVisibility(layout: View) {
+        if (!hideTipsOverflow || headerLayoutStyle != HeaderLayoutStyle.SEPARATED) return
+        val group = tipsBarGroups[layout]?.takeIf { it.isAttachedToWindow } ?: return
+        if (group.visibility != View.GONE) {
+            group.visibility = View.GONE
+        }
+    }
+
+    /**
+     * 把标题文字换成 `对方头像 + 自定义符号 + 自己头像`。原 TextView 只隐藏不删除,
+     * 关闭功能或切换会话时能立即还原。
+     */
+    private fun applyTitleAvatars(layout: View, header: View) {
+        if (!avatarTitleEnabled) {
+            removeTitleAvatars(layout)
+            return
+        }
+        val wxId = header.context.activityOrNull()?.currentWxId ?: return
+        val state = avatarTitleStates[layout]
+        if (state != null && state.title.rootView === header.rootView && state.title.isAttachedToWindow) {
+            if (state.wxId != wxId) {
+                state.wxId = wxId
+                loadAvatarImages(state)
+            }
+            if (state.symbol != avatarTitleSymbol) {
+                state.symbol = avatarTitleSymbol
+                state.symbolView.text = avatarTitleSymbol
+            }
+            if (state.title.visibility != View.INVISIBLE) state.title.visibility = View.INVISIBLE
+            return
+        }
+
+        removeTitleAvatars(layout)
+        val title = findTitleTextView(header) ?: return
+        val row = buildAvatarTitleRow(title) ?: return
+        if (!attachAvatarTitleRow(title, row)) return
+        val next = AvatarTitleState(
+            row = row,
+            title = title,
+            symbolView = row.getChildAt(1) as TextView,
+            peerAvatar = row.getChildAt(0) as ImageView,
+            selfAvatar = row.getChildAt(2) as ImageView,
+            wxId = wxId,
+            symbol = avatarTitleSymbol,
+        )
+        avatarTitleStates[layout] = next
+        title.visibility = View.INVISIBLE
+        loadAvatarImages(next)
+        ensureAvatarTitlePreDraw(layout)
+    }
+
+    private fun findTitleTextView(header: View): TextView? {
+        val textViews = header.allViews.filterIsInstance<TextView>()
+        textViews.firstOrNull { it.tag === avatarTitleTag }?.let { return it }
+        val candidate = textViews
+            .filter { it.tag !== avatarRowTag && it.tag !== avatarSymbolTag }
+            .filter { it.isVisible && it.text.isNotEmpty() && it.textSize > 0f }
+            .maxByOrNull { it.textSize } ?: return null
+        candidate.tag = avatarTitleTag
+        return candidate
+    }
+
+    private fun buildAvatarTitleRow(title: TextView): LinearLayout? {
+        val context = title.context
+        val density = context.resources.displayMetrics.density
+        val diameter = (title.textSize * 1.35f).roundToInt()
+            .coerceIn((20 * density).roundToInt(), (40 * density).roundToInt())
+        val padding = (AVATAR_TEXT_PADDING_DP * density).roundToInt()
+        val row = LinearLayout(context).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            tag = avatarRowTag
+            importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
+            setPadding(padding, 0, padding, 0)
+        }
+        val peer = buildCircularAvatar(context, diameter)
+        val symbol = TextView(context).apply {
+            tag = avatarSymbolTag
+            text = avatarTitleSymbol
+            setTextSize(TypedValue.COMPLEX_UNIT_PX, title.textSize)
+            gravity = Gravity.CENTER
+            setTextColor(title.currentTextColor)
+            includeFontPadding = false
+            setPadding(padding, 0, padding, 0)
+        }
+        val self = buildCircularAvatar(context, diameter)
+        row.addView(peer, LinearLayout.LayoutParams(diameter, diameter))
+        row.addView(
+            symbol,
+            LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT,
+            ),
+        )
+        row.addView(self, LinearLayout.LayoutParams(diameter, diameter))
+        return row
+    }
+
+    private fun buildCircularAvatar(context: Context, diameter: Int): ImageView =
+        ImageView(context).apply {
+            scaleType = ImageView.ScaleType.CENTER_CROP
+            clipToOutline = true
+            outlineProvider = object : ViewOutlineProvider() {
+                override fun getOutline(view: View, outline: Outline) {
+                    outline.setOval(0, 0, view.width, view.height)
+                }
+            }
+        }
+
+    private fun attachAvatarTitleRow(title: TextView, row: LinearLayout): Boolean {
+        val parent = title.parent as? ViewGroup ?: return false
+        val params: ViewGroup.LayoutParams = when (parent) {
+            is RelativeLayout -> RelativeLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT,
+            ).apply { addRule(RelativeLayout.CENTER_IN_PARENT) }
+
+            is FrameLayout -> FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT,
+                Gravity.CENTER,
+            )
+
+            is LinearLayout -> LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT,
+            ).apply { gravity = Gravity.CENTER }
+
+            is androidx.appcompat.widget.Toolbar -> androidx.appcompat.widget.Toolbar.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT,
+                Gravity.CENTER_HORIZONTAL,
+            )
+
+            else -> return false
+        }
+        parent.addView(row, params)
+        return true
+    }
+
+    private fun ensureAvatarTitlePreDraw(layout: View) {
+        if (avatarTitlePreDraws.containsKey(layout)) return
+        val observer = layout.viewTreeObserver
+        if (!observer.isAlive) return
+        val listener = object : ViewTreeObserver.OnPreDrawListener {
+            override fun onPreDraw(): Boolean {
+                val state = avatarTitleStates[layout]
+                if (state == null || !avatarTitleEnabled || !layout.isAttachedToWindow) {
+                    return true
+                }
+                if (!state.title.isAttachedToWindow) {
+                    removeTitleAvatars(layout)
+                    currentHeader(layout)?.let { applyTitleAvatars(layout, it) }
+                    return true
+                }
+                val wxId = layout.context.activityOrNull()?.currentWxId
+                if (wxId != null && wxId != state.wxId) {
+                    state.wxId = wxId
+                    loadAvatarImages(state)
+                }
+                if (state.symbol != avatarTitleSymbol) {
+                    state.symbol = avatarTitleSymbol
+                    state.symbolView.text = avatarTitleSymbol
+                }
+                if (state.title.visibility != View.INVISIBLE) state.title.visibility = View.INVISIBLE
+                if (state.row.parent == null) attachAvatarTitleRow(state.title, state.row)
+                return true
+            }
+        }
+        avatarTitlePreDraws[layout] = listener
+        observer.addOnPreDrawListener(listener)
+    }
+
+    private fun removeTitleAvatars(layout: View) {
+        avatarTitlePreDraws.remove(layout)?.let { listener ->
+            val observer = layout.viewTreeObserver
+            if (observer.isAlive) observer.removeOnPreDrawListener(listener)
+        }
+        val state = avatarTitleStates.remove(layout) ?: return
+        (state.row.parent as? ViewGroup)?.removeView(state.row)
+        if (state.title.isAttachedToWindow) state.title.visibility = View.VISIBLE
+        if (state.title.tag === avatarTitleTag) state.title.tag = null
+    }
+
+    private fun loadAvatarImages(state: AvatarTitleState) {
+        val wxId = state.wxId
+        val peer = state.peerAvatar
+        val self = state.selfAvatar
+        CoroutineScope(Dispatchers.IO).launch {
+            val peerUrl = resolveAvatarUrl(wxId)
+            val selfWxId = WeApi.selfWxId
+            val selfUrl = if (selfWxId.isBlank()) "" else resolveAvatarUrl(selfWxId)
+            withContext(Dispatchers.Main) {
+                if (avatarTitleStates.values.none { it === state } || state.wxId != wxId) return@withContext
+                if (peerUrl.isNotEmpty()) peer.load(peerUrl) { crossfade(false) }
+                if (selfUrl.isNotEmpty()) self.load(selfUrl) { crossfade(false) }
+            }
+        }
+    }
+
+    private fun resolveAvatarUrl(wxId: String): String {
+        if (wxId.isBlank()) return ""
+        avatarUrls[wxId]?.let { return it }
+        val url = runCatching { WeDatabaseApi.getAvatarUrl(wxId) }.getOrDefault("")
+        if (url.isNotEmpty()) avatarUrls[wxId] = url
+        return url
     }
 
     private fun isCachedHeaderValid(layout: View, header: View): Boolean {
@@ -991,7 +1251,7 @@ object FloatingChatHeader : ClickableFeature(), IResolveDex {
         val style = HeaderStyle(cornerRadiusDp, elevationDp)
         val density = view.resources.displayMetrics.density
         val expectedElevation = elevationDp * density
-        FloatingChatCardVisuals.applyDarkSurface(view, cornerRadiusDp)
+        FloatingChatCardVisuals.applySurface(view, cornerRadiusDp, glassEnabled)
         // 半屏路径微信会在展开动画结束时清掉 ActionBarContainer 的 outline (m.a()),
         // 只按样式缓存判断会漏掉这次恢复, 所以 outline/elevation 被微信改掉时也要重刷。
         if (headerStyles[view] == style &&
@@ -1355,8 +1615,13 @@ object FloatingChatHeader : ClickableFeature(), IResolveDex {
             offset = shadowPadding.toFloat(),
             titleRadius = cornerRadiusDp * density,
             elevationPx = elevationPx,
-            surfaceColor = state.surfaceColor,
+            surfaceColor = if (glassEnabled) {
+                if (state.root.context.isDarkMode) 0xCC2C2C2E.toInt() else 0xCCFFFFFF.toInt()
+            } else {
+                state.surfaceColor
+            },
             darkMode = state.root.context.isDarkMode,
+            glass = glassEnabled,
             density = density,
         )
     }
@@ -2832,6 +3097,9 @@ object FloatingChatHeader : ClickableFeature(), IResolveDex {
         }
         separatedHeaderStates.clear()
         separatedHeaderWarned.clear()
+        avatarTitleStates.keys.toList().forEach(::removeTitleAvatars)
+        avatarTitleStates.clear()
+        avatarUrls.clear()
         statusBarPreDraws.clear()
         statusBarOffsets.clear()
         statusBarWrappersNeutralized.clear()
@@ -2847,6 +3115,10 @@ object FloatingChatHeader : ClickableFeature(), IResolveDex {
             var extraGap by remember { mutableIntStateOf(extraGapDp) }
             var elevation by remember { mutableIntStateOf(elevationDp) }
             var componentGap by remember { mutableIntStateOf(componentGapDp) }
+            var glass by remember { mutableStateOf(glassEnabled) }
+            var hideOverflow by remember { mutableStateOf(hideTipsOverflow) }
+            var avatarTitle by remember { mutableStateOf(avatarTitleEnabled) }
+            var avatarSymbol by remember { mutableStateOf(avatarTitleSymbol) }
 
             AlertDialogContent(
                 title = { Text(stringResource(R.string.chat_floating_header_title)) },
@@ -2881,6 +3153,64 @@ object FloatingChatHeader : ClickableFeature(), IResolveDex {
                                         headerLayoutStyle = it
                                         scheduleAllLayouts(RECONCILE_LAYOUT)
                                     },
+                                )
+                            }
+                            item(key = "glass") {
+                                SwitchWidget(
+                                    title = stringResource(R.string.chat_floating_glass_title),
+                                    description = stringResource(R.string.chat_floating_glass_summary),
+                                    checked = glass,
+                                    onCheckedChange = {
+                                        glass = it
+                                        glassEnabled = it
+                                        scheduleAllLayouts(RECONCILE_LAYOUT)
+                                    },
+                                )
+                            }
+                            item(
+                                key = "hide_tips_overflow",
+                                animatedVisibility = layoutStyle == HeaderLayoutStyle.SEPARATED,
+                            ) {
+                                SwitchWidget(
+                                    title = stringResource(R.string.chat_floating_hide_tips_overflow_title),
+                                    description = stringResource(R.string.chat_floating_hide_tips_overflow_summary),
+                                    checked = hideOverflow,
+                                    onCheckedChange = {
+                                        hideOverflow = it
+                                        hideTipsOverflow = it
+                                        scheduleAllLayouts(RECONCILE_LAYOUT or RECONCILE_TIPS)
+                                    },
+                                )
+                            }
+                            item(key = "avatar_title") {
+                                SwitchWidget(
+                                    title = stringResource(R.string.chat_floating_avatar_title),
+                                    description = stringResource(R.string.chat_floating_avatar_title_summary),
+                                    checked = avatarTitle,
+                                    onCheckedChange = {
+                                        avatarTitle = it
+                                        avatarTitleEnabled = it
+                                        scheduleAllLayouts(RECONCILE_LAYOUT)
+                                    },
+                                )
+                            }
+                            item(
+                                key = "avatar_symbol",
+                                animatedVisibility = avatarTitle,
+                            ) {
+                                TextFieldDialogWidget(
+                                    title = stringResource(R.string.chat_floating_avatar_symbol_title),
+                                    value = avatarSymbol,
+                                    onValueChange = {
+                                        avatarSymbol = it
+                                        avatarTitleSymbol = it
+                                        scheduleAllLayouts(RECONCILE_LAYOUT)
+                                    },
+                                    dialogTitle = stringResource(R.string.chat_floating_avatar_symbol_title),
+                                    confirmLabel = stringResource(R.string.dialog_confirm),
+                                    dismissLabel = stringResource(R.string.dialog_cancel),
+                                    valueHint = DEFAULT_AVATAR_SYMBOL,
+                                    filter = { it.take(3) },
                                 )
                             }
                             item(

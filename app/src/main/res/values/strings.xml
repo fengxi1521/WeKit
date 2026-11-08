@@ -585,6 +585,8 @@
     <string name="feature_beautify_activity_transition_animation_description">Replace some active transition animations with default transitions or element-level shared animations (not finished yet)</string>
     <string name="feature_beautify_conversation_list_name">Customize conversation list</string>
     <string name="feature_beautify_conversation_list_description">Provides an island layout, unread highlighting and divider settings for the conversation list</string>
+    <string name="feature_beautify_home_lists_name">Customize main tab lists</string>
+    <string name="feature_beautify_home_lists_description">Turn list rows on the contacts, discover and me tabs into rounded island cards</string>
     <string name="feature_beautify_view_press_effect_name">Customize press effects</string>
     <string name="feature_beautify_view_press_effect_description">Replace the background of View with RippleDrawable (not finished yet)</string>
     <string name="feature_center_profile_card_name">Center profile card</string>
@@ -2444,6 +2446,13 @@
     <string name="chat_floating_header_style_label">Header style</string>
     <string name="chat_floating_header_style_integrated">Integrated</string>
     <string name="chat_floating_header_style_separated">Separated</string>
+    <string name="chat_floating_glass_title">Glass effect</string>
+    <string name="chat_floating_glass_summary">Translucent gradient surface with a bright rim that shows the chat behind it</string>
+    <string name="chat_floating_hide_tips_overflow_title">Hide overflowing banners</string>
+    <string name="chat_floating_hide_tips_overflow_summary">In separated mode pinned-message banners extend past the title card; turn this on to hide them</string>
+    <string name="chat_floating_avatar_title">Show avatars in title</string>
+    <string name="chat_floating_avatar_title_summary">Peer avatar on the left, your avatar on the right</string>
+    <string name="chat_floating_avatar_symbol_title">Center symbol</string>
     <string name="chat_floating_component_gap_label">Minimum component spacing</string>
     <string name="chat_floating_corner_radius">Corner radius: %1$d dp</string>
     <string name="chat_floating_side_margin">Side margin: %1$d dp</string>
@@ -2973,6 +2982,9 @@
     <string name="beautify_conversation_layout_summary">Place pinned and other conversations in separate rounded islands</string>
     <string name="beautify_conversation_highlight_unread">Highlight unread conversations</string>
     <string name="beautify_conversation_hide_dividers">Hide dividers</string>
+    <string name="beautify_home_lists_title">Beautify main tab lists</string>
+    <string name="beautify_home_lists_island">Rounded island cards</string>
+    <string name="beautify_home_lists_island_summary">Show rows on the contacts, discover and me tabs as rounded cards</string>
     <string name="beautify_profile_card_title">Center profile card</string>
     <string name="beautify_profile_card_visibility">Content visibility</string>
     <string name="beautify_profile_card_show_nickname">Show nickname</string>
