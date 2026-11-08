@@ -42,8 +42,10 @@ private fun pauseRule(
     return ruleGroup(enabled, mode, regex, ignoreCase, seconds) {
         RedPacketSettings.PauseRule(
             enabled = enabled!!,
+            // Whether the keywords are active follows the pause switch, so the nested rule is
+            // always decoded disabled; [RedPacketSettings.PauseRule.activeKeywords] derives it.
             keywords = AutomationKeywordRule(
-                enabled = true,
+                enabled = false,
                 mode = AutomationKeywordMode.valueOf(mode!!),
                 strings = strings,
                 regex = regex!!,
@@ -143,7 +145,10 @@ fun RedPacketSettings.RuleOverrides.asGlobalRules() = RedPacketSettings.RuleSet(
     timeRange = requireNotNull(timeRange) { "Global timeRange rule is missing" },
     keyword = requireNotNull(keyword) { "Global keyword rule is missing" },
     skipKeyword = requireNotNull(skipKeyword) { "Global skipKeyword rule is missing" },
-    pause = requireNotNull(pause) { "Global pause rule is missing" },
+    // Global rows written before the pause rule existed have no stored pause group (the columns
+    // were added by the 23 -> 24 migration and stay NULL). Missing means "never configured", so
+    // the disabled default is the faithful decoding rather than an error.
+    pause = pause ?: RedPacketSettings.PauseRule(),
     delay = requireNotNull(delay) { "Global delay rule is missing" },
     notification = requireNotNull(notification) { "Global notification rule is missing" },
     autoReply = requireNotNull(autoReply) { "Global autoReply rule is missing" },
