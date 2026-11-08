@@ -132,10 +132,13 @@ abstract class AutomationDao {
         upsert(rules.toEntity(scopeType, talkerId, memberId))
         deleteRedPacketKeywords(scopeType, talkerId, memberId, "KEYWORD")
         deleteRedPacketKeywords(scopeType, talkerId, memberId, "SKIP_KEYWORD")
+        deleteRedPacketKeywords(scopeType, talkerId, memberId, "PAUSE")
         insertRedPacketKeywords(rules.keyword?.strings.orEmpty().mapIndexed { index, text ->
             RedPacketKeywordEntity(scopeType, talkerId, memberId, "KEYWORD", index, text)
         } + rules.skipKeyword?.strings.orEmpty().mapIndexed { index, text ->
             RedPacketKeywordEntity(scopeType, talkerId, memberId, "SKIP_KEYWORD", index, text)
+        } + rules.pause?.keywords?.strings.orEmpty().mapIndexed { index, text ->
+            RedPacketKeywordEntity(scopeType, talkerId, memberId, "PAUSE", index, text)
         })
     }
 

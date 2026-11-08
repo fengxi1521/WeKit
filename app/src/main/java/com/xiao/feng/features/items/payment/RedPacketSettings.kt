@@ -86,6 +86,10 @@ object RedPacketSettings {
         val keywords: AutomationKeywordRule = AutomationKeywordRule(),
         val seconds: String = "30"
     ) {
+        /** 关键词规则随暂停规则一起生效, 避免关键词规则自身的 enabled 标志遗留。 */
+        val activeKeywords: AutomationKeywordRule
+            get() = keywords.copy(enabled = enabled)
+
         fun durationMillis(): Long = (seconds.toLongOrNull() ?: 0L).coerceAtLeast(0L) * 1000L
     }
 
@@ -950,7 +954,7 @@ object RedPacketSettings {
             rules.skipKeyword.validationError(context.getString(R.string.payment_red_packet_skip_keyword_label))?.let { return it }
         }
         if (validates(RuleKey.PAUSE) && rules.pause.enabled) {
-            rules.pause.keywords.validationError(
+            rules.pause.activeKeywords.validationError(
                 context.getString(R.string.payment_red_packet_pause_keyword_label)
             )?.let { return it }
             val seconds = rules.pause.seconds.toLongOrNull()

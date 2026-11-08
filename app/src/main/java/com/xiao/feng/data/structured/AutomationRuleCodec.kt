@@ -30,6 +30,30 @@ private fun keywordRule(enabled: Boolean?, mode: String?, regex: String?, ignore
     }
 }
 
+private fun pauseRule(
+    enabled: Boolean?,
+    mode: String?,
+    regex: String?,
+    ignoreCase: Boolean?,
+    seconds: String?,
+    strings: List<String>,
+): RedPacketSettings.PauseRule? {
+    require(enabled != null || strings.isEmpty()) { "Inherited pause rule has stored keywords" }
+    return ruleGroup(enabled, mode, regex, ignoreCase, seconds) {
+        RedPacketSettings.PauseRule(
+            enabled = enabled!!,
+            keywords = AutomationKeywordRule(
+                enabled = true,
+                mode = AutomationKeywordMode.valueOf(mode!!),
+                strings = strings,
+                regex = regex!!,
+                ignoreCase = ignoreCase!!,
+            ),
+            seconds = seconds!!,
+        )
+    }
+}
+
 fun validatePaymentScope(scopeType: String, talkerId: String, memberId: String) {
     require(when (scopeType) {
         "GLOBAL" -> talkerId.isEmpty() && memberId.isEmpty()
@@ -55,6 +79,7 @@ fun RedPacketSettings.RuleSet.asOverrides() = RedPacketSettings.RuleOverrides(
     timeRange = timeRange,
     keyword = keyword,
     skipKeyword = skipKeyword,
+    pause = pause,
     delay = delay,
     notification = notification,
     autoReply = autoReply,
@@ -80,6 +105,11 @@ fun RedPacketSettings.RuleOverrides.toEntity(scopeType: String, talkerId: String
         skipKeywordMode = skipKeyword?.mode?.name,
         skipKeywordRegex = skipKeyword?.regex,
         skipKeywordIgnoreCase = skipKeyword?.ignoreCase,
+        pauseEnabled = pause?.enabled,
+        pauseKeywordMode = pause?.keywords?.mode?.name,
+        pauseKeywordRegex = pause?.keywords?.regex,
+        pauseKeywordIgnoreCase = pause?.keywords?.ignoreCase,
+        pauseSeconds = pause?.seconds,
         delayEnabled = delay?.enabled,
         delayBaseMs = delay?.baseMs,
         delayRandomRangeMs = delay?.randomRangeMs,
@@ -91,7 +121,7 @@ fun RedPacketSettings.RuleOverrides.toEntity(scopeType: String, talkerId: String
 
 fun RedPacketRuleEntity.toOverrides(keywords: List<RedPacketKeywordEntity>): RedPacketSettings.RuleOverrides {
     validatePaymentScope(scopeType, talkerId, memberId)
-    require(keywords.all { it.ruleKind == "KEYWORD" || it.ruleKind == "SKIP_KEYWORD" }) { "Unknown red packet keyword rule" }
+    require(keywords.all { it.ruleKind == "KEYWORD" || it.ruleKind == "SKIP_KEYWORD" || it.ruleKind == "PAUSE" }) { "Unknown red packet keyword rule" }
     return RedPacketSettings.RuleOverrides(
         grab = grabEnabled?.let(::AutomationToggleRule),
         grabSelf = grabSelfEnabled?.let(::AutomationToggleRule),
@@ -99,6 +129,7 @@ fun RedPacketRuleEntity.toOverrides(keywords: List<RedPacketKeywordEntity>): Red
         timeRange = timeRule(timeEnabled, timeStartMinute, timeEndMinute),
         keyword = keywordRule(keywordEnabled, keywordMode, keywordRegex, keywordIgnoreCase, keywords.filter { it.ruleKind == "KEYWORD" }.sortedBy { it.position }.map { it.text }),
         skipKeyword = keywordRule(skipKeywordEnabled, skipKeywordMode, skipKeywordRegex, skipKeywordIgnoreCase, keywords.filter { it.ruleKind == "SKIP_KEYWORD" }.sortedBy { it.position }.map { it.text }),
+        pause = pauseRule(pauseEnabled, pauseKeywordMode, pauseKeywordRegex, pauseKeywordIgnoreCase, pauseSeconds, keywords.filter { it.ruleKind == "PAUSE" }.sortedBy { it.position }.map { it.text }),
         delay = ruleGroup(delayEnabled, delayBaseMs, delayRandomRangeMs) { RedPacketSettings.DelayRule(it, delayBaseMs!!, delayRandomRangeMs!!) },
         notification = notificationEnabled?.let(::AutomationToggleRule),
         autoReply = ruleGroup(replyEnabled, replyText) { RedPacketSettings.ReplyRule(it, replyText!!) },
@@ -112,6 +143,7 @@ fun RedPacketSettings.RuleOverrides.asGlobalRules() = RedPacketSettings.RuleSet(
     timeRange = requireNotNull(timeRange) { "Global timeRange rule is missing" },
     keyword = requireNotNull(keyword) { "Global keyword rule is missing" },
     skipKeyword = requireNotNull(skipKeyword) { "Global skipKeyword rule is missing" },
+    pause = requireNotNull(pause) { "Global pause rule is missing" },
     delay = requireNotNull(delay) { "Global delay rule is missing" },
     notification = requireNotNull(notification) { "Global notification rule is missing" },
     autoReply = requireNotNull(autoReply) { "Global autoReply rule is missing" },

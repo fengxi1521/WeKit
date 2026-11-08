@@ -170,7 +170,7 @@ object AutoOpenRedPackets : ClickableFeature(), WeDatabaseListenerApi.IInsertLis
 
             val duration = settings.pause.durationMillis()
             if (duration <= 0L) return
-            if (!settings.pause.keywords.matches(msgInfo.content)) return
+            if (!settings.pause.activeKeywords.matches(msgInfo.content)) return
 
             pausedUntil = System.currentTimeMillis() + duration
             WeLogger.i(
