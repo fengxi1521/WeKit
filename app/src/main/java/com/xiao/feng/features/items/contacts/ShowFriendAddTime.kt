@@ -2,6 +2,7 @@ package com.xiao.feng.features.items.contacts
 
 import android.app.Activity
 import com.tencent.mm.chatroom.ui.ChatroomInfoUI
+import com.tencent.mm.plugin.profile.ui.ContactInfoUI
 import com.xiao.feng.R
 import com.xiao.feng.features.api.core.WeApi
 import com.xiao.feng.features.api.core.WeDatabaseApi
@@ -11,6 +12,12 @@ import com.xiao.feng.features.core.FeatureCategoryIds
 import com.xiao.feng.features.core.SwitchFeature
 import com.xiao.feng.utils.WeLogger
 import com.xiao.feng.utils.android.currentWxId
+import com.xiao.feng.utils.android.showToast
+import com.xiao.feng.utils.strings.isGroupChatWxId
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -25,38 +32,60 @@ object ShowFriendAddTime : SwitchFeature(),
     override val descriptionRes = R.string.feature_show_friend_add_time_description
 
     override fun getHeaderText(activity: Activity): String? {
-        val addTime = readContactAddTime(activity) ?: return null
-        return activity.localizedContactsString(R.string.contacts_add_time_value, addTime)
+        // Official accounts only need their single rcontact row, so their header stays inline.
+        // Friends use the click-to-read row below so opening their profile does no SQL at all.
+        val wxId = activity.currentWxId ?: return null
+        if (!wxId.startsWith("gh_")) return null
+        val millis = readOfficialAccountAddTime(wxId) ?: return null
+        if (millis == 0L) return null
+        val formatted = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.ROOT).format(Date(millis))
+        return activity.localizedContactsString(R.string.contacts_add_time_value, formatted)
     }
 
     override fun getContactInfoItem(activity: Activity): List<WeContactPrefsScreenApi.PreferenceItem> {
-        // ContactInfoUI has the profile header. Preference rows are only needed for
-        // ChatroomInfoUI, which has no NormalProfileHeaderPreference.
-        val wxId = activity.currentWxId
-        if (activity.javaClass.name != ChatroomInfoUI::class.java.name) {
-            return emptyList()
+        val wxId = activity.currentWxId ?: return emptyList()
+        if (wxId.startsWith("gh_")) return emptyList()
+        // Both the friend row and the group row need a database read, and a group's creation
+        // time even scans that group's message history. Querying during the page build made the
+        // profile open visibly stall, so the read is deferred to the click instead.
+        val expectedScreen = if (wxId.isGroupChatWxId) {
+            ChatroomInfoUI::class.java.name
+        } else {
+            ContactInfoUI::class.java.name
         }
-        val addTime = readContactAddTime(activity) ?: return emptyList()
+        if (activity.javaClass.name != expectedScreen) return emptyList()
+
         return listOf(
             WeContactPrefsScreenApi.PreferenceItem(
-                title = activity.localizedContactsString(
-                    R.string.contacts_add_time_value,
-                    addTime,
-                ),
+                title = activity.localizedContactsString(R.string.contacts_add_time_title),
+                summary = activity.localizedContactsString(R.string.chat_contact_tap_to_view),
                 position = 1,
+                onClick = onClick@{ itemActivity ->
+                    val clickedWxId = itemActivity.currentWxId ?: return@onClick
+                    showToast(itemActivity, itemActivity.localizedContactsString(R.string.chat_member_inviter_querying))
+                    CoroutineScope(Dispatchers.IO).launch {
+                        val millis = readContactAddTime(clickedWxId)
+                        withContext(Dispatchers.Main) {
+                            showToast(itemActivity, describeAddTime(itemActivity, millis))
+                        }
+                    }
+                },
             )
         )
     }
 
-    private fun readContactAddTime(activity: Activity): String? {
-        val wxId = activity.currentWxId ?: return null
-        val millis = when {
-            wxId.endsWith("@chatroom") -> readGroupAddTime(wxId)
-            wxId.startsWith("gh_") -> readOfficialAccountAddTime(wxId)
-            else -> readFriendAddTime(wxId)
-        } ?: return null
-        if (millis == 0L) return activity.localizedContactsString(R.string.contacts_get_failed)
-        return SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.ROOT).format(Date(millis))
+    private fun describeAddTime(activity: Activity, millis: Long?): String {
+        if (millis == null || millis == 0L) {
+            return activity.localizedContactsString(R.string.contacts_get_failed)
+        }
+        val formatted = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.ROOT).format(Date(millis))
+        return activity.localizedContactsString(R.string.contacts_add_time_value, formatted)
+    }
+
+    private fun readContactAddTime(wxId: String): Long? = when {
+        wxId.endsWith("@chatroom") -> readGroupAddTime(wxId)
+        wxId.startsWith("gh_") -> readOfficialAccountAddTime(wxId)
+        else -> readFriendAddTime(wxId)
     }
 
     private fun readFriendAddTime(wxId: String): Long? {
