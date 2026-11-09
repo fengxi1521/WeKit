@@ -594,6 +594,9 @@ object FloatingChatFooter : ClickableFeature(), IResolveDex {
      */
     private fun trackNavBarInset(footer: ChatFooter) {
         val listener = ViewTreeObserver.OnPreDrawListener {
+            // 宿主会在布局/主题刷新时重写自己的背景, 这里每帧兜底: applySurface 内部
+            // 有"值没变就不动"的判断, 顺带让设置页里刚切换的玻璃开关立刻生效。
+            FloatingChatCardVisuals.applySurface(footer, cornerRadiusDp, glassEnabled)
             applyNavigationBarEdgeToEdge(footer)
             if (movePanelAbove) {
                 applyBottomMargin(footer)

@@ -46,6 +46,16 @@ object FloatingChatCardVisuals {
             return
         }
 
+        val appliedBackground = appliedBackgrounds[view]
+        val appliedStyle = appliedStyles[view]
+        if (appliedBackground != null &&
+            view.background === appliedBackground &&
+            appliedStyle?.glass == true &&
+            appliedStyle.cornerRadiusDp == cornerRadiusDp
+        ) {
+            return
+        }
+
         if (!originalBackgrounds.containsKey(view)) {
             originalBackgrounds[view] = view.background
         }
@@ -53,8 +63,6 @@ object FloatingChatCardVisuals {
         val density = view.resources.displayMetrics.density
         val strokeWidthPx = (DARK_STROKE_WIDTH_DP * density).roundToInt().coerceAtLeast(1)
         val style = AppliedStyle(cornerRadiusDp, strokeWidthPx, glass = true)
-        val appliedBackground = appliedBackgrounds[view]
-        if (appliedStyles[view] == style && view.background === appliedBackground) return
 
         val dark = view.context.isDarkMode
         val background = GradientDrawable().apply {
@@ -75,6 +83,16 @@ object FloatingChatCardVisuals {
             return
         }
 
+        val appliedBackground = appliedBackgrounds[view]
+        val appliedStyle = appliedStyles[view]
+        if (appliedBackground != null &&
+            view.background === appliedBackground &&
+            appliedStyle?.glass == false &&
+            appliedStyle.cornerRadiusDp == cornerRadiusDp
+        ) {
+            return
+        }
+
         if (!originalBackgrounds.containsKey(view)) {
             originalBackgrounds[view] = view.background
         }
@@ -82,8 +100,6 @@ object FloatingChatCardVisuals {
         val density = view.resources.displayMetrics.density
         val strokeWidthPx = (DARK_STROKE_WIDTH_DP * density).roundToInt().coerceAtLeast(1)
         val style = AppliedStyle(cornerRadiusDp, strokeWidthPx, glass = false)
-        val appliedBackground = appliedBackgrounds[view]
-        if (appliedStyles[view] == style && view.background === appliedBackground) return
 
         val radiusPx = cornerRadiusDp * density
         val background = GradientDrawable().apply {

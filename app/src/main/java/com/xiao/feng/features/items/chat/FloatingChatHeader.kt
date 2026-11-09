@@ -396,7 +396,11 @@ object FloatingChatHeader : ClickableFeature(), IResolveDex {
     /** 头像 URL 缓存; 头像只会在会话切换时重新查询。 */
     private val avatarUrls = java.util.concurrent.ConcurrentHashMap<String, String>()
 
+    /** 已报过"取不到 wxId / 找不到标题"的会话布局, 避免每帧刷日志。 */
+    private val avatarTitleWarned = WeakHashMap<View, Boolean>()
+
     private class AvatarTitleState(
+        val header: View,
         val row: LinearLayout,
         val title: TextView,
         val symbolView: TextView,
@@ -407,7 +411,6 @@ object FloatingChatHeader : ClickableFeature(), IResolveDex {
     )
 
     private val avatarRowTag = Any()
-    private val avatarTitleTag = Any()
     private val avatarSymbolTag = Any()
 
     private data class HeaderStyle(val cornerRadiusDp: Int, val elevationDp: Int)
@@ -913,15 +916,31 @@ object FloatingChatHeader : ClickableFeature(), IResolveDex {
     /**
      * 把标题文字换成 `对方头像 + 自定义符号 + 自己头像`。原 TextView 只隐藏不删除,
      * 关闭功能或切换会话时能立即还原。
+     *
+     * 头像行直接挂到标题栏根容器 (ActionBarContainer, FrameLayout) 上, 再按标题的实际
+     * 屏幕位置逐帧对齐。标题的父容器类型随版本变化 (LinearLayout / RelativeLayout /
+     * Toolbar ...), 往它旁边塞兄弟节点容易被裁剪或排到别处, 挂在标题栏上用坐标定位更稳。
      */
     private fun applyTitleAvatars(layout: View, header: View) {
         if (!avatarTitleEnabled) {
             removeTitleAvatars(layout)
             return
         }
-        val wxId = header.context.activityOrNull()?.currentWxId ?: return
+        val wxId = header.context.activityOrNull()?.currentWxId
+            ?: layout.context.activityOrNull()?.currentWxId
+        if (wxId == null) {
+            if (avatarTitleWarned.put(layout, true) == null) {
+                WeLogger.w(TAG, "avatar title skipped: current chat wxId unavailable")
+            }
+            ensureAvatarTitlePreDraw(layout)
+            return
+        }
         val state = avatarTitleStates[layout]
-        if (state != null && state.title.rootView === header.rootView && state.title.isAttachedToWindow) {
+        if (state != null &&
+            state.header === header &&
+            header.isAttachedToWindow &&
+            state.row.parent === header
+        ) {
             if (state.wxId != wxId) {
                 state.wxId = wxId
                 loadAvatarImages(state)
@@ -931,14 +950,30 @@ object FloatingChatHeader : ClickableFeature(), IResolveDex {
                 state.symbolView.text = avatarTitleSymbol
             }
             if (state.title.visibility != View.INVISIBLE) state.title.visibility = View.INVISIBLE
+            positionAvatarRow(state)
             return
         }
 
         removeTitleAvatars(layout)
-        val title = findTitleTextView(header) ?: return
-        val row = buildAvatarTitleRow(title) ?: return
-        if (!attachAvatarTitleRow(title, row)) return
+        val title = findTitleTextView(header) ?: findTitleInHeaderBand(layout, header)
+        if (title == null) {
+            if (avatarTitleWarned.put(layout, true) == null) {
+                WeLogger.w(
+                    TAG,
+                    "avatar title skipped: no title TextView, header=${describeTextViews(header)}",
+                )
+            }
+            ensureAvatarTitlePreDraw(layout)
+            return
+        }
+        val row = buildAvatarTitleRow(title)
+        if (!attachAvatarTitleRow(header, row)) {
+            WeLogger.w(TAG, "avatar title skipped: header is not a ViewGroup")
+            return
+        }
+        avatarTitleWarned.remove(layout)
         val next = AvatarTitleState(
+            header = header,
             row = row,
             title = title,
             symbolView = row.getChildAt(1) as TextView,
@@ -953,18 +988,52 @@ object FloatingChatHeader : ClickableFeature(), IResolveDex {
         ensureAvatarTitlePreDraw(layout)
     }
 
-    private fun findTitleTextView(header: View): TextView? {
-        val textViews = header.allViews.filterIsInstance<TextView>()
-        textViews.firstOrNull { it.tag === avatarTitleTag }?.let { return it }
-        val candidate = textViews
-            .filter { it.tag !== avatarRowTag && it.tag !== avatarSymbolTag }
-            .filter { it.isVisible && it.text.isNotEmpty() && it.textSize > 0f }
-            .maxByOrNull { it.textSize } ?: return null
-        candidate.tag = avatarTitleTag
-        return candidate
+    private fun findTitleTextView(header: View): TextView? =
+        pickTitleTextView(header, header.allViews)
+
+    /**
+     * 标题栏里没有 TextView 时 (部分版本把标题挂在自定义标题条的兄弟节点里),
+     * 退回整页扫: 只接受纵向落在标题栏高度范围内的文本, 再按水平居中/字号挑最像标题的那个。
+     */
+    private fun findTitleInHeaderBand(layout: View, header: View): TextView? {
+        if (header.height <= 0) return null
+        val headerLocation = IntArray(2).also { header.getLocationInWindow(it) }
+        return pickTitleTextView(
+            header,
+            layout.allViews.filter { view ->
+                if (view !is TextView) return@filter false
+                val location = IntArray(2).also { view.getLocationInWindow(it) }
+                val top = location[1] - headerLocation[1]
+                top >= -header.height / 4 && top <= header.height
+            },
+        )
     }
 
-    private fun buildAvatarTitleRow(title: TextView): LinearLayout? {
+    private fun pickTitleTextView(header: View, views: Sequence<View>): TextView? {
+        val candidates = views.filterIsInstance<TextView>()
+            .filter { it.tag !== avatarRowTag && it.tag !== avatarSymbolTag }
+            .filter { it.isVisible && it.text.isNotEmpty() && it.textSize > 0f }
+            .toList()
+        if (candidates.isEmpty()) return null
+        // 标题栏正中间那个 TextView 才是会话名; 两侧按钮上的文字不参与。
+        val centered = candidates.filter { isHorizontallyCentered(header, it) }
+        return (centered.ifEmpty { candidates }).maxByOrNull { it.textSize }
+    }
+
+    private fun describeTextViews(view: View): String =
+        view.allViews.filterIsInstance<TextView>().joinToString(prefix = "[", postfix = "]") {
+            "'${it.text.take(8)}'/size=${it.textSize.toInt()}/vis=${it.visibility}"
+        }
+
+    private fun isHorizontallyCentered(header: View, view: View): Boolean {
+        if (header.width <= 0 || view.width <= 0) return false
+        val headerLocation = IntArray(2).also { header.getLocationInWindow(it) }
+        val viewLocation = IntArray(2).also { view.getLocationInWindow(it) }
+        val center = viewLocation[0] - headerLocation[0] + view.width / 2
+        return kotlin.math.abs(center - header.width / 2) <= header.width / 5
+    }
+
+    private fun buildAvatarTitleRow(title: TextView): LinearLayout {
         val context = title.context
         val density = context.resources.displayMetrics.density
         val diameter = (title.textSize * 1.35f).roundToInt()
@@ -976,6 +1045,8 @@ object FloatingChatHeader : ClickableFeature(), IResolveDex {
             tag = avatarRowTag
             importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
             setPadding(padding, 0, padding, 0)
+            // 先别显示, 等 pre-draw 把位置对齐后再亮出来, 免得在左上角闪一下。
+            visibility = View.INVISIBLE
         }
         val peer = buildCircularAvatar(context, diameter)
         val symbol = TextView(context).apply {
@@ -1011,48 +1082,59 @@ object FloatingChatHeader : ClickableFeature(), IResolveDex {
             }
         }
 
-    private fun attachAvatarTitleRow(title: TextView, row: LinearLayout): Boolean {
-        val parent = title.parent as? ViewGroup ?: return false
-        val params: ViewGroup.LayoutParams = when (parent) {
-            is RelativeLayout -> RelativeLayout.LayoutParams(
+    private fun attachAvatarTitleRow(header: View, row: LinearLayout): Boolean {
+        val host = header as? ViewGroup ?: return false
+        host.addView(
+            row,
+            FrameLayout.LayoutParams(
                 ViewGroup.LayoutParams.WRAP_CONTENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT,
-            ).apply { addRule(RelativeLayout.CENTER_IN_PARENT) }
-
-            is FrameLayout -> FrameLayout.LayoutParams(
-                ViewGroup.LayoutParams.WRAP_CONTENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT,
-                Gravity.CENTER,
-            )
-
-            is LinearLayout -> LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.WRAP_CONTENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT,
-            ).apply { gravity = Gravity.CENTER }
-
-            is androidx.appcompat.widget.Toolbar -> androidx.appcompat.widget.Toolbar.LayoutParams(
-                ViewGroup.LayoutParams.WRAP_CONTENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT,
-                Gravity.CENTER_HORIZONTAL,
-            )
-
-            else -> return false
-        }
-        parent.addView(row, params)
+            ).apply { gravity = Gravity.TOP or Gravity.START },
+        )
         return true
+    }
+
+    /** 让头像行正好压在原标题的中心上; 标题栏换尺寸/横竖屏后下一帧自动跟随。 */
+    private fun positionAvatarRow(state: AvatarTitleState) {
+        val row = state.row
+        val title = state.title
+        if (row.width <= 0 || row.height <= 0 || title.width <= 0) return
+        val headerLocation = IntArray(2).also { state.header.getLocationInWindow(it) }
+        val titleLocation = IntArray(2).also { title.getLocationInWindow(it) }
+        val centerX = titleLocation[0] - headerLocation[0] + title.width / 2
+        val centerY = titleLocation[1] - headerLocation[1] + title.height / 2
+        val params = row.layoutParams as FrameLayout.LayoutParams
+        // FrameLayout 的 leftMargin/topMargin 从 padding 内沿起算。
+        val left = centerX - row.width / 2 - state.header.paddingLeft
+        val top = centerY - row.height / 2 - state.header.paddingTop
+        if (params.leftMargin != left || params.topMargin != top) {
+            params.leftMargin = left
+            params.topMargin = top
+            row.layoutParams = params
+        }
+        if (row.visibility != View.VISIBLE) row.visibility = View.VISIBLE
     }
 
     private fun ensureAvatarTitlePreDraw(layout: View) {
         if (avatarTitlePreDraws.containsKey(layout)) return
         val observer = layout.viewTreeObserver
         if (!observer.isAlive) return
+        var attempts = 0
         val listener = object : ViewTreeObserver.OnPreDrawListener {
             override fun onPreDraw(): Boolean {
+                if (!avatarTitleEnabled || !layout.isAttachedToWindow) return true
                 val state = avatarTitleStates[layout]
-                if (state == null || !avatarTitleEnabled || !layout.isAttachedToWindow) {
+                if (state == null) {
+                    // 标题文本可能是异步写入的, 先没找到就隔几帧再试, 不要死循环做整树 DFS。
+                    if (attempts++ % 10 == 0) {
+                        currentHeader(layout)?.let { applyTitleAvatars(layout, it) }
+                    }
                     return true
                 }
-                if (!state.title.isAttachedToWindow) {
+                if (!state.header.isAttachedToWindow ||
+                    !state.title.isAttachedToWindow ||
+                    state.row.parent !== state.header
+                ) {
                     removeTitleAvatars(layout)
                     currentHeader(layout)?.let { applyTitleAvatars(layout, it) }
                     return true
@@ -1067,7 +1149,7 @@ object FloatingChatHeader : ClickableFeature(), IResolveDex {
                     state.symbolView.text = avatarTitleSymbol
                 }
                 if (state.title.visibility != View.INVISIBLE) state.title.visibility = View.INVISIBLE
-                if (state.row.parent == null) attachAvatarTitleRow(state.title, state.row)
+                positionAvatarRow(state)
                 return true
             }
         }
@@ -1076,6 +1158,7 @@ object FloatingChatHeader : ClickableFeature(), IResolveDex {
     }
 
     private fun removeTitleAvatars(layout: View) {
+        avatarTitleWarned.remove(layout)
         avatarTitlePreDraws.remove(layout)?.let { listener ->
             val observer = layout.viewTreeObserver
             if (observer.isAlive) observer.removeOnPreDrawListener(listener)
@@ -1083,7 +1166,6 @@ object FloatingChatHeader : ClickableFeature(), IResolveDex {
         val state = avatarTitleStates.remove(layout) ?: return
         (state.row.parent as? ViewGroup)?.removeView(state.row)
         if (state.title.isAttachedToWindow) state.title.visibility = View.VISIBLE
-        if (state.title.tag === avatarTitleTag) state.title.tag = null
     }
 
     private fun loadAvatarImages(state: AvatarTitleState) {
@@ -3099,6 +3181,7 @@ object FloatingChatHeader : ClickableFeature(), IResolveDex {
         separatedHeaderWarned.clear()
         avatarTitleStates.keys.toList().forEach(::removeTitleAvatars)
         avatarTitleStates.clear()
+        avatarTitleWarned.clear()
         avatarUrls.clear()
         statusBarPreDraws.clear()
         statusBarOffsets.clear()
