@@ -76,8 +76,20 @@ object RedPacketSettings {
     @Serializable
     data class ReplyRule(
         val enabled: Boolean = false,
-        val text: String = ""
-    )
+        val text: String = "",
+        /** 收到红包后延迟回复的随机范围 (秒), 两个都是 0 表示立即回复。 */
+        val minDelaySeconds: String = "0",
+        val maxDelaySeconds: String = "0",
+    ) {
+        fun delayMillis(): Long {
+            val min = (minDelaySeconds.toLongOrNull() ?: 0L).coerceAtLeast(0L)
+            val max = (maxDelaySeconds.toLongOrNull() ?: 0L).coerceAtLeast(0L)
+            val low = minOf(min, max)
+            val high = maxOf(min, max)
+            val seconds = if (low == high) low else Random.nextLong(low, high + 1)
+            return seconds * 1000L
+        }
+    }
 
     /** 群里有人发出指定文字时, 暂停自动抢红包一段时间后自动恢复。 */
     @Serializable
@@ -867,6 +879,65 @@ object RedPacketSettings {
                                     supportingText = amountPlaceholder,
                                     onCommit = {
                                         onChange(RuleKey.AUTO_REPLY, rules.copy(autoReply = rules.autoReply.copy(text = it)))
+                                    },
+                                )
+                            )
+                        },
+                    )
+                }
+
+                item(key = "auto_reply_delay_min", animatedVisibility = rules.autoReply.enabled) {
+                    val delayMinTitle = stringResource(R.string.payment_red_packet_reply_delay_min)
+                    PaymentValueRow(
+                        title = delayMinTitle,
+                        value = rules.autoReply.minDelaySeconds,
+                        enabled = editable(RuleKey.AUTO_REPLY),
+                        valueHint = "0",
+                        onClick = {
+                            onEditText(
+                                PaymentTextEditMode(
+                                    title = delayMinTitle,
+                                    initial = rules.autoReply.minDelaySeconds,
+                                    keyboardType = KeyboardType.Number,
+                                    filter = { it.filter(Char::isDigit).take(4) },
+                                    onCommit = {
+                                        onChange(
+                                            RuleKey.AUTO_REPLY,
+                                            rules.copy(
+                                                autoReply = rules.autoReply.copy(
+                                                    minDelaySeconds = it
+                                                )
+                                            )
+                                        )
+                                    },
+                                )
+                            )
+                        },
+                    )
+                }
+                item(key = "auto_reply_delay_max", animatedVisibility = rules.autoReply.enabled) {
+                    val delayMaxTitle = stringResource(R.string.payment_red_packet_reply_delay_max)
+                    PaymentValueRow(
+                        title = delayMaxTitle,
+                        value = rules.autoReply.maxDelaySeconds,
+                        enabled = editable(RuleKey.AUTO_REPLY),
+                        valueHint = "0",
+                        onClick = {
+                            onEditText(
+                                PaymentTextEditMode(
+                                    title = delayMaxTitle,
+                                    initial = rules.autoReply.maxDelaySeconds,
+                                    keyboardType = KeyboardType.Number,
+                                    filter = { it.filter(Char::isDigit).take(4) },
+                                    onCommit = {
+                                        onChange(
+                                            RuleKey.AUTO_REPLY,
+                                            rules.copy(
+                                                autoReply = rules.autoReply.copy(
+                                                    maxDelaySeconds = it
+                                                )
+                                            )
+                                        )
                                     },
                                 )
                             )

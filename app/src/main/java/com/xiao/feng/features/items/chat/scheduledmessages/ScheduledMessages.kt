@@ -20,8 +20,15 @@ import com.xiao.feng.utils.TargetProcesses
 import com.xiao.feng.utils.WeLogger
 import com.xiao.feng.utils.android.getSystemService
 import com.xiao.feng.utils.serialization.DefaultJson
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import kotlinx.serialization.Serializable
 import java.util.Calendar
+import kotlin.random.Random
 
 private const val TAG = "ScheduledMessages"
 
@@ -56,6 +63,10 @@ data class ScheduledMessage(
     /** [ScheduledMessageKind.ONCE] only: the full date-time. Deleted after it fires. */
     val atEpochMillis: Long = 0L,
     val randomizeLines: Boolean = false,
+    /** 多目标时每条消息之间的间隔秒数; 0 表示一次全部发出。 */
+    val intervalSeconds: Int = 0,
+    /** 在 [intervalSeconds] 之上再随机叠加 0..N 秒, 让发送节奏更自然。 */
+    val intervalRandomSeconds: Int = 0,
 )
 
 @Serializable
@@ -119,6 +130,9 @@ object ScheduledMessageSchedule {
 
     private var installed = false
     private var receiverRegistered = false
+
+    /** 逐条发送用的作用域; 只在已安装时存在, [uninstall] 会取消排队中的发送。 */
+    private var sendScope: CoroutineScope? = null
 
     /**
      * Alarm key -> the epoch millis it is currently armed at. Keeping the armed time lets [resync]
@@ -202,6 +216,7 @@ object ScheduledMessageSchedule {
         if (!TargetProcesses.isInMain) return
         if (installed) return
         installed = true
+        sendScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
         try {
             registerReceiver()
             catchUp()
@@ -211,6 +226,8 @@ object ScheduledMessageSchedule {
             installed = false
             cancelAll()
             unregisterReceiver()
+            sendScope?.cancel()
+            sendScope = null
         }
     }
 
@@ -218,20 +235,28 @@ object ScheduledMessageSchedule {
     fun uninstall() {
         if (!installed) return
         installed = false
+        sendScope?.cancel()
+        sendScope = null
         cancelAll()
         unregisterReceiver()
     }
 
-    /** Sends [message] right now, bypassing its schedule. Returns how many targets accepted it. */
+    /** Sends [message] right now, bypassing its schedule. Returns how many targets were accepted. */
     fun sendNow(message: ScheduledMessage): Int {
         val text = message.textToSend()
+        val targets = message.targets
+        if (message.nextIntervalMillis() > 0L && targets.size > 1) {
+            val scope = sendScope ?: return 0
+            scope.launch { sendOneByOne(message, targets, text) }
+            return targets.size
+        }
         var sent = 0
-        for (target in message.targets) {
+        for (target in targets) {
             if (runCatching { WeMessageApi.sendText(target.talker, text) }.getOrDefault(false)) {
                 sent++
             }
         }
-        WeLogger.i(TAG, "manual send of ${message.id} reached $sent/${message.targets.size} chat(s)")
+        WeLogger.i(TAG, "manual send of ${message.id} reached $sent/${targets.size} chat(s)")
         return sent
     }
 
@@ -356,9 +381,7 @@ object ScheduledMessageSchedule {
     private fun onFired(id: String, minute: Int) {
         val message = messages.firstOrNull { it.id == id && it.enabled } ?: return
 
-        if (!deliver(message)) {
-            WeLogger.w(TAG, "scheduled message $id failed to reach every target")
-        }
+        deliver(message)
 
         if (message.kind == ScheduledMessageKind.ONCE) {
             removeStored(setOf(id))
@@ -371,17 +394,44 @@ object ScheduledMessageSchedule {
         if (next != null) arm(key, next) else armedTimes -= key
     }
 
-    private fun deliver(message: ScheduledMessage): Boolean {
+    private fun deliver(message: ScheduledMessage) {
+        val scope = sendScope ?: run {
+            WeLogger.w(TAG, "scheduled message ${message.id} fired before the sender was ready")
+            return
+        }
+        val targets = message.targets
         val text = message.textToSend()
-        var allSent = true
-        for (target in message.targets) {
-            val sent = runCatching { WeMessageApi.sendText(target.talker, text) }
+        scope.launch { sendOneByOne(message, targets, text) }
+    }
+
+    /**
+     * 按条目设置的间隔逐条发送, 不再把同一时刻的一串消息一次性发出去。
+     * 每条之间的随机数单独取, 让发送节奏看起来更像人工。
+     */
+    private suspend fun sendOneByOne(
+        message: ScheduledMessage,
+        targets: List<ScheduledMessageTarget>,
+        text: String,
+    ) {
+        var sent = 0
+        targets.forEachIndexed { index, target ->
+            if (index > 0) {
+                val wait = message.nextIntervalMillis()
+                if (wait > 0L) delay(wait)
+            }
+            val ok = runCatching { WeMessageApi.sendText(target.talker, text) }
                 .onFailure { WeLogger.e(TAG, "failed to send ${message.id} to ${target.talker}", it) }
                 .getOrDefault(false)
-            if (!sent) allSent = false
+            if (ok) sent++
         }
-        WeLogger.i(TAG, "scheduled message ${message.id} fired (sent=$allSent)")
-        return allSent
+        WeLogger.i(TAG, "scheduled message ${message.id} delivered to $sent/${targets.size} chat(s)")
+    }
+
+    private fun ScheduledMessage.nextIntervalMillis(): Long {
+        val base = intervalSeconds.coerceAtLeast(0).toLong()
+        val extra = intervalRandomSeconds.coerceAtLeast(0).toLong()
+        val seconds = if (extra > 0L) base + Random.nextLong(extra + 1) else base
+        return seconds * 1000L
     }
 
     private fun ScheduledMessage.textToSend(): String {

@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -32,6 +33,7 @@ import androidx.compose.runtime.toMutableStateList
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.composables.icons.materialsymbols.MaterialSymbols
@@ -389,6 +391,44 @@ private fun showScheduledMessageEditor(
                                 )
                             },
                         )
+                    }
+
+                    if (draft.targets.size > 1) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
+                            OutlinedTextField(
+                                modifier = Modifier.weight(1f),
+                                value = draft.intervalSeconds.toString(),
+                                onValueChange = { input ->
+                                    draft = draft.copy(
+                                        intervalSeconds = input.filter(Char::isDigit)
+                                            .take(4).toIntOrNull() ?: 0
+                                    )
+                                },
+                                label = {
+                                    Text(stringResource(R.string.scheduled_messages_interval))
+                                },
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                                singleLine = true,
+                            )
+                            OutlinedTextField(
+                                modifier = Modifier.weight(1f),
+                                value = draft.intervalRandomSeconds.toString(),
+                                onValueChange = { input ->
+                                    draft = draft.copy(
+                                        intervalRandomSeconds = input.filter(Char::isDigit)
+                                            .take(4).toIntOrNull() ?: 0
+                                    )
+                                },
+                                label = {
+                                    Text(stringResource(R.string.scheduled_messages_interval_random))
+                                },
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                                singleLine = true,
+                            )
+                        }
                     }
 
                     SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {

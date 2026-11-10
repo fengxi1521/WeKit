@@ -3553,6 +3553,8 @@
     <string name="payment_red_packet_notification">Notify after claiming</string>
     <string name="payment_red_packet_notification_enabled">Show the claimed amount and source</string>
     <string name="payment_red_packet_auto_reply">Reply automatically after claiming</string>
+    <string name="payment_red_packet_reply_delay_min">Reply delay: minimum (seconds)</string>
+    <string name="payment_red_packet_reply_delay_max">Reply delay: maximum (seconds)</string>
     <string name="payment_red_packet_amount_placeholder">Use $amount for the claimed amount</string>
 
     <string name="payment_transfer_global_summary">Configure the default acceptance conditions and post-acceptance actions</string>
@@ -3975,6 +3977,8 @@
     <string name="scheduled_messages_content_hint">Enter the text to send</string>
     <string name="scheduled_messages_randomize">Send a random line</string>
     <string name="scheduled_messages_randomize_description">When the text has several lines, a different line is picked each time</string>
+    <string name="scheduled_messages_interval">Send interval (seconds)</string>
+    <string name="scheduled_messages_interval_random">Random extra (seconds)</string>
     <string name="scheduled_messages_times">Send times</string>
     <string name="scheduled_messages_add_time">Add a time</string>
     <string name="scheduled_messages_time_picker_title">Pick a send time</string>

@@ -3594,6 +3594,8 @@
     <string name="payment_red_packet_notification">抢到后通知</string>
     <string name="payment_red_packet_notification_enabled">显示抢到的金额与来源</string>
     <string name="payment_red_packet_auto_reply">抢到后自动回复</string>
+    <string name="payment_red_packet_reply_delay_min">回复延时下限（秒）</string>
+    <string name="payment_red_packet_reply_delay_max">回复延时上限（秒）</string>
     <string name="payment_red_packet_amount_placeholder">使用 $amount 表示抢到的金额</string>
     <string name="payment_transfer_global_summary">配置默认接收条件与接收后的操作</string>
     <string name="payment_transfer_default_accept">默认接收转账</string>
@@ -4007,6 +4009,8 @@
     <string name="scheduled_messages_content_hint">输入要发送的文本</string>
     <string name="scheduled_messages_randomize">随机发送一行</string>
     <string name="scheduled_messages_randomize_description">内容有多行时，每次从中随机挑选一行发送</string>
+    <string name="scheduled_messages_interval">发送间隔（秒）</string>
+    <string name="scheduled_messages_interval_random">随机浮动（秒）</string>
     <string name="scheduled_messages_times">发送时刻</string>
     <string name="scheduled_messages_add_time">添加时刻</string>
     <string name="scheduled_messages_time_picker_title">选择发送时刻</string>

@@ -94,7 +94,9 @@ object AutoOpenRedPackets : ClickableFeature(), WeDatabaseListenerApi.IInsertLis
         val headImg: String = "",
         val nickName: String = "",
         val notificationEnabled: Boolean = false,
-        val autoReply: String = ""
+        val autoReply: String = "",
+        /** 解析红包时就算好的随机回复延时, 避免回复路径再碰设置。 */
+        val autoReplyDelayMs: Long = 0L,
     )
 
     /** 8.0.74+ 的 union 打开请求多了 left_button_continue 参数 */
@@ -247,7 +249,8 @@ object AutoOpenRedPackets : ClickableFeature(), WeDatabaseListenerApi.IInsertLis
                 headImg = headImg,
                 nickName = nickName,
                 notificationEnabled = settings.notification.enabled,
-                autoReply = settings.autoReply.text.takeIf { settings.autoReply.enabled }.orEmpty()
+                autoReply = settings.autoReply.text.takeIf { settings.autoReply.enabled }.orEmpty(),
+                autoReplyDelayMs = settings.autoReply.delayMillis(),
             )
             currentRedPacketMap[sendId] = info
 
@@ -400,7 +403,17 @@ object AutoOpenRedPackets : ClickableFeature(), WeDatabaseListenerApi.IInsertLis
 
         val reply = info.autoReply
         if (reply.isNotBlank()) {
-            WeMessageApi.sendText(info.talker, reply.replace($$"$amount", "¥$displayAmount"))
+            val replyText = reply.replace($$"$amount", "¥$displayAmount")
+            val replyDelay = info.autoReplyDelayMs
+            if (replyDelay > 0L) {
+                // 随机延时回复, 看起来不像秒回的机器人。
+                scope.launch {
+                    delay(replyDelay)
+                    WeMessageApi.sendText(info.talker, replyText)
+                }
+            } else {
+                WeMessageApi.sendText(info.talker, replyText)
+            }
         }
 
         if (!info.notificationEnabled) return

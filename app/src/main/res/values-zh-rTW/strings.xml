@@ -3553,6 +3553,8 @@
     <string name="payment_red_packet_notification">搶到後通知</string>
     <string name="payment_red_packet_notification_enabled">顯示搶到的金額與來源</string>
     <string name="payment_red_packet_auto_reply">搶到後自動回覆</string>
+    <string name="payment_red_packet_reply_delay_min">回覆延時下限（秒）</string>
+    <string name="payment_red_packet_reply_delay_max">回覆延時上限（秒）</string>
     <string name="payment_red_packet_amount_placeholder">使用 $amount 表示搶到的金額</string>
     <string name="payment_transfer_global_summary">配置默認接收條件與接收後的操作</string>
     <string name="payment_transfer_default_accept">默認接收轉賬</string>
@@ -3963,6 +3965,8 @@
     <string name="scheduled_messages_content_hint">輸入要傳送的文字</string>
     <string name="scheduled_messages_randomize">隨機傳送一行</string>
     <string name="scheduled_messages_randomize_description">內容有多行時，每次從中隨機挑選一行傳送</string>
+    <string name="scheduled_messages_interval">傳送間隔（秒）</string>
+    <string name="scheduled_messages_interval_random">隨機浮動（秒）</string>
     <string name="scheduled_messages_times">傳送時刻</string>
     <string name="scheduled_messages_add_time">新增時刻</string>
     <string name="scheduled_messages_time_picker_title">選擇傳送時刻</string>
