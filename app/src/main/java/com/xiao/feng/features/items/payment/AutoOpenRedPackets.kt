@@ -77,6 +77,9 @@ object AutoOpenRedPackets : ClickableFeature(), WeDatabaseListenerApi.IInsertLis
 
     private val currentRedPacketMap = ConcurrentHashMap<String, RedPacketInfo>()
 
+    /** 已经发出领取请求的 sendId, 用于合并 insertMessage 与数据库两条检测路径, 避免重复发包。 */
+    private val dispatchedSendIds = ConcurrentHashMap.newKeySet<String>()
+
     /** 命中暂停关键词后的恢复时间点 (毫秒时间戳), 0 表示未暂停。 */
     @Volatile
     private var pausedUntil = 0L
@@ -107,7 +110,18 @@ object AutoOpenRedPackets : ClickableFeature(), WeDatabaseListenerApi.IInsertLis
     override fun onEnable() {
         RedPacketSettings.requireReady()
         if (scope.coroutineContext[Job]?.isActive != true) scope = newScope()
+        // 重复开启时先摘掉旧监听, 避免同一条消息被分发多次。
+        WeDatabaseListenerApi.removeListener(this)
         WeDatabaseListenerApi.addListener(this)
+
+        // 最早的检测点: 宿主把消息写进数据库之前就入队领取请求, 既比 insert hook 更早,
+        // 也不受其它 insert 监听器耗时的影响。数据库监听保留为兜底。
+        WeMessageApi.methodMsgInfoStorageInsertMessage.hookBefore {
+            val msgInfo = MessageInfo(args[0]!!)
+            if (msgInfo.type?.isRedPacket == true) {
+                handleRedPacket(msgInfo)
+            }
+        }
 
         WePaymentApi.methodReceiveLuckyMoneyOnGYNetEnd.hookAfter {
             handleReceiveResponse(args[2] as? JSONObject)
@@ -150,7 +164,7 @@ object AutoOpenRedPackets : ClickableFeature(), WeDatabaseListenerApi.IInsertLis
         val messageType = MessageType.fromCode(type)
         if (messageType?.isRedPacket == true) {
             WeLogger.i(TAG, "detected red packet message; type=$type")
-            handleRedPacket(values)
+            handleRedPacket(MessageInfo.fromContentValues(values))
             return
         }
         if (messageType?.isText == true) {
@@ -184,13 +198,12 @@ object AutoOpenRedPackets : ClickableFeature(), WeDatabaseListenerApi.IInsertLis
         }
     }
 
-    private fun handleRedPacket(values: ContentValues) {
+    private fun handleRedPacket(msgInfo: MessageInfo) {
         if (System.currentTimeMillis() < pausedUntil) {
             WeLogger.i(TAG, "skipping red packet: grabbing paused by keyword")
             return
         }
         try {
-            val msgInfo = MessageInfo.fromContentValues(values)
             val talker = msgInfo.talker
             val content = msgInfo.content
             val isGroupChat = msgInfo.isInGroupChat
@@ -238,6 +251,12 @@ object AutoOpenRedPackets : ClickableFeature(), WeDatabaseListenerApi.IInsertLis
 
             WeLogger.i(TAG, "detected red packet (sendId=$sendId)")
 
+            // 两条检测路径可能命中同一条消息, 只让第一个真正发包。
+            if (!dispatchedSendIds.add(sendId)) {
+                WeLogger.d(TAG, "skipping already dispatched packet (sendId=$sendId)")
+                return
+            }
+
             val info = RedPacketInfo(
                 sendId = sendId,
                 nativeUrl = nativeUrl,
@@ -257,44 +276,48 @@ object AutoOpenRedPackets : ClickableFeature(), WeDatabaseListenerApi.IInsertLis
             val delayTime = settings.delayMillis()
             WeLogger.i(TAG, "resolved delay: ${delayTime}ms (sendId=$sendId)")
 
-            scope.launch {
-                try {
-                    if (delayTime > 0) {
-                        WeLogger.i(TAG, "started delaying for ${delayTime}ms (sendId=$sendId)")
-                        delay(delayTime)
-                    }
-
-                    WeLogger.i(
-                        TAG,
-                        "delay ended, preparing to send receive request (sendId=$sendId, sceneId=$sceneId)"
-                    )
-
-                    if (info.receiveMode == ReceiveMode.CLICK) {
-                        WeLogger.i(TAG, "click receive mode: launching host receive UI (sendId=$sendId)")
-                        launchClickReceiveUi(info)
-                        return@launch
-                    }
-
-                    val req = if (sceneId == UNION_SCENE_ID) {
-                        WeLogger.i(TAG, "using union receive request (sendId=$sendId)")
-                        // 与宿主 LuckyMoneyNewReceiveUI 一致: union 领取请求固定 msgType=1 且不携带群名
-                        classReceiveLuckyMoneyUnion.clazz.createInstance(
-                            1, channelId, sendId, nativeUrl, 1 /* inWay */, "v1.0" /* ver */
-                        )
-                    } else {
-                        WePaymentApi.classReceiveLuckyMoney.clazz.createInstance(
-                            msgType, channelId, sendId, nativeUrl, 1 /* inWay */, "v1.0" /* ver */, talker
-                        )
-                    }
-
-                    WeNetSceneApi.sendNetScene(req)
-                    WeLogger.i(TAG, "sent receive request (sendId=$sendId)")
-                } catch (e: Throwable) {
-                    WeLogger.e(TAG, "failed to send receive request (sendId=$sendId)", e)
+            if (delayTime <= 0L) {
+                // 竞速场景: 没有配置延时就地在当前线程入队, 省掉一次协程调度。
+                sendReceiveRequest(info)
+            } else {
+                WeLogger.i(TAG, "started delaying for ${delayTime}ms (sendId=$sendId)")
+                scope.launch {
+                    delay(delayTime)
+                    sendReceiveRequest(info)
                 }
             }
         } catch (e: Throwable) {
             WeLogger.e(TAG, "failed to parse red packet data", e)
+        }
+    }
+
+    private fun sendReceiveRequest(info: RedPacketInfo) {
+        try {
+            if (info.receiveMode == ReceiveMode.CLICK) {
+                WeLogger.i(TAG, "click receive mode: launching host receive UI (sendId=${info.sendId})")
+                launchClickReceiveUi(info)
+                return
+            }
+
+            val req = if (info.sceneId == UNION_SCENE_ID) {
+                WeLogger.i(TAG, "using union receive request (sendId=${info.sendId})")
+                // 与宿主 LuckyMoneyNewReceiveUI 一致: union 领取请求固定 msgType=1 且不携带群名
+                classReceiveLuckyMoneyUnion.clazz.createInstance(
+                    1, info.channelId, info.sendId, info.nativeUrl, 1 /* inWay */, "v1.0" /* ver */
+                )
+            } else {
+                WePaymentApi.classReceiveLuckyMoney.clazz.createInstance(
+                    info.msgType, info.channelId, info.sendId, info.nativeUrl,
+                    1 /* inWay */, "v1.0" /* ver */, info.talker
+                )
+            }
+
+            WeNetSceneApi.sendNetScene(req)
+            WeLogger.i(TAG, "sent receive request (sendId=${info.sendId})")
+        } catch (e: Throwable) {
+            // 发包失败时撤销去重标记, 让另一条检测路径还有机会重试。
+            dispatchedSendIds.remove(info.sendId)
+            WeLogger.e(TAG, "failed to send receive request (sendId=${info.sendId})", e)
         }
     }
 
@@ -303,6 +326,7 @@ object AutoOpenRedPackets : ClickableFeature(), WeDatabaseListenerApi.IInsertLis
         if (activity == null) {
             WeLogger.w(TAG, "no foreground activity for click receive (sendId=${info.sendId})")
             currentRedPacketMap.remove(info.sendId)
+            dispatchedSendIds.remove(info.sendId)
             return
         }
         val intent = Intent(activity, classLuckyMoneyNotHookReceiveUI.clazz).apply {
@@ -356,23 +380,26 @@ object AutoOpenRedPackets : ClickableFeature(), WeDatabaseListenerApi.IInsertLis
             return
         }
 
-        scope.launch {
-            try {
-                val openReq = if (info.sceneId == UNION_SCENE_ID) {
-                    WeLogger.i(TAG, "using union open request (sendId=$sendId)")
-                    createUnionOpenRequest(info, timingIdentifier)
-                } else {
-                    WePaymentApi.classOpenLuckyMoney.clazz.createInstance(
-                        info.msgType, info.channelId, info.sendId, info.nativeUrl,
-                        info.headImg, info.nickName, info.talker,
-                        "v1.0", timingIdentifier, ""
-                    )
-                }
-                WeNetSceneApi.sendNetScene(openReq)
-            } catch (e: Throwable) {
-                WeLogger.e(TAG, "failed to send open request", e)
-                currentRedPacketMap.remove(sendId)
+        // 开包是决定能不能抢到的最后一步, 直接在回调线程入队, 不再绕一次协程调度。
+        sendOpenRequest(info, timingIdentifier)
+    }
+
+    private fun sendOpenRequest(info: RedPacketInfo, timingIdentifier: String) {
+        try {
+            val openReq = if (info.sceneId == UNION_SCENE_ID) {
+                WeLogger.i(TAG, "using union open request (sendId=${info.sendId})")
+                createUnionOpenRequest(info, timingIdentifier)
+            } else {
+                WePaymentApi.classOpenLuckyMoney.clazz.createInstance(
+                    info.msgType, info.channelId, info.sendId, info.nativeUrl,
+                    info.headImg, info.nickName, info.talker,
+                    "v1.0", timingIdentifier, ""
+                )
             }
+            WeNetSceneApi.sendNetScene(openReq)
+        } catch (e: Throwable) {
+            WeLogger.e(TAG, "failed to send open request (sendId=${info.sendId})", e)
+            currentRedPacketMap.remove(info.sendId)
         }
     }
 
@@ -383,6 +410,7 @@ object AutoOpenRedPackets : ClickableFeature(), WeDatabaseListenerApi.IInsertLis
         if (sendId.isNullOrEmpty()) return
 
         val info = currentRedPacketMap.remove(sendId) ?: return
+        dispatchedSendIds.remove(sendId)
 
         val retCode = json.optInt("retcode", -1)
         if (retCode != 0) {
@@ -445,18 +473,22 @@ object AutoOpenRedPackets : ClickableFeature(), WeDatabaseListenerApi.IInsertLis
     }
 
     private fun extractXmlParam(xml: String, tag: String): String {
-        val pattern = "<$tag><!\\[CDATA\\[(.*?)]]></$tag>".toRegex()
-        val match = pattern.find(xml)
-        if (match != null) return match.groupValues[1]
-        val patternSimple = "<$tag>(.*?)</$tag>".toRegex()
-        val matchSimple = patternSimple.find(xml)
-        return matchSimple?.groupValues?.get(1) ?: ""
+        // 热路径: 不用正则, 直接按标签边界截取, 省掉每次编译 Pattern 的开销。
+        val cdataStart = "<$tag><![CDATA["
+        if (xml.contains(cdataStart)) {
+            return xml.substringAfter(cdataStart).substringBefore("]]></$tag>")
+        }
+        val start = "<$tag>"
+        val end = "</$tag>"
+        if (!xml.contains(start) || !xml.contains(end)) return ""
+        return xml.substringAfter(start).substringBefore(end)
     }
 
     override fun onDisable() {
         WeDatabaseListenerApi.removeListener(this)
         scope.cancel()
         currentRedPacketMap.clear()
+        dispatchedSendIds.clear()
         pausedUntil = 0L
     }
 

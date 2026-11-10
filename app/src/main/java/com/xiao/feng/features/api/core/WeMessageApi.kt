@@ -328,13 +328,18 @@ object WeMessageApi : ApiFeature(), IResolveDex {
         return states
     }
 
-    fun convertMsgInfoInstanceFromContentValues(contentValues: ContentValues): Any {
-        val msgInfo = classMsgInfo.clazz.createInstance()
-        msgInfo.reflekt().firstMethod {
+    /** 红包等高频入口会反复把 ContentValues 转成 MsgInfo, 避免每次都重新扫描 convertFrom。 */
+    private val convertFromContentValuesMethod: Method by lazy {
+        classMsgInfo.clazz.reflekt().firstMethod {
             name = "convertFrom"
             parameters(ContentValues::class, Boolean::class)
             superclass()
-        }.invoke(contentValues, true)
+        }.self
+    }
+
+    fun convertMsgInfoInstanceFromContentValues(contentValues: ContentValues): Any {
+        val msgInfo = classMsgInfo.clazz.createInstance()
+        convertFromContentValuesMethod.invoke(msgInfo, contentValues, true)
         return msgInfo
     }
 
