@@ -141,6 +141,7 @@ object WeMomentsApi : ApiFeature(), IResolveDex {
 
     private const val SNS_INFO_CLASS = "com.tencent.mm.plugin.sns.storage.SnsInfo"
     private const val LIKE_COMMENT_TYPE = 1
+    private const val COMMENT_ACTION_TYPE = 2
 
     /** Star storage pages pinned Moments by create time; hosts keep only a handful per author. */
     private const val PINNED_SNS_LIMIT = 50
@@ -157,6 +158,7 @@ object WeMomentsApi : ApiFeature(), IResolveDex {
 
     // --- end used by AutoMomentsBase ---
     private val methodSendLike by dexMethod()
+    private val methodSendComment by dexMethod()
     private val methodCancelLike by dexMethod()
     private val methodGetSnsInfoByLocalId by dexMethod()
     val methodGetSnsInfoStorage by dexMethod()
@@ -590,6 +592,33 @@ object WeMomentsApi : ApiFeature(), IResolveDex {
 
     fun unlike(context: WeMomentsContextMenuApi.MomentsContext): ActionResult =
         unlike(context.snsInfo)
+
+    fun comment(snsInfo: Any?, content: String, sourceScene: Int = 0): ActionResult {
+        val normalized = normalizeSnsInfo(snsInfo)
+            ?: return ActionResult(success = false, sent = false, message = "snsInfo is null or unsupported")
+        if (!isValidSnsInfo(normalized)) {
+            return ActionResult(success = false, sent = false, message = "snsInfo is invalid")
+        }
+        val text = content.trim()
+        if (text.isEmpty()) {
+            return ActionResult(success = false, sent = false, message = "comment content is empty")
+        }
+
+        return runCatching {
+            methodSendComment.method.invoke(
+                null, normalized, COMMENT_ACTION_TYPE, text, 0L, "", false, sourceScene,
+            )
+            ActionResult(success = true, sent = true, message = "comment request sent")
+        }.getOrElse { error ->
+            WeLogger.e(TAG, "failed to send Moments comment", error)
+            ActionResult(
+                success = false,
+                sent = false,
+                message = error.message ?: "failed to send comment",
+                error = error,
+            )
+        }
+    }
 
     fun isLiked(snsInfo: Any?): Boolean {
         val normalized = normalizeSnsInfo(snsInfo) ?: return false

@@ -999,6 +999,13 @@
     <string name="feature_anti_moments_delete_description">Intercept deleted Moments posts and mark them as recalled</string>
     <string name="feature_auto_like_moments_name">Auto-like Moments</string>
     <string name="feature_auto_like_moments_description">Automatically like when browsing Moments</string>
+    <string name="feature_auto_comment_moments_name">Moments auto comment</string>
+    <string name="feature_auto_comment_moments_description">Automatically comment on new Moments from friends</string>
+    <string name="moments_auto_comment_text_title">Comment text</string>
+    <string name="moments_auto_comment_text_hint">Enter the comment text</string>
+    <string name="moments_auto_comment_interval_title">Comment interval</string>
+    <string name="moments_auto_comment_browsing_title">Comment while browsing</string>
+    <string name="moments_auto_comment_browsing_description">Also comment on Moments seen while browsing. When off, only newly published posts are commented</string>
     <string name="feature_auto_refresh_name">Auto refresh</string>
     <string name="feature_auto_refresh_description">Automatically refresh the Moments list regularly</string>
     <string name="feature_auto_repost_moments_name">Auto-repost Moments</string>

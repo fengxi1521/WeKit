@@ -963,6 +963,13 @@
     <string name="feature_anti_moments_delete_description">拦截他人朋友圈删除并添加标记</string>
     <string name="feature_auto_like_moments_name">自动点赞</string>
     <string name="feature_auto_like_moments_description">浏览朋友圈时自动点赞</string>
+    <string name="feature_auto_comment_moments_name">朋友圈自动评论</string>
+    <string name="feature_auto_comment_moments_description">自动评论好友新发布的朋友圈</string>
+    <string name="moments_auto_comment_text_title">评论内容</string>
+    <string name="moments_auto_comment_text_hint">输入自动评论的内容</string>
+    <string name="moments_auto_comment_interval_title">评论间隔</string>
+    <string name="moments_auto_comment_browsing_title">浏览时评论</string>
+    <string name="moments_auto_comment_browsing_description">浏览到新朋友圈时也自动评论；关闭后仅评论新发布的</string>
     <string name="feature_auto_refresh_name">自动刷新</string>
     <string name="feature_auto_refresh_description">定时自动刷新朋友圈列表</string>
     <string name="feature_auto_repost_moments_name">自动转发</string>
