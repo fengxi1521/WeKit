@@ -179,7 +179,7 @@ object BeautifyHomeLists : ClickableFeature() {
             WeLogger.w(TAG, "MvvmAddressUIFragment entry not found: $it")
         }.getOrNull() ?: return
         method.hookAfter {
-            val entrance = thisObject.reflekt()
+            val entrance = thisObject!!.reflekt()
                 .firstFieldOrNull { type { it.name == BIZ_ENTRANCE_VIEW } }
                 ?.get() as? View ?: return@hookAfter
             val header = entrance.parent as? ViewGroup ?: return@hookAfter
