@@ -3977,9 +3977,9 @@
     <string name="structured_storage_save_failed">Could not save. Your previous settings are unchanged. Check the logs and try again.</string>
     <string name="structured_storage_unavailable">This feature’s data could not be loaded. Check the migration logs and restart WeChat to retry.</string>
     <string name="feature_scheduled_messages_name">Scheduled messages</string>
-    <string name="feature_scheduled_messages_description">Automatically send a text message to one or more chats at fixed times</string>
+    <string name="feature_scheduled_messages_description">Automatically send messages or publish Moments at fixed times</string>
     <string name="scheduled_messages_title">Scheduled messages</string>
-    <string name="scheduled_messages_description">The saved text is sent when the alarm fires; alarms only run while WeChat is running</string>
+    <string name="scheduled_messages_description">The saved content is sent when the alarm fires; alarms only run while WeChat is running</string>
     <string name="scheduled_messages_add">Add</string>
     <string name="scheduled_messages_empty">No scheduled messages yet</string>
     <string name="scheduled_messages_add_title">New scheduled message</string>

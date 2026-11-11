@@ -3965,7 +3965,7 @@
     <string name="structured_storage_save_failed">儲存失敗，先前的設定未變更。請檢查記錄後重試。</string>
     <string name="structured_storage_unavailable">此功能的資料無法載入。請檢查遷移記錄並重新啟動微信重試。</string>
     <string name="feature_scheduled_messages_name">定時訊息</string>
-    <string name="feature_scheduled_messages_description">在指定時間為一個或多個會話自動傳送文字訊息</string>
+    <string name="feature_scheduled_messages_description">在指定時間自動傳送訊息或發佈朋友圈</string>
     <string name="scheduled_messages_title">定時訊息</string>
     <string name="scheduled_messages_description">到達設定時間後自動傳送；僅微信執行過程中才會觸發</string>
     <string name="scheduled_messages_add">新增</string>
