@@ -4136,4 +4136,26 @@
     <string name="chat_message_line_spacing_title">行距</string>
     <string name="chat_message_text_follow_color_title">跟随微信文字颜色</string>
     <string name="chat_message_text_color_title">文字颜色</string>
+    <string name="feature_keyword_notifications_name">关键词通知</string>
+    <string name="feature_keyword_notifications_description">收到包含关键词、@我、@所有人 或群公告的消息时发送本地通知</string>
+    <string name="chat_keyword_notify_section_triggers">触发条件</string>
+    <string name="chat_keyword_notify_enable_title">启用关键词通知</string>
+    <string name="chat_keyword_notify_keywords_title">关键词</string>
+    <string name="chat_keyword_notify_keywords_hint">多个关键词用逗号分隔</string>
+    <string name="chat_keyword_notify_exact_title">精确匹配</string>
+    <string name="chat_keyword_notify_exact_description">仅当消息内容与关键词完全一致时通知</string>
+    <string name="chat_keyword_notify_at_me_title">提到我时通知</string>
+    <string name="chat_keyword_notify_at_all_title">@所有人/群公告时通知</string>
+    <string name="chat_keyword_notify_section_reminders">提醒方式</string>
+    <string name="chat_keyword_notify_notify_title">发送系统通知</string>
+    <string name="chat_keyword_notify_sound_title">通知声音</string>
+    <string name="chat_keyword_notify_vibrate_title">通知振动</string>
+    <string name="chat_keyword_notify_toast_title">应用内提示</string>
+    <string name="chat_keyword_notify_section_quiet">免打扰时段</string>
+    <string name="chat_keyword_notify_quiet_title">免打扰时段</string>
+    <string name="chat_keyword_notify_quiet_description">免打扰时段内不发送任何提醒</string>
+    <string name="chat_keyword_notify_quiet_start_title">开始时间</string>
+    <string name="chat_keyword_notify_quiet_end_title">结束时间</string>
+    <string name="chat_keyword_notify_subtext_group">群消息</string>
+    <string name="chat_keyword_notify_subtext_private">好友消息</string>
 </resources>

@@ -4104,4 +4104,26 @@
     <string name="chat_message_line_spacing_title">Line spacing</string>
     <string name="chat_message_text_follow_color_title">Follow WeChat text color</string>
     <string name="chat_message_text_color_title">Text color</string>
+    <string name="feature_keyword_notifications_name">Keyword notifications</string>
+    <string name="feature_keyword_notifications_description">Sends a local notification when an incoming message matches a keyword, mentions you, mentions everyone, or is a group announcement.</string>
+    <string name="chat_keyword_notify_section_triggers">Trigger conditions</string>
+    <string name="chat_keyword_notify_enable_title">Enable keyword notifications</string>
+    <string name="chat_keyword_notify_keywords_title">Keywords</string>
+    <string name="chat_keyword_notify_keywords_hint">Separate multiple keywords with commas</string>
+    <string name="chat_keyword_notify_exact_title">Exact match</string>
+    <string name="chat_keyword_notify_exact_description">Notify only when the whole message equals a keyword</string>
+    <string name="chat_keyword_notify_at_me_title">Notify when mentioned</string>
+    <string name="chat_keyword_notify_at_all_title">Notify on @all or group announcement</string>
+    <string name="chat_keyword_notify_section_reminders">Reminders</string>
+    <string name="chat_keyword_notify_notify_title">Post system notification</string>
+    <string name="chat_keyword_notify_sound_title">Notification sound</string>
+    <string name="chat_keyword_notify_vibrate_title">Notification vibration</string>
+    <string name="chat_keyword_notify_toast_title">In-app toast</string>
+    <string name="chat_keyword_notify_section_quiet">Quiet hours</string>
+    <string name="chat_keyword_notify_quiet_title">Quiet hours</string>
+    <string name="chat_keyword_notify_quiet_description">No alerts while quiet hours are active</string>
+    <string name="chat_keyword_notify_quiet_start_title">Start time</string>
+    <string name="chat_keyword_notify_quiet_end_title">End time</string>
+    <string name="chat_keyword_notify_subtext_group">Group message</string>
+    <string name="chat_keyword_notify_subtext_private">Direct message</string>
 </resources>
