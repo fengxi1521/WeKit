@@ -14,13 +14,6 @@
             }
         },
         {
-            "technicalId": "@所有人",
-            "methodHash": "2f6d0ea9b25c7e8e31c7ab6fedec94f8",
-            "descriptors": {
-                "methodMergeMsgSourceNode": "Lb41/ma;->O(Lcom/tencent/mm/storage/e9;Ljava/lang/String;Z)V"
-            }
-        },
-        {
             "technicalId": "上传透明头像",
             "methodHash": "6e74d6e846ad37e20eab624d5c217394",
             "descriptors": {

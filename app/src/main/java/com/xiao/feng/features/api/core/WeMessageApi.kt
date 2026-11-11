@@ -1131,6 +1131,27 @@ object WeMessageApi : ApiFeature(), IResolveDex {
         }
     }
 
+    /**
+     * 发送文本消息, 并让出网请求携带显式 msgsource (例如 atuserlist)。
+     * content 保持原文, 接收方只看 msgsource 收到提醒, 气泡内不出现 @ 文本。
+     */
+    fun sendTextWithMsgSource(toUser: String, text: String, msgSource: String): Boolean {
+        return try {
+            WeLogger.i(TAG, "sending text message with msgSource: $text")
+            val constructor = ctorNetSceneSendMsg.constructor
+            if (constructor.parameterCount != 6) {
+                WeLogger.e(TAG, "send scene has no msgsource parameter: $constructor")
+                return false
+            }
+            val sendMsgObject = methodGetSendMsgObject.method.invoke(null) ?: return false
+            val msgObj = constructor.newInstance(toUser, text, 1, 0, null, msgSource)
+            methodPostToQueue.method.invoke(sendMsgObject, msgObj) as? Boolean ?: false
+        } catch (e: Exception) {
+            WeLogger.e(TAG, "failed to send text message with msgSource", e)
+            false
+        }
+    }
+
     /** 发送文件消息 */
     fun sendFile(talker: String, filePath: String, title: String, appId: String? = null): Boolean {
         return try {
