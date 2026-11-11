@@ -1961,7 +1961,7 @@
     <string name="filter_list_configure_whitelist">配置白名單</string>
     <string name="filter_list_configure_blacklist">配置黑名單</string>
     <string name="chat_block_at_all_whitelist_description">僅放行所選羣聊的 @所有人 通知，屏蔽其他羣聊</string>
-    <string name="chat_block_at_all_blacklist_description">屏蔽 @所有人 通知；未選擇羣聊時屏蔽全部羣聊</string>
+    <string name="chat_block_at_all_blacklist_description">屏蔽所選羣聊的 @所有人 通知</string>
     <string name="chat_block_at_all_select_groups_hint">點擊選擇羣聊</string>
     <plurals name="chat_block_at_all_groups_saved">
         <item quantity="other">已保存 %d 個羣聊</item>
