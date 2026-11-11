@@ -975,8 +975,10 @@
     <string name="moments_auto_comment_ai_base_url_hint">默认 https://api.deepseek.com</string>
     <string name="moments_auto_comment_ai_model_title">模型</string>
     <string name="moments_auto_comment_ai_model_hint">默认 deepseek-flash，支持图片输入</string>
-    <string name="moments_auto_comment_ai_prompt_title">提示词</string>
-    <string name="moments_auto_comment_ai_prompt_hint">留空使用默认角色提示词</string>
+    <string name="moments_auto_comment_ai_persona_title">人物设定</string>
+    <string name="moments_auto_comment_ai_persona_hint">设定评论者是谁：身份、关系、性格、语气，可写多行</string>
+    <string name="moments_auto_comment_ai_prompt_title">回复要求</string>
+    <string name="moments_auto_comment_ai_prompt_hint">留空使用默认的字数与格式要求</string>
     <string name="moments_auto_comment_ai_max_images_title">读取图片数</string>
     <string name="moments_auto_comment_interval_title">评论间隔</string>
     <string name="moments_auto_comment_browsing_title">浏览时评论</string>

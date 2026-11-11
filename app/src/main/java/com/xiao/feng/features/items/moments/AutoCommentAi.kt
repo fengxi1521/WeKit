@@ -59,6 +59,9 @@ object AutoCommentAi {
         val apiKey: String,
         val baseUrl: String,
         val model: String,
+        /** Who the model plays — identity, relationship, personality and tone. */
+        val persona: String,
+        /** Extra reply rules (length, formatting, …) on top of the persona. */
         val prompt: String,
         val maxImages: Int,
     )
@@ -86,7 +89,7 @@ object AutoCommentAi {
             }
         }
         val messages = listOf(
-            LlmMessage(LlmRole.SYSTEM, config.prompt.ifBlank { DEFAULT_PROMPT }),
+            LlmMessage(LlmRole.SYSTEM, systemPrompt(config)),
             LlmMessage(LlmRole.USER, userText, images = images),
         )
 
@@ -131,6 +134,13 @@ object AutoCommentAi {
         }.onFailure {
             WeLogger.w(TAG, "DeepSeek comment generation failed", it)
         }.getOrNull()?.let(::sanitize)
+    }
+
+    /** Persona defines the speaker; the prompt only narrows the output format. */
+    private fun systemPrompt(config: Config): String = buildString {
+        append(config.persona.trim().ifBlank { DEFAULT_PERSONA })
+        append('\n')
+        append(config.prompt.trim().ifBlank { DEFAULT_PROMPT })
     }
 
     private suspend fun collectImages(snsInfo: Any?, limit: Int): List<LlmImage> {
@@ -212,9 +222,12 @@ object AutoCommentAi {
         return unquoted.take(MAX_REPLY_CHARS).takeIf { it.isNotBlank() }
     }
 
-    /** Default persona used when the user leaves the prompt blank. */
+    /** Default speaker used when the user leaves the persona blank. */
+    const val DEFAULT_PERSONA: String =
+        "你是我微信里的一位真实好友，正在刷我的朋友圈。你性格随和、爱开玩笑，说话自然口语化。"
+
+    /** Default reply rules used when the user leaves the prompt blank. */
     const val DEFAULT_PROMPT: String =
-        "你是我微信里的一位真实好友，正在刷我的朋友圈。请根据这条朋友圈的文字和图片，" +
-                "写一句自然、口语化的评论。要求：不超过 30 个字；只输出评论本身，" +
+        "根据这条朋友圈的文字和图片，写一句对应的评论。要求：不超过 30 个字；只输出评论本身，" +
                 "不要加引号、不要解释、不要用“评论：”之类的标签，也不要复述图片里的全部文字。"
 }
