@@ -9,6 +9,7 @@ import android.graphics.drawable.ColorDrawable
 import android.graphics.drawable.Drawable
 import android.graphics.drawable.GradientDrawable
 import android.graphics.drawable.InsetDrawable
+import android.graphics.drawable.LayerDrawable
 import android.graphics.drawable.RippleDrawable
 import android.os.Bundle
 import android.view.View
@@ -85,6 +86,8 @@ object BeautifyHomeLists : ClickableFeature() {
 
     private const val LIGHT_SURFACE = 0xFFFFFFFF.toInt()
     private const val DARK_SURFACE = 0xFF1F1F21.toInt()
+    private const val LIGHT_PAGE = 0xFFF0F0F3.toInt()
+    private const val DARK_PAGE = 0xFF101012.toInt()
     private const val LIGHT_RIPPLE = 0x12000000
     private const val DARK_RIPPLE = 0x1FFFFFFF
 
@@ -487,11 +490,15 @@ object BeautifyHomeLists : ClickableFeature() {
             setColor(Color.WHITE)
         }
         val rippleMask = InsetDrawable(mask, horizontalInset, topInset, horizontalInset, bottomInset)
-        return RippleDrawable(
+        val ripple = RippleDrawable(
             ColorStateList.valueOf(if (dark) DARK_RIPPLE else LIGHT_RIPPLE),
             content,
             rippleMask,
         )
+        // 行背景自己铺一层页面底色, 卡片四周的留白才不会露出宿主列表的白色底,
+        // 否则白卡片接白底看不出圆角, 通讯录顶部尤其明显。
+        val page = ColorDrawable(if (dark) DARK_PAGE else LIGHT_PAGE)
+        return LayerDrawable(arrayOf(page, ripple))
     }
 
     private fun isMainTabView(view: View): Boolean {
