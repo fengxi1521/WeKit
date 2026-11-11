@@ -212,7 +212,7 @@ object BlockAtAllNotificationsRuntime : ApiFeature(), IResolveDex {
         args.filterIsInstance<String>().firstOrNull { it.isGroupChatWxId }
 
     private fun hasAtAllText(args: Array<Any?>): Boolean =
-        args.filterIsInstance<String>().any { text -> AT_ALL_MARKERS.any { text.contains(it) } }
+        args.any { arg -> arg is String && AT_ALL_MARKERS.any { arg.contains(it) } }
 
     private fun markAtAllMessage(groupId: String) {
         val now = System.currentTimeMillis()
