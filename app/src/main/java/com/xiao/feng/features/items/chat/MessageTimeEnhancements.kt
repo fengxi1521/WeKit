@@ -67,6 +67,12 @@ private const val TIME_AVATAR_TAG = 0x7E000014
 /** Marks the content row whose native "below the time" rule we reversed for the below anchor. */
 private const val TIME_SWAPPED_TAG = 0x7E000015
 
+/** How the timestamp row is rendered; see `MessageTimeEnhancements.timeMode`. */
+private const val TIME_MODE_ORIGINAL = "original"
+private const val TIME_MODE_CUSTOM = "custom"
+private const val TIME_MODE_EVERY = "every"
+private const val TIME_MODE_HIDDEN = "hidden"
+
 data class ReadReceiptCountState(val count: Int?)
 
 object MessageTimeEnhancements : ClickableFeature(),
@@ -89,7 +95,17 @@ object MessageTimeEnhancements : ClickableFeature(),
     private var textSize by prefOption("msg_time_text_size", 11)
     private var displayFormat by prefOption("msg_time_display_format", $$"$time | $type")
     private var isAlwaysCentered by prefOption("msg_time_always_centered", false)
+
+    /** 原样 / 自定义格式 / 每条都显示 / 隐藏, 见 [TIME_MODE_*]; 空串表示从旧版开关迁移。 */
+    private var timeMode by prefOption("msg_time_mode", "")
+
+    /** Legacy switch kept only to migrate its old value into [timeMode]. */
     private var isAlwaysVisible by prefOption("msg_time_always_visible", false)
+
+    private val effectiveTimeMode: String
+        get() = timeMode.ifEmpty {
+            if (isAlwaysVisible) TIME_MODE_EVERY else TIME_MODE_CUSTOM
+        }
 
     /** "above" keeps the timestamp above the avatar, "below" moves it under the avatar. */
     private var timeAnchor by prefOption("msg_time_anchor", "above")
@@ -208,7 +224,14 @@ object MessageTimeEnhancements : ClickableFeature(),
         readReceiptCount: Int? = null,
         avatar: View? = null,
     ) {
-        val enhancementActive = isActive
+        val mode = effectiveTimeMode
+        if (mode == TIME_MODE_HIDDEN) {
+            time.visibility = View.GONE
+            return
+        }
+
+        val enhancementActive = isActive &&
+                (mode == TIME_MODE_CUSTOM || mode == TIME_MODE_EVERY)
         // WeChat draws a translucent rounded pill behind the timestamp once a chat wallpaper is
         // set. Hiding it with alpha is not enough: the drawable also contributes a minimum size
         // and padding, so the rows that had the pill were measured differently from the rows that
@@ -220,7 +243,7 @@ object MessageTimeEnhancements : ClickableFeature(),
             time.minimumWidth = 0
         }
         if (!enhancementActive && !forceVisible) return
-        if (!forceVisible && !isAlwaysVisible && !time.isVisible) return
+        if (!forceVisible && mode == TIME_MODE_CUSTOM && !time.isVisible) return
 
         val context = time.context
         val baseText = if (enhancementActive) {
@@ -235,7 +258,7 @@ object MessageTimeEnhancements : ClickableFeature(),
             localizedChatString(R.string.chat_read_receipts_count, it)
         }
         time.text = renderReadReceiptText(baseText, localizedReadText, enhancementActive)
-        if (forceVisible || isAlwaysVisible) {
+        if (forceVisible || mode == TIME_MODE_EVERY) {
             time.visibility = View.VISIBLE
         }
 
@@ -444,7 +467,7 @@ object MessageTimeEnhancements : ClickableFeature(),
             var timeFormatInput by remember { mutableStateOf(timeFormat) }
             var textSizeInputRaw by remember { mutableStateOf(textSize.toString()) }
             var isAlwaysCenteredInput by remember { mutableStateOf(isAlwaysCentered) }
-            var isAlwaysVisibleInput by remember { mutableStateOf(isAlwaysVisible) }
+            var modeInput by remember { mutableStateOf(effectiveTimeMode) }
             var anchorInput by remember { mutableStateOf(timeAnchor) }
             var textColorLightInput by remember { mutableStateOf(textColorLight) }
             var textColorDarkInput by remember { mutableStateOf(textColorDark) }
@@ -455,6 +478,41 @@ object MessageTimeEnhancements : ClickableFeature(),
                 text = {
                     Column(Modifier.verticalScroll(rememberScrollState())) {
                         SegmentedColumn(contentPadding = PaddingValues(0.dp)) {
+                            item {
+                                RadioButtonWidget(
+                                    iconPlaceholder = false,
+                                    title = stringResource(R.string.chat_message_time_mode_original),
+                                    selected = modeInput == TIME_MODE_ORIGINAL,
+                                    trailingDivider = true,
+                                    onClick = { modeInput = TIME_MODE_ORIGINAL },
+                                )
+                            }
+                            item {
+                                RadioButtonWidget(
+                                    iconPlaceholder = false,
+                                    title = stringResource(R.string.chat_message_time_mode_custom),
+                                    selected = modeInput == TIME_MODE_CUSTOM,
+                                    trailingDivider = true,
+                                    onClick = { modeInput = TIME_MODE_CUSTOM },
+                                )
+                            }
+                            item {
+                                RadioButtonWidget(
+                                    iconPlaceholder = false,
+                                    title = stringResource(R.string.chat_message_time_mode_every),
+                                    selected = modeInput == TIME_MODE_EVERY,
+                                    trailingDivider = true,
+                                    onClick = { modeInput = TIME_MODE_EVERY },
+                                )
+                            }
+                            item {
+                                RadioButtonWidget(
+                                    iconPlaceholder = false,
+                                    title = stringResource(R.string.chat_message_time_mode_hidden),
+                                    selected = modeInput == TIME_MODE_HIDDEN,
+                                    onClick = { modeInput = TIME_MODE_HIDDEN },
+                                )
+                            }
                             item {
                                 BaseSupportingWidget(
                                     title = stringResource(R.string.chat_message_time_display_template),
@@ -546,15 +604,6 @@ object MessageTimeEnhancements : ClickableFeature(),
                                 )
                             }
                             item {
-                                SwitchWidget(
-                                    iconPlaceholder = false,
-                                    title = stringResource(R.string.chat_message_time_always_show),
-                                    description = stringResource(R.string.chat_message_time_always_show_summary),
-                                    checked = isAlwaysVisibleInput,
-                                    onCheckedChange = { isAlwaysVisibleInput = it },
-                                )
-                            }
-                            item {
                                 RadioButtonWidget(
                                     iconPlaceholder = false,
                                     title = stringResource(R.string.chat_message_time_anchor_above),
@@ -586,7 +635,7 @@ object MessageTimeEnhancements : ClickableFeature(),
                         timeFormat = timeFormatInput
                         textSize = textSizeInput
                         isAlwaysCentered = isAlwaysCenteredInput
-                        isAlwaysVisible = isAlwaysVisibleInput
+                        timeMode = modeInput
                         timeAnchor = anchorInput
                         textColorLight = textColorLightInput
                         textColorDark = textColorDarkInput

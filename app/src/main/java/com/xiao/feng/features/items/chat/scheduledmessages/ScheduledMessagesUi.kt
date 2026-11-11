@@ -1,6 +1,7 @@
 package com.xiao.feng.features.items.chat.scheduledmessages
 
 import android.content.Context
+import android.net.Uri
 import androidx.activity.ComponentActivity
 import androidx.annotation.StringRes
 import androidx.compose.foundation.clickable
@@ -13,7 +14,9 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -36,12 +39,14 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.fragment.app.FragmentActivity
 import com.composables.icons.materialsymbols.MaterialSymbols
 import com.composables.icons.materialsymbols.outlined.Add
 import com.composables.icons.materialsymbols.outlined.Delete
 import com.xiao.feng.R
 import com.xiao.feng.features.api.core.WeDatabaseApi
 import com.xiao.feng.features.api.core.models.WeContact
+import com.xiao.feng.features.items.chat.panel.pickPanelFile
 import com.xiao.feng.i18n.LocalXiaoFengLocalizedContext
 import com.xiao.feng.ui.content.AlertDialogContent
 import com.xiao.feng.ui.content.Button
@@ -55,12 +60,18 @@ import com.xiao.feng.ui.content.WeTimeOfDayField
 import com.xiao.feng.ui.content.currentMinuteOfDay
 import com.xiao.feng.ui.content.formatDateTime
 import com.xiao.feng.ui.content.formatMinuteOfDay
+import com.xiao.feng.ui.content.m3.DropDownMenuWidget
+import com.xiao.feng.ui.content.m3.DropdownOption
 import com.xiao.feng.ui.content.parseDateTime
 import com.xiao.feng.ui.utils.ListItem
 import com.xiao.feng.ui.utils.showComposeDialog
+import com.xiao.feng.utils.HostInfo
 import com.xiao.feng.utils.android.showToast
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.io.File
 import java.util.Calendar
 
 private val DAY_LABELS: List<Pair<Int, Int>> = listOf(
@@ -89,32 +100,54 @@ private fun daysLabel(days: Set<Int>): String = when {
 }
 
 @Composable
-private fun targetLabel(targets: List<ScheduledMessageTarget>): String = when {
-    targets.isEmpty() -> stringResource(R.string.scheduled_messages_select_target)
-    targets.size <= 2 -> targets.joinToString(" ") { target ->
-        target.displayName.takeIf { it.isNotBlank() } ?: target.talker
-    }
+private fun targetLabel(message: ScheduledMessage): String = when (message.targetType) {
+    ScheduledMessageTargetType.MOMENTS -> stringResource(R.string.scheduled_messages_target_moments)
+    ScheduledMessageTargetType.CHAT -> when {
+        message.targets.isEmpty() -> stringResource(R.string.scheduled_messages_select_target)
+        message.targets.size <= 2 -> message.targets.joinToString(" ") { target ->
+            target.displayName.takeIf { it.isNotBlank() } ?: target.talker
+        }
 
-    else -> stringResource(R.string.scheduled_messages_target_count, targets.size)
+        else -> stringResource(R.string.scheduled_messages_target_count, message.targets.size)
+    }
 }
 
 @Composable
-private fun ScheduledMessage.summary(): String {
-    val targets = targetLabel(this.targets)
-    return when (kind) {
-        ScheduledMessageKind.REPEATING -> stringResource(
-            R.string.scheduled_messages_repeating_summary,
-            daysLabel(daysOfWeek),
-            minutesOfDay.sorted().joinToString(" ") { formatMinuteOfDay(it) },
-            targets,
-        )
+private fun ScheduledMessage.contentPreview(): String {
+    val content = normalizedItems()
+    return when (targetType) {
+        ScheduledMessageTargetType.MOMENTS -> {
+            val images = content.count { it.type == ScheduledMessageContentType.IMAGE }
+            val video = content.count { it.type == ScheduledMessageContentType.VIDEO }
+            when {
+                video > 0 -> stringResource(R.string.scheduled_messages_moments_video)
+                images > 0 -> stringResource(R.string.scheduled_messages_moments_images, images)
+                else -> content.firstOrNull()?.value.orEmpty()
+            }
+        }
 
-        ScheduledMessageKind.ONCE -> stringResource(
-            R.string.scheduled_messages_once_summary,
-            formatDateTime(atEpochMillis),
-            targets,
-        )
+        ScheduledMessageTargetType.CHAT -> content.firstOrNull()?.value
+            ?.lineSequence()
+            ?.firstOrNull { it.isNotBlank() }
+            ?.trim()
+            .orEmpty()
     }
+}
+
+@Composable
+private fun ScheduledMessage.scheduleLabel(): String = when (kind) {
+    ScheduledMessageKind.REPEATING -> stringResource(
+        R.string.scheduled_messages_repeating_summary,
+        daysLabel(daysOfWeek),
+        minutesOfDay.sorted().joinToString(" ") { formatMinuteOfDay(it) },
+        targetLabel(this),
+    )
+
+    ScheduledMessageKind.ONCE -> stringResource(
+        R.string.scheduled_messages_once_summary,
+        formatDateTime(atEpochMillis),
+        targetLabel(this),
+    )
 }
 
 private fun newScheduledMessage(contacts: List<WeContact>): ScheduledMessage {
@@ -124,7 +157,7 @@ private fun newScheduledMessage(contacts: List<WeContact>): ScheduledMessage {
         targets = first?.let {
             listOf(ScheduledMessageTarget(it.wxId, it.displayName))
         }.orEmpty(),
-        text = "",
+        items = listOf(ScheduledMessageContent()),
         kind = ScheduledMessageKind.REPEATING,
         minutesOfDay = setOf(currentMinuteOfDay()),
         daysOfWeek = ALL_SCHEDULED_MESSAGE_DAYS,
@@ -201,7 +234,10 @@ fun showScheduledMessagesDialog(context: ComponentActivity) {
                                         showScheduledMessageEditor(
                                             context = context,
                                             titleRes = R.string.scheduled_messages_edit_title,
-                                            initial = message,
+                                            initial = message.copy(
+                                                items = message.normalizedItems(),
+                                                text = "",
+                                            ),
                                             contacts = contacts,
                                         ) { edited ->
                                             val index = messages.indexOfFirst { it.id == edited.id }
@@ -210,17 +246,16 @@ fun showScheduledMessagesDialog(context: ComponentActivity) {
                                     },
                                     content = {
                                         Text(
-                                            text = message.summary(),
+                                            text = message.remark.ifBlank {
+                                                message.contentPreview()
+                                            },
                                             maxLines = 1,
                                             overflow = TextOverflow.Ellipsis,
                                         )
                                     },
                                     supportingContent = {
                                         Text(
-                                            text = message.text.lineSequence()
-                                                .firstOrNull { it.isNotBlank() }
-                                                ?.trim()
-                                                .orEmpty(),
+                                            text = message.scheduleLabel(),
                                             maxLines = 1,
                                             overflow = TextOverflow.Ellipsis,
                                         )
@@ -230,12 +265,16 @@ fun showScheduledMessagesDialog(context: ComponentActivity) {
                                             TextButton(
                                                 onClick = {
                                                     val sent = ScheduledMessageSchedule.sendNow(message)
+                                                    val total =
+                                                        if (message.targetType ==
+                                                            ScheduledMessageTargetType.MOMENTS
+                                                        ) 1 else message.targets.size
                                                     showToast(
                                                         context,
                                                         localizedContext.getString(
                                                             R.string.scheduled_messages_send_now_result,
                                                             sent,
-                                                            message.targets.size,
+                                                            total,
                                                         ),
                                                     )
                                                 }
@@ -294,6 +333,43 @@ fun showScheduledMessagesDialog(context: ComponentActivity) {
     }
 }
 
+@Composable
+private fun contentItemTypeLabel(type: ScheduledMessageContentType): String = stringResource(
+    when (type) {
+        ScheduledMessageContentType.TEXT -> R.string.scheduled_messages_item_text
+        ScheduledMessageContentType.XML -> R.string.scheduled_messages_item_xml
+        ScheduledMessageContentType.IMAGE -> R.string.scheduled_messages_item_image
+        ScheduledMessageContentType.VIDEO -> R.string.scheduled_messages_item_video
+        ScheduledMessageContentType.FILE -> R.string.scheduled_messages_item_file
+        ScheduledMessageContentType.EMOJI -> R.string.scheduled_messages_item_emoji
+        ScheduledMessageContentType.VOICE -> R.string.scheduled_messages_item_voice
+    }
+)
+
+private fun ScheduledMessageContent.usesTextField(): Boolean =
+    type == ScheduledMessageContentType.TEXT || type == ScheduledMessageContentType.XML
+
+private fun ScheduledMessageContent.pickMimeTypes(): Array<String> = when (type) {
+    ScheduledMessageContentType.IMAGE, ScheduledMessageContentType.EMOJI -> arrayOf("image/*")
+    ScheduledMessageContentType.VIDEO -> arrayOf("video/*")
+    ScheduledMessageContentType.VOICE -> arrayOf("audio/*")
+    else -> arrayOf("*/*")
+}
+
+/** Copies a picked document into the module's files dir so the alarm can still read it later. */
+private fun importScheduledFile(activity: FragmentActivity, uri: Uri, name: String): String? =
+    runCatching {
+        val dir = File(HostInfo.application.filesDir, "scheduled_messages").apply { mkdirs() }
+        val safeName = name.substringAfterLast('/').ifBlank { "imported_file" }
+        val dest = File(dir, "${System.currentTimeMillis()}_$safeName")
+        val input = activity.contentResolver.openInputStream(uri)
+            ?: error("cannot open picked file: $uri")
+        input.use { stream ->
+            dest.outputStream().use { output -> stream.copyTo(output) }
+        }
+        dest.absolutePath
+    }.getOrNull()
+
 private fun showScheduledMessageEditor(
     context: Context,
     @StringRes titleRes: Int,
@@ -313,6 +389,12 @@ private fun showScheduledMessageEditor(
             )
         }
 
+        fun updateItem(index: Int, value: ScheduledMessageContent) {
+            draft = draft.copy(
+                items = draft.items.toMutableList().also { it[index] = value }
+            )
+        }
+
         val onceMillis = parseDateTime(onceText)
         val isOncePast = draft.kind == ScheduledMessageKind.ONCE &&
                 onceMillis != null && onceMillis <= System.currentTimeMillis()
@@ -322,63 +404,228 @@ private fun showScheduledMessageEditor(
             ScheduledMessageKind.ONCE -> onceMillis?.let { draft.copy(atEpochMillis = it) }
         }
 
-        val textLines = draft.text.lines().count { it.isNotBlank() }
+        val content = draft.normalizedItems()
+        val contentValid = when (draft.targetType) {
+            ScheduledMessageTargetType.CHAT -> content.isNotEmpty()
+            ScheduledMessageTargetType.MOMENTS -> draft.isValidMoments()
+        }
+        val targetValid = when (draft.targetType) {
+            ScheduledMessageTargetType.CHAT ->
+                draft.targets.isNotEmpty() && draft.targets.all { it.talker.isNotBlank() }
 
-        val canSave = candidate != null &&
-                candidate.targets.isNotEmpty() &&
-                candidate.targets.all { it.talker.isNotBlank() } &&
-                candidate.text.isNotBlank() &&
-                when (draft.kind) {
-                    ScheduledMessageKind.REPEATING ->
-                        draft.daysOfWeek.isNotEmpty() && draft.minutesOfDay.isNotEmpty()
+            ScheduledMessageTargetType.MOMENTS -> true
+        }
+        val timeValid = when (draft.kind) {
+            ScheduledMessageKind.REPEATING ->
+                draft.daysOfWeek.isNotEmpty() && draft.minutesOfDay.isNotEmpty()
 
-                    ScheduledMessageKind.ONCE -> !isOncePast
-                }
+            ScheduledMessageKind.ONCE -> !isOncePast
+        }
+        val canSave = candidate != null && contentValid && targetValid && timeValid
+        val hasMultiLineText = content.any {
+            it.type == ScheduledMessageContentType.TEXT && it.value.lines().count { line ->
+                line.isNotBlank()
+            } >= 2
+        }
 
         AlertDialogContent(
             modifier = Modifier.fillMaxWidth(),
             title = { Text(stringResource(titleRes)) },
             text = {
-                DefaultColumn {
-                    ListItem(
-                        modifier = Modifier.clickable {
-                            showComposeDialog(context) {
-                                ContactsSelector(
-                                    title = localizedContext.getString(R.string.scheduled_messages_select_target),
-                                    contacts = contacts,
-                                    initialSelectedWxIds = draft.targets.map { it.talker }.toSet(),
-                                    onDismiss = this.onDismiss,
-                                    onConfirm = { wxIds ->
-                                        draft = draft.copy(
-                                            targets = wxIds.map { wxId ->
-                                                ScheduledMessageTarget(
-                                                    talker = wxId,
-                                                    displayName = contacts
-                                                        .firstOrNull { it.wxId == wxId }
-                                                        ?.displayName
-                                                        .orEmpty(),
+                Column(Modifier.verticalScroll(rememberScrollState())) {
+                    DefaultColumn {
+                        OutlinedTextField(
+                        modifier = Modifier.fillMaxWidth(),
+                        value = draft.remark,
+                        onValueChange = { draft = draft.copy(remark = it) },
+                        label = { Text(stringResource(R.string.scheduled_messages_remark)) },
+                        placeholder = {
+                            Text(stringResource(R.string.scheduled_messages_remark_hint))
+                        },
+                        singleLine = true,
+                    )
+
+                    SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+                        ScheduledMessageTargetType.entries.forEachIndexed { index, targetType ->
+                            SegmentedButton(
+                                selected = draft.targetType == targetType,
+                                onClick = { draft = draft.copy(targetType = targetType) },
+                                shape = SegmentedButtonDefaults.itemShape(
+                                    index, ScheduledMessageTargetType.entries.size
+                                ),
+                            ) {
+                                Text(
+                                    stringResource(
+                                        if (targetType == ScheduledMessageTargetType.CHAT) {
+                                            R.string.scheduled_messages_target_chat
+                                        } else {
+                                            R.string.scheduled_messages_target_moments
+                                        }
+                                    )
+                                )
+                            }
+                        }
+                    }
+
+                    when (draft.targetType) {
+                        ScheduledMessageTargetType.CHAT -> ListItem(
+                            modifier = Modifier.clickable {
+                                showComposeDialog(context) {
+                                    ContactsSelector(
+                                        title = localizedContext.getString(R.string.scheduled_messages_select_target),
+                                        contacts = contacts,
+                                        initialSelectedWxIds = draft.targets.map { it.talker }.toSet(),
+                                        onDismiss = this.onDismiss,
+                                        onConfirm = { wxIds ->
+                                            draft = draft.copy(
+                                                targets = wxIds.map { wxId ->
+                                                    ScheduledMessageTarget(
+                                                        talker = wxId,
+                                                        displayName = contacts
+                                                            .firstOrNull { it.wxId == wxId }
+                                                            ?.displayName
+                                                            .orEmpty(),
+                                                    )
+                                                }
+                                            )
+                                            this.onDismiss()
+                                        },
+                                    )
+                                }
+                            },
+                            content = { Text(stringResource(R.string.scheduled_messages_target)) },
+                            supportingContent = { Text(targetLabel(draft)) },
+                        )
+
+                        ScheduledMessageTargetType.MOMENTS -> Text(
+                            stringResource(R.string.scheduled_messages_moments_hint),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+
+                    Text(
+                        stringResource(R.string.scheduled_messages_items),
+                        style = MaterialTheme.typography.labelLarge,
+                    )
+
+                    val typeOptions = ScheduledMessageContentType.entries.map {
+                        DropdownOption(it, contentItemTypeLabel(it))
+                    }
+
+                    draft.items.forEachIndexed { index, item ->
+                        Column(modifier = Modifier.fillMaxWidth()) {
+                            DropDownMenuWidget(
+                                iconPlaceholder = false,
+                                title = stringResource(R.string.scheduled_messages_item_type),
+                                description = null,
+                                value = item.type,
+                                options = typeOptions,
+                                onValueChange = { updateItem(index, item.copy(type = it)) },
+                            )
+
+                            if (item.usesTextField()) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                ) {
+                                    OutlinedTextField(
+                                        modifier = Modifier.weight(1f),
+                                        value = item.value,
+                                        onValueChange = {
+                                            updateItem(index, item.copy(value = it))
+                                        },
+                                        label = {
+                                            Text(
+                                                if (item.type == ScheduledMessageContentType.TEXT) {
+                                                    stringResource(R.string.scheduled_messages_content)
+                                                } else {
+                                                    stringResource(R.string.scheduled_messages_item_xml)
+                                                }
+                                            )
+                                        },
+                                        minLines = 2,
+                                    )
+                                    IconButton(
+                                        onClick = {
+                                            draft = draft.copy(
+                                                items = draft.items.filterIndexed { i, _ ->
+                                                    i != index
+                                                }
+                                            )
+                                        }
+                                    ) {
+                                        Icon(
+                                            MaterialSymbols.Outlined.Delete,
+                                            contentDescription = stringResource(R.string.scheduled_messages_remove_item),
+                                            tint = MaterialTheme.colorScheme.error,
+                                        )
+                                    }
+                                }
+                            } else {
+                                ListItem(
+                                    modifier = Modifier.clickable {
+                                        pickPanelFile(context, item.pickMimeTypes()) { name, uri, activity ->
+                                            CoroutineScope(Dispatchers.IO).launch {
+                                                val path = importScheduledFile(activity, uri, name)
+                                                withContext(Dispatchers.Main) {
+                                                    activity.finish()
+                                                    if (path == null) {
+                                                        showToast(
+                                                            activity,
+                                                            localizedContext.getString(
+                                                                R.string.scheduled_messages_import_failed
+                                                            ),
+                                                        )
+                                                    } else {
+                                                        updateItem(index, item.copy(value = path))
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    },
+                                    content = {
+                                        Text(stringResource(R.string.scheduled_messages_pick_file))
+                                    },
+                                    supportingContent = {
+                                        Text(
+                                            text = item.value.ifBlank { "-" },
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis,
+                                        )
+                                    },
+                                    trailingContent = {
+                                        IconButton(
+                                            onClick = {
+                                                draft = draft.copy(
+                                                    items = draft.items.filterIndexed { i, _ ->
+                                                        i != index
+                                                    }
                                                 )
                                             }
-                                        )
-                                        this.onDismiss()
+                                        ) {
+                                            Icon(
+                                                MaterialSymbols.Outlined.Delete,
+                                                contentDescription = stringResource(R.string.scheduled_messages_remove_item),
+                                                tint = MaterialTheme.colorScheme.error,
+                                            )
+                                        }
                                     },
                                 )
                             }
-                        },
-                        content = { Text(stringResource(R.string.scheduled_messages_target)) },
-                        supportingContent = { Text(targetLabel(draft.targets)) },
-                    )
+                        }
+                    }
 
-                    OutlinedTextField(
-                        modifier = Modifier.fillMaxWidth(),
-                        value = draft.text,
-                        onValueChange = { draft = draft.copy(text = it) },
-                        label = { Text(stringResource(R.string.scheduled_messages_content)) },
-                        placeholder = { Text(stringResource(R.string.scheduled_messages_content_hint)) },
-                        minLines = 2,
-                    )
+                    TextButton(
+                        onClick = {
+                            draft = draft.copy(items = draft.items + ScheduledMessageContent())
+                        }
+                    ) {
+                        Icon(MaterialSymbols.Outlined.Add, contentDescription = null)
+                        Text(stringResource(R.string.scheduled_messages_add_item))
+                    }
 
-                    if (textLines >= 2) {
+                    if (hasMultiLineText) {
                         ListItem(
                             content = { Text(stringResource(R.string.scheduled_messages_randomize)) },
                             supportingContent = {
@@ -393,7 +640,27 @@ private fun showScheduledMessageEditor(
                         )
                     }
 
-                    if (draft.targets.size > 1) {
+                    if (draft.items.size > 1) {
+                        OutlinedTextField(
+                            modifier = Modifier.fillMaxWidth(),
+                            value = draft.itemIntervalSeconds.toString(),
+                            onValueChange = { input ->
+                                draft = draft.copy(
+                                    itemIntervalSeconds = input.filter(Char::isDigit)
+                                        .take(4).toIntOrNull() ?: 0
+                                )
+                            },
+                            label = {
+                                Text(stringResource(R.string.scheduled_messages_item_interval))
+                            },
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                            singleLine = true,
+                        )
+                    }
+
+                    if (draft.targetType == ScheduledMessageTargetType.CHAT &&
+                        draft.targets.size > 1
+                    ) {
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -571,6 +838,27 @@ private fun showScheduledMessageEditor(
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
 
+                            ListItem(
+                                content = {
+                                    Text(stringResource(R.string.scheduled_messages_send_on_timeout))
+                                },
+                                supportingContent = {
+                                    Text(
+                                        stringResource(
+                                            R.string.scheduled_messages_send_on_timeout_desc
+                                        )
+                                    )
+                                },
+                                trailingContent = {
+                                    Switch(
+                                        checked = draft.sendOnTimeout,
+                                        onCheckedChange = {
+                                            draft = draft.copy(sendOnTimeout = it)
+                                        },
+                                    )
+                                },
+                            )
+
                             if (isOncePast) {
                                 Text(
                                     stringResource(R.string.contacts_schedule_past_time),
@@ -581,20 +869,29 @@ private fun showScheduledMessageEditor(
                         }
                     }
 
-                    if (draft.targets.isEmpty()) {
+                    if (draft.targetType == ScheduledMessageTargetType.CHAT &&
+                        draft.targets.isEmpty()
+                    ) {
                         Text(
                             stringResource(R.string.scheduled_messages_need_target),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.error,
                         )
                     }
-                    if (draft.text.isBlank()) {
+                    if (!contentValid) {
                         Text(
-                            stringResource(R.string.scheduled_messages_need_text),
+                            stringResource(
+                                if (draft.targetType == ScheduledMessageTargetType.CHAT) {
+                                    R.string.scheduled_messages_need_items
+                                } else {
+                                    R.string.scheduled_messages_moments_invalid
+                                }
+                            ),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.error,
                         )
                     }
+                }
                 }
             },
             confirmButton = {
@@ -602,7 +899,13 @@ private fun showScheduledMessageEditor(
                     enabled = canSave,
                     onClick = {
                         if (candidate != null) {
-                            onSave(candidate)
+                            onSave(
+                                candidate.copy(
+                                    remark = candidate.remark.trim(),
+                                    text = "",
+                                    items = content,
+                                )
+                            )
                             onDismiss()
                         }
                     },

@@ -12,9 +12,11 @@ import androidx.core.content.ContextCompat
 import androidx.core.net.toUri
 import com.xiao.feng.data.KvStore
 import com.xiao.feng.features.api.core.WeMessageApi
+import com.xiao.feng.features.api.ui.WeMomentsApi
 import com.xiao.feng.features.core.ClickableFeature
 import com.xiao.feng.features.core.FeatureCategoryIds
 import com.xiao.feng.R
+import com.xiao.feng.utils.AudioUtils
 import com.xiao.feng.utils.HostInfo
 import com.xiao.feng.utils.TargetProcesses
 import com.xiao.feng.utils.WeLogger
@@ -27,10 +29,14 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.serialization.Serializable
+import java.io.File
 import java.util.Calendar
 import kotlin.random.Random
 
 private const val TAG = "ScheduledMessages"
+
+/** One-shot entries may still be delivered this long after their fire time when sendOnTimeout is on. */
+private const val SEND_TIMEOUT_GRACE_MS = 10L * 60L * 1000L
 
 /** `Calendar.SUNDAY..Calendar.SATURDAY` — the default (and maximal) [ScheduledMessage.daysOfWeek]. */
 val ALL_SCHEDULED_MESSAGE_DAYS: Set<Int> = (Calendar.SUNDAY..Calendar.SATURDAY).toSet()
@@ -43,18 +49,34 @@ data class ScheduledMessageTarget(
     val displayName: String = "",
 )
 
+/** Where a [ScheduledMessage] delivers its content. */
+@Serializable
+enum class ScheduledMessageTargetType { CHAT, MOMENTS }
+
+/** One content item of a [ScheduledMessage]; [value] is text, XML, or a local media path. */
+@Serializable
+data class ScheduledMessageContent(
+    val type: ScheduledMessageContentType = ScheduledMessageContentType.TEXT,
+    val value: String = "",
+)
+
+@Serializable
+enum class ScheduledMessageContentType { TEXT, XML, IMAGE, VIDEO, FILE, EMOJI, VOICE }
+
 /**
- * One user-defined alarm that sends [text] to every one of [targets] when it fires.
+ * One user-defined alarm that sends [items] to every one of [targets] when it fires, or publishes
+ * them to Moments when [targetType] is [ScheduledMessageTargetType.MOMENTS].
  *
- * [randomizeLines] treats each non-blank line of [text] as one candidate and sends a randomly
+ * [randomizeLines] treats each non-blank line of a text item as one candidate and sends a randomly
  * picked line per delivery, so a single entry can rotate several canned messages.
  */
 @Serializable
 data class ScheduledMessage(
     val id: String,
     val enabled: Boolean = true,
-    val targets: List<ScheduledMessageTarget>,
-    val text: String,
+    val targets: List<ScheduledMessageTarget> = emptyList(),
+    /** Legacy single-text payload; read only when [items] is empty. */
+    val text: String = "",
     val kind: ScheduledMessageKind = ScheduledMessageKind.REPEATING,
     /** [ScheduledMessageKind.REPEATING] only: 0..1439, one alarm per entry. */
     val minutesOfDay: Set<Int> = emptySet(),
@@ -67,7 +89,47 @@ data class ScheduledMessage(
     val intervalSeconds: Int = 0,
     /** 在 [intervalSeconds] 之上再随机叠加 0..N 秒, 让发送节奏更自然。 */
     val intervalRandomSeconds: Int = 0,
+    val remark: String = "",
+    val targetType: ScheduledMessageTargetType = ScheduledMessageTargetType.CHAT,
+    val items: List<ScheduledMessageContent> = emptyList(),
+    /** 同一目标的多个内容项之间的间隔秒数。 */
+    val itemIntervalSeconds: Int = 0,
+    /** 单次任务错过触发时间后, 在宽限窗口内仍补发一次。 */
+    val sendOnTimeout: Boolean = false,
 )
+
+/** [items] with legacy [ScheduledMessage.text] migrated in, blank values dropped. */
+fun ScheduledMessage.normalizedItems(): List<ScheduledMessageContent> {
+    val source = if (items.isEmpty() && text.isNotBlank()) {
+        listOf(ScheduledMessageContent(ScheduledMessageContentType.TEXT, text))
+    } else {
+        items
+    }
+    return source
+        .map { ScheduledMessageContent(it.type, it.value.trim()) }
+        .filter { it.value.isNotBlank() }
+}
+
+/** 朋友圈任务只允许 文字 / 1-9 张图片 / 1 个视频 的组合。 */
+fun ScheduledMessage.isValidMoments(): Boolean {
+    val content = normalizedItems()
+    val hasText = content.any { it.type == ScheduledMessageContentType.TEXT }
+    val imageCount = content.count { it.type == ScheduledMessageContentType.IMAGE }
+    val videoCount = content.count { it.type == ScheduledMessageContentType.VIDEO }
+    val hasOther = content.any {
+        it.type != ScheduledMessageContentType.TEXT &&
+                it.type != ScheduledMessageContentType.IMAGE &&
+                it.type != ScheduledMessageContentType.VIDEO
+    }
+    if (hasOther) return false
+    return when {
+        videoCount > 1 -> false
+        videoCount == 1 -> true
+        imageCount > 9 -> false
+        imageCount > 0 -> true
+        else -> hasText
+    }
+}
 
 @Serializable
 enum class ScheduledMessageKind { REPEATING, ONCE }
@@ -104,8 +166,9 @@ object ScheduledMessages : ClickableFeature() {
  * survives Doze, with [resync] as the single reconciliation point and [mutate] as the only write
  * path. Alarms are keyed by `id#minute`, so one entry with several send times owns several alarms.
  * What differs from the hide-contacts list is the catch-up contract: a missed 显示/隐藏 flip can
- * safely be applied late, but a missed *message* must not be sent late, so [catchUp] only consumes
- * elapsed one-shot entries and never delivers anything.
+ * safely be applied late, but a missed message is normally dropped. Entries that opted into
+ * [ScheduledMessage.sendOnTimeout] are the exception and are delivered once inside a short grace
+ * window.
  *
  * Alarms only fire while WeChat's main process exists (the module cannot add a `<receiver>` to
  * WeChat's manifest, so the receiver is registered at runtime). A fire time missed while the process
@@ -157,9 +220,14 @@ object ScheduledMessageSchedule {
         get() = decodeRaw()
             .filter { message ->
                 message.id.isNotBlank() &&
-                        message.text.isNotBlank() &&
-                        message.targets.isNotEmpty() &&
-                        message.targets.all { it.talker.isNotBlank() } &&
+                        message.normalizedItems().isNotEmpty() &&
+                        when (message.targetType) {
+                            ScheduledMessageTargetType.CHAT ->
+                                message.targets.isNotEmpty() &&
+                                        message.targets.all { it.talker.isNotBlank() }
+
+                            ScheduledMessageTargetType.MOMENTS -> message.isValidMoments()
+                        } &&
                         isWellFormed(message)
             }
             .distinctBy { it.id }
@@ -243,16 +311,20 @@ object ScheduledMessageSchedule {
 
     /** Sends [message] right now, bypassing its schedule. Returns how many targets were accepted. */
     fun sendNow(message: ScheduledMessage): Int {
-        val text = message.textToSend()
+        val scope = sendScope ?: return 0
+        if (message.targetType == ScheduledMessageTargetType.MOMENTS) {
+            scope.launch { postToMoments(message) }
+            return 1
+        }
         val targets = message.targets
+        val items = message.normalizedItems()
         if (message.nextIntervalMillis() > 0L && targets.size > 1) {
-            val scope = sendScope ?: return 0
-            scope.launch { sendOneByOne(message, targets, text) }
+            scope.launch { sendOneByOne(message, targets, items) }
             return targets.size
         }
         var sent = 0
         for (target in targets) {
-            if (runCatching { WeMessageApi.sendText(target.talker, text) }.getOrDefault(false)) {
+            if (runCatching { sendItems(message, target, items) }.getOrDefault(false)) {
                 sent++
             }
         }
@@ -399,9 +471,13 @@ object ScheduledMessageSchedule {
             WeLogger.w(TAG, "scheduled message ${message.id} fired before the sender was ready")
             return
         }
+        if (message.targetType == ScheduledMessageTargetType.MOMENTS) {
+            scope.launch { postToMoments(message) }
+            return
+        }
         val targets = message.targets
-        val text = message.textToSend()
-        scope.launch { sendOneByOne(message, targets, text) }
+        val items = message.normalizedItems()
+        scope.launch { sendOneByOne(message, targets, items) }
     }
 
     /**
@@ -411,7 +487,7 @@ object ScheduledMessageSchedule {
     private suspend fun sendOneByOne(
         message: ScheduledMessage,
         targets: List<ScheduledMessageTarget>,
-        text: String,
+        items: List<ScheduledMessageContent>,
     ) {
         var sent = 0
         targets.forEachIndexed { index, target ->
@@ -419,12 +495,95 @@ object ScheduledMessageSchedule {
                 val wait = message.nextIntervalMillis()
                 if (wait > 0L) delay(wait)
             }
-            val ok = runCatching { WeMessageApi.sendText(target.talker, text) }
+            val ok = runCatching { sendItems(message, target, items) }
                 .onFailure { WeLogger.e(TAG, "failed to send ${message.id} to ${target.talker}", it) }
                 .getOrDefault(false)
             if (ok) sent++
         }
         WeLogger.i(TAG, "scheduled message ${message.id} delivered to $sent/${targets.size} chat(s)")
+    }
+
+    /** 依次发送 [items], 单个内容失败即中止该目标的剩余内容。 */
+    private suspend fun sendItems(
+        message: ScheduledMessage,
+        target: ScheduledMessageTarget,
+        items: List<ScheduledMessageContent>,
+    ): Boolean {
+        val displayName = target.displayName.takeIf { it.isNotBlank() } ?: target.talker
+        items.forEachIndexed { index, item ->
+            if (index > 0) {
+                val wait = message.itemIntervalSeconds.coerceAtLeast(0) * 1000L
+                if (wait > 0L) delay(wait)
+            }
+            if (!sendItem(item, target.talker, displayName, message.randomizeLines)) return false
+        }
+        return items.isNotEmpty()
+    }
+
+    private fun sendItem(
+        item: ScheduledMessageContent,
+        talker: String,
+        displayName: String,
+        randomizeLines: Boolean,
+    ): Boolean {
+        val value = item.value.replace("%friendName%", displayName)
+        return when (item.type) {
+            ScheduledMessageContentType.TEXT -> {
+                val text = if (randomizeLines) {
+                    value.lines().map { it.trim() }.filter { it.isNotEmpty() }
+                        .randomOrNull() ?: value
+                } else {
+                    value
+                }
+                WeMessageApi.sendText(talker, text)
+            }
+
+            ScheduledMessageContentType.XML -> WeMessageApi.sendXmlAppMsg(talker, value)
+            ScheduledMessageContentType.IMAGE -> WeMessageApi.sendImage(talker, item.value)
+            ScheduledMessageContentType.VIDEO -> WeMessageApi.sendVideo(talker, item.value)
+            ScheduledMessageContentType.FILE ->
+                WeMessageApi.sendFile(talker, item.value, File(item.value).name)
+
+            ScheduledMessageContentType.EMOJI -> WeMessageApi.sendEmoji(talker, item.value)
+            ScheduledMessageContentType.VOICE ->
+                WeMessageApi.sendVoice(talker, item.value, voiceDurationMs(item.value))
+        }
+    }
+
+    /** 语音时长取自模块的音频工具; 读不到时按 1 秒发送, 避免被微信拒收。 */
+    private fun voiceDurationMs(path: String): Int {
+        val duration = runCatching { AudioUtils.getDurationMs(path) }.getOrDefault(0L)
+        return (duration.takeIf { it > 0L } ?: 1000L).coerceAtMost(60_000L).toInt()
+    }
+
+    /** 把内容按朋友圈规则发布; 图片取前 9 张, 视频取第一个。 */
+    private fun postToMoments(message: ScheduledMessage): Boolean {
+        val items = message.normalizedItems()
+        val text = items
+            .filter { it.type == ScheduledMessageContentType.TEXT }
+            .joinToString("\n") { it.value }
+        val images = items
+            .filter { it.type == ScheduledMessageContentType.IMAGE }
+            .map { it.value }
+            .distinct()
+            .take(9)
+        val video = items.firstOrNull { it.type == ScheduledMessageContentType.VIDEO }?.value
+        val posted = when {
+            video != null -> {
+                val thumb = WeMomentsApi.generateVideoThumbForUpload(HostInfo.application, video)
+                thumb != null && WeMomentsApi.postTextAndVideo(
+                    HostInfo.application,
+                    text,
+                    video,
+                    thumb,
+                )
+            }
+
+            images.isNotEmpty() -> WeMomentsApi.postTextAndImages(text, images)
+            else -> WeMomentsApi.postText(text)
+        }
+        WeLogger.i(TAG, "scheduled moment ${message.id} posted=$posted")
+        return posted
     }
 
     private fun ScheduledMessage.nextIntervalMillis(): Long {
@@ -434,25 +593,27 @@ object ScheduledMessageSchedule {
         return seconds * 1000L
     }
 
-    private fun ScheduledMessage.textToSend(): String {
-        if (!randomizeLines) return text.trim()
-        val lines = text.lines().map { it.trim() }.filter { it.isNotEmpty() }
-        return lines.randomOrNull() ?: text.trim()
-    }
-
     /**
-     * Consumes one-shot entries whose time passed while the process was dead, *without* sending them
-     * (see the class KDoc), then leaves repeating entries to [resync]. Runs at process attach, so
-     * nothing here may touch UI.
+     * Consumes one-shot entries whose time passed while the process was dead. Entries that opted
+     * into [ScheduledMessage.sendOnTimeout] are delivered once when they are still inside the
+     * grace window; every other elapsed entry is dropped (see the class KDoc). Runs at process
+     * attach, before [resync], so nothing here may touch UI.
      */
     private fun catchUp() {
         val now = System.currentTimeMillis()
-        val elapsedOnceIds = messages
-            .filter { it.kind == ScheduledMessageKind.ONCE && it.atEpochMillis <= now }
-            .mapTo(mutableSetOf()) { it.id }
-        removeStored(elapsedOnceIds)
-        if (elapsedOnceIds.isNotEmpty()) {
-            WeLogger.i(TAG, "dropped ${elapsedOnceIds.size} missed one-shot message(s)")
+        val elapsed = messages.filter {
+            it.kind == ScheduledMessageKind.ONCE && it.atEpochMillis <= now
+        }
+        val (late, dropped) = elapsed.partition {
+            it.sendOnTimeout && now - it.atEpochMillis <= SEND_TIMEOUT_GRACE_MS
+        }
+        late.forEach(::deliver)
+        removeStored(elapsed.mapTo(mutableSetOf()) { it.id })
+        if (late.isNotEmpty()) {
+            WeLogger.i(TAG, "late-sending ${late.size} one-shot message(s)")
+        }
+        if (dropped.isNotEmpty()) {
+            WeLogger.i(TAG, "dropped ${dropped.size} missed one-shot message(s)")
         }
     }
 
