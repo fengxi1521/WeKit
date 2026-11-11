@@ -66,7 +66,7 @@ object AutoCommentMoments : AutoMomentsBase() {
         handledSnsIds.addAll(savedHandledIds)
         lastAttemptAt.clear()
         WeMomentsApi.methodReplaceUserBySnsId.hookAfter {
-            if (result == true) processSnsInfoAsync(args[1], "storage")
+            if (result == true) processSnsInfoAsync(args[1]!!, "storage")
         }
         installTimelineHooks()
     }
