@@ -2021,7 +2021,7 @@
     <string name="filter_list_configure_whitelist">Configure whitelist</string>
     <string name="filter_list_configure_blacklist">Configure blacklist</string>
     <string name="chat_block_at_all_whitelist_description">Allow @all notifications only from selected groups; suppress all other groups</string>
-    <string name="chat_block_at_all_blacklist_description">Suppress @all notifications from selected groups</string>
+    <string name="chat_block_at_all_blacklist_description">Suppress @all notifications; blocks every group when no group is selected</string>
     <string name="chat_block_at_all_select_groups_hint">Tap to select groups</string>
     <plurals name="chat_block_at_all_groups_saved">
         <item quantity="one">Saved %d group</item>

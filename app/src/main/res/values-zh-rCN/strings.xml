@@ -1975,7 +1975,7 @@
     <string name="filter_list_configure_whitelist">配置白名单</string>
     <string name="filter_list_configure_blacklist">配置黑名单</string>
     <string name="chat_block_at_all_whitelist_description">仅放行所选群聊的 @所有人 通知，屏蔽其他群聊</string>
-    <string name="chat_block_at_all_blacklist_description">屏蔽所选群聊的 @所有人 通知</string>
+    <string name="chat_block_at_all_blacklist_description">屏蔽 @所有人 通知；未选择群聊时屏蔽全部群聊</string>
     <string name="chat_block_at_all_select_groups_hint">点击选择群聊</string>
     <plurals name="chat_block_at_all_groups_saved">
         <item quantity="other">已保存 %d 个群聊</item>

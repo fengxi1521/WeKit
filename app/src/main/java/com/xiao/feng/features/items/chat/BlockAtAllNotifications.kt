@@ -129,11 +129,12 @@ object BlockAtAllNotifications : ClickableFeature() {
 
     fun shouldSuppress(groupId: String): Boolean {
         if (!groupId.isGroupChatWxId || !KvStore.getBoolOrDef(technicalId, false)) return false
-        return if (KvStore.getBoolOrDef(KEY_USE_WHITELIST, false)) {
-            groupId !in KvStore.getStringSetOrDef(KEY_WHITELIST, emptySet())
-        } else {
-            groupId in KvStore.getStringSetOrDef(KEY_BLACKLIST, emptySet())
+        if (KvStore.getBoolOrDef(KEY_USE_WHITELIST, false)) {
+            return groupId !in KvStore.getStringSetOrDef(KEY_WHITELIST, emptySet())
         }
+        val blacklist = KvStore.getStringSetOrDef(KEY_BLACKLIST, emptySet())
+        // 名单为空时按「屏蔽全部群聊」处理, 开启即生效; 配置了名单就只屏蔽所选群。
+        return blacklist.isEmpty() || groupId in blacklist
     }
 
     private const val KEY_USE_WHITELIST = "block_at_all_notifications_use_whitelist"
