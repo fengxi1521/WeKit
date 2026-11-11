@@ -41,6 +41,7 @@ data class ViewBackdropCaptureKey(
     val density: Float,
     val fontScale: Float,
     val layoutDirection: Int,
+    val downscaleFactor: Int,
 ) {
     fun hasSameSourceWindow(other: ViewBackdropCaptureKey): Boolean =
         source == other.source && window == other.window

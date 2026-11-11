@@ -9,11 +9,9 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.GraphicsLayerScope
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
-import androidx.compose.ui.graphics.drawscope.scale
 import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.graphics.layer.GraphicsLayer
 import androidx.compose.ui.graphics.layer.drawLayer
@@ -26,6 +24,7 @@ import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.LayoutDirection
+import androidx.core.graphics.withScale
 import androidx.core.graphics.withTranslation
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
@@ -192,8 +191,11 @@ class ViewBackdrop(
         bumpGeneration()
     }
 
-    private fun currentCaptureKey(view: View): ViewBackdropCaptureKey? {
-        if (!lifecycleStarted || !view.isAttachedToWindow) return null
+    private fun currentCaptureKey(
+        view: View,
+        downscaleFactor: Int,
+    ): ViewBackdropCaptureKey? {
+        if (!lifecycleStarted || !view.isAttachedToWindow || !view.isShown) return null
         val windowIdentity = windowIdentityState.update(view.windowToken) {
             captureState.invalidate()
             offsetResidualX = 0f
@@ -211,31 +213,49 @@ class ViewBackdrop(
             density = density.density,
             fontScale = density.fontScale,
             layoutDirection = if (layoutDirection == LayoutDirection.Ltr) 0 else 1,
+            downscaleFactor = downscaleFactor,
         )
     }
 
     /**
      * Records the current pixels of [sourceView] into the backing layer. Returns true if a capture
      * was performed (so the caller can repaint), false if the view isn't ready yet.
+     *
+     * The layer is recorded at the blur pipeline's downscaled resolution instead of the panel's
+     * full pixel size. The pipeline downsamples this layer before blurring it anyway, so recording
+     * it at full size only to sample it down again wasted most of the per-frame GPU work — the
+     * dominant cost of the glass while the home pager scrolls. Recording at `1 / downscaleFactor`
+     * keeps the final (blurred) pixels identical while cutting the recorded surface area by
+     * `downscaleFactor²` (4×/16×).
      */
-    fun recordSource(): Boolean {
+    fun recordSource(downscaleFactor: Int): Boolean {
         val view = sourceView ?: return false
+        if (!view.isShown) return false
         val width = view.width
         val height = view.height
         if (width <= 0 || height <= 0) return false
 
-        graphicsLayer.record(density, layoutDirection, IntSize(width, height)) {
+        val factor = downscaleFactor.coerceAtLeast(1)
+        val captureWidth = (width + factor - 1) / factor
+        val captureHeight = (height + factor - 1) / factor
+        graphicsLayer.record(density, layoutDirection, IntSize(captureWidth, captureHeight)) {
             drawIntoCanvas { canvas ->
                 val nativeCanvas = canvas.nativeCanvas
-                // Replicate the scroll translation the parent normally applies when it draws this
-                // view. WeChat's WxViewPager selects the visible tab by scrolling itself
-                // (scrollTo(clientWidth * position, 0)) — pages are laid out side by side and only
-                // the pager's own scrollX chooses which one shows. That scroll offset is applied by
-                // the *parent's* draw traversal, NOT by the public View.draw(canvas) we call here, so
-                // without this translate every page draws at its raw layout x and only page 0 (home)
-                // fits in the layer. This is why the glass was stuck on the home tab.
-                nativeCanvas.withTranslation(-view.scrollX.toFloat(), -view.scrollY.toFloat()) {
-                    view.draw(nativeCanvas)
+                val captureScale = 1f / factor
+                nativeCanvas.withScale(captureScale, captureScale) {
+                    // Replicate the scroll translation the parent normally applies when it draws this
+                    // view. WeChat's WxViewPager selects the visible tab by scrolling itself
+                    // (scrollTo(clientWidth * position, 0)) — pages are laid out side by side and only
+                    // the pager's own scrollX chooses which one shows. That scroll offset is applied by
+                    // the *parent's* draw traversal, NOT by the public View.draw(canvas) we call here, so
+                    // without this translate every page draws at its raw layout x and only page 0 (home)
+                    // fits in the layer. This is why the glass was stuck on the home tab.
+                    nativeCanvas.withTranslation(
+                        -view.scrollX.toFloat(),
+                        -view.scrollY.toFloat(),
+                    ) {
+                        view.draw(nativeCanvas)
+                    }
                 }
             }
         }
@@ -247,15 +267,14 @@ class ViewBackdrop(
         coordinates: LayoutCoordinates?,
         layerBlock: (GraphicsLayerScope.() -> Unit)?,
         // The blur pipeline records the backdrop into a layer downscaled by this factor (1/2/4/…)
-        // and upscales the blurred result afterwards. We MUST honor it: the layer we draw into here
-        // is already downscaled, so drawing the full-res capture 1:1 overfills it and the later
-        // upscale magnifies the content by exactly `downscaleFactor` (the "zoomed backdrop" bug).
-        // Scale the capture down by 1/downscaleFactor so it fits, exactly like LayerBackdrop.
+        // and upscales the blurred result afterwards. We honor it while recording, so the capture
+        // layer is already `1 / downscaleFactor` of the source; alignment below is done in that
+        // downscaled space.
         downscaleFactor: Int,
     ) {
         @Suppress("UNUSED_EXPRESSION") generation
         val view = sourceView ?: return noCapture()
-        val key = currentCaptureKey(view) ?: return noCapture()
+        val key = currentCaptureKey(view, downscaleFactor) ?: return noCapture()
         val barCoordinates = coordinates ?: return noCapture()
 
         // Capture the source here, during the overlay's own draw. viewParent draws the source
@@ -267,7 +286,7 @@ class ViewBackdrop(
             ViewBackdropCaptureDecision.CAPTURE -> {
                 captureInProgress = true
                 try {
-                    if (recordSource()) captureState.captureSucceeded(key)
+                    if (recordSource(downscaleFactor)) captureState.captureSucceeded(key)
                 } finally {
                     captureInProgress = false
                 }
@@ -297,9 +316,9 @@ class ViewBackdrop(
             offsetResidualX = (scaledX - roundedX) * downscaleFactor
             offsetResidualY = (scaledY - roundedY) * downscaleFactor
             translate(-roundedX, -roundedY) {
-                scale(inv, inv, Offset.Zero) {
-                    drawLayer(graphicsLayer)
-                }
+                // The capture layer is already recorded at 1/downscaleFactor, so it is drawn 1:1
+                // here; scaling it down again would over-shrink it.
+                drawLayer(graphicsLayer)
             }
         } else {
             offsetResidualX = 0f

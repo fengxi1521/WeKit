@@ -96,9 +96,7 @@ object WeChatMessageViewApi : ApiFeature(), IResolveDex {
         methodChatItemSetNickname.hookAfter {
             if (args[1] != null) return@hookAfter
             val holder = args[0] ?: return@hookAfter
-            val userTv = holder.reflekt()
-                .firstFieldOrNull { name = "userTV"; superclass() }
-                ?.get() as? TextView ?: return@hookAfter
+            val userTv = nicknameUserTv(holder) ?: return@hookAfter
             userTv.text = null
         }
 
@@ -144,6 +142,24 @@ object WeChatMessageViewApi : ApiFeature(), IResolveDex {
                 currentBindings.remove(view)
             }
         }
+    }
+
+    /**
+     * The sender-name hook runs for every group message bind, so resolve the holder field once per
+     * holder class instead of scanning the hierarchy each time. An empty list caches "no such
+     * field" for holders that never show a sender name.
+     */
+    private val nicknameUserTvFields = ConcurrentHashMap<Class<*>, List<Field>>()
+
+    private fun nicknameUserTv(holder: Any): TextView? {
+        val fields = nicknameUserTvFields.getOrPut(holder.javaClass) {
+            holder.reflekt()
+                .firstFieldOrNull { name = "userTV"; superclass() }
+                ?.self?.makeAccessible()
+                ?.let { listOf(it) }
+                ?: emptyList()
+        }
+        return fields.firstOrNull()?.get(holder) as? TextView
     }
 
     private fun ensureAttachStateListener(view: View) {

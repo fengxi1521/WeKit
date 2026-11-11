@@ -31,6 +31,7 @@ import com.xiao.feng.ui.content.m3.SegmentedColumn
 import com.xiao.feng.ui.utils.showComposeDialog
 import com.xiao.feng.utils.HookParam
 import com.xiao.feng.utils.reflection.cachedField
+import java.util.WeakHashMap
 
 object MessageAvatarShape : ClickableFeature(), WeChatMessageViewApi.ICreateViewListener {
 
@@ -71,6 +72,9 @@ object MessageAvatarShape : ClickableFeature(), WeChatMessageViewApi.ICreateView
         WeChatMessageViewApi.removeListener(this)
     }
 
+    /** Last style applied per avatar view, so scrolling binds do not re-invalidate every outline. */
+    private val appliedStyles = WeakHashMap<View, String>()
+
     override fun onCreateView(param: HookParam, view: View) {
         applyAvatar(view, WeChatMessageViewApi.getMsgInfoFromParam(param))
     }
@@ -81,13 +85,18 @@ object MessageAvatarShape : ClickableFeature(), WeChatMessageViewApi.ICreateView
         val tag = view.tag ?: return
         val avatar = tag.cachedField("avatarIV").get(tag) as? View ?: return
 
-        if (shape == SQUARE) {
-            avatar.outlineProvider = null
-            avatar.clipToOutline = false
-        } else {
-            avatar.outlineProvider = outlineProvider
-            avatar.clipToOutline = true
+        val targetProvider = if (shape == SQUARE) null else outlineProvider
+        val targetClip = shape != SQUARE
+        val styleKey = "$shape:$cornerRadiusDp"
+        if (avatar.outlineProvider === targetProvider &&
+            avatar.clipToOutline == targetClip &&
+            appliedStyles[avatar] == styleKey
+        ) {
+            return
         }
+        avatar.outlineProvider = targetProvider
+        avatar.clipToOutline = targetClip
+        appliedStyles[avatar] = styleKey
     }
 
     private fun refreshBoundAvatars() {

@@ -52,13 +52,29 @@ object MessageTextAppearance : ClickableFeature(), WeChatMessageViewApi.ICreateV
     private fun applyTextAppearance(view: View, msgInfo: MessageInfo) {
         if (msgInfo.type?.isText != true) return
 
+        val targetSpacing = lineSpacingPercent / 100f
         view.findViewsWhich { it is MMNeat7extView }.forEach { messageText ->
             // NeatTextView keeps its real text metrics on the wrapped TextView, so styling the
             // wrapper's TextView is what actually changes the rendered message.
             val textView = (messageText as MMNeat7extView).wrappedTextView
-            textView.setTextSize(TypedValue.COMPLEX_UNIT_SP, textSizeSp.toFloat())
-            textView.setLineSpacing(0f, lineSpacingPercent / 100f)
-            messageText.requestLayout()
+            val targetSizePx = TypedValue.applyDimension(
+                TypedValue.COMPLEX_UNIT_SP,
+                textSizeSp.toFloat(),
+                textView.resources.displayMetrics,
+            )
+            val sizeChanged = textView.textSize != targetSizePx
+            val spacingChanged = textView.lineSpacingMultiplier != targetSpacing
+            if (sizeChanged) {
+                textView.setTextSize(TypedValue.COMPLEX_UNIT_SP, textSizeSp.toFloat())
+            }
+            if (spacingChanged) {
+                textView.setLineSpacing(0f, targetSpacing)
+            }
+            // Binds happen for every message while the list scrolls; requesting a layout when
+            // nothing changed re-measures the row on every frame and is the main scroll cost here.
+            if (sizeChanged || spacingChanged) {
+                messageText.requestLayout()
+            }
         }
     }
 

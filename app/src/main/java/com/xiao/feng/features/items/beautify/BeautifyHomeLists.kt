@@ -252,8 +252,12 @@ object BeautifyHomeLists : ClickableFeature() {
 
     private fun decorateList(list: View) {
         if (!isEnabled || !islandEnabled) return
-        if (!isMainTabView(list)) return
-        if (isExcludedContainer(list)) return
+        // onLayout runs on every list layout pass while rows are recycled, so confirm the list is
+        // a LauncherUI tab once and then skip the per-child activity/ancestor checks below.
+        if (lists[list] != true) {
+            if (!isMainTabView(list)) return
+            if (isExcludedContainer(list)) return
+        }
         // The card insets supply the separation; native dividers would draw a seam
         // across the gaps between rows.
         if (list is ListView && (list.divider != null || list.dividerHeight != 0)) {
@@ -263,7 +267,7 @@ object BeautifyHomeLists : ClickableFeature() {
         val group = list as? ViewGroup ?: return
         lists[list] = true
         for (index in 0 until group.childCount) {
-            decorate(group.getChildAt(index))
+            decorateConfirmed(group.getChildAt(index))
         }
     }
 
@@ -279,7 +283,11 @@ object BeautifyHomeLists : ClickableFeature() {
 
     private fun decorate(row: View) {
         if (!isDecoratableRow(row)) return
+        decorateConfirmed(row)
+    }
 
+    /** Card styling for a row already known to belong to a confirmed LauncherUI tab list. */
+    private fun decorateConfirmed(row: View) {
         val density = row.resources.displayMetrics.density
         val horizontalInset = (SIDE_INSET_DP * density).roundToInt()
         val verticalInset = (ROW_GAP_DP * density / 2f).roundToInt()
@@ -397,9 +405,17 @@ object BeautifyHomeLists : ClickableFeature() {
         return view.rootView === activity.window.decorView
     }
 
-    private tailrec fun Context.findActivity(): Activity? = when (this) {
-        is Activity -> this
-        is ContextWrapper -> baseContext.findActivity()
-        else -> null
+    /**
+     * Contexts in a view hierarchy never change activity, so resolve the wrapper chain once
+     * instead of walking it on every row bind/layout.
+     */
+    private val activities = WeakHashMap<Context, Activity>()
+
+    private fun Context.findActivity(): Activity? {
+        if (this is Activity) return this
+        activities[this]?.let { return it }
+        val activity = (this as? ContextWrapper)?.baseContext?.findActivity() ?: return null
+        activities[this] = activity
+        return activity
     }
 }
