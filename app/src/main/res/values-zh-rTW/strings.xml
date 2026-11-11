@@ -963,10 +963,8 @@
     <string name="moments_auto_comment_ai_base_url_hint">預設 https://api.deepseek.com</string>
     <string name="moments_auto_comment_ai_model_title">模型</string>
     <string name="moments_auto_comment_ai_model_hint">預設 deepseek-flash，支援圖片輸入</string>
-    <string name="moments_auto_comment_ai_persona_title">人物設定</string>
-    <string name="moments_auto_comment_ai_persona_hint">設定評論者是誰：身分、關係、性格、語氣，可寫多行</string>
-    <string name="moments_auto_comment_ai_prompt_title">回覆要求</string>
-    <string name="moments_auto_comment_ai_prompt_hint">留空使用預設的字數與格式要求</string>
+    <string name="moments_auto_comment_ai_persona_title">人物設定（提示詞）</string>
+    <string name="moments_auto_comment_ai_persona_hint">描述評論者是誰、性格語氣和回覆要求。例如：你叫小雨，是一個 18 歲的少女……</string>
     <string name="moments_auto_comment_ai_max_images_title">讀取圖片數</string>
     <string name="moments_auto_comment_interval_title">評論間隔</string>
     <string name="moments_auto_comment_browsing_title">瀏覽時評論</string>

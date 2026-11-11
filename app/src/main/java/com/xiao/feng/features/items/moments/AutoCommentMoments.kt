@@ -61,7 +61,6 @@ object AutoCommentMoments : AutoMomentsBase() {
     private var aiBaseUrl by prefOption("moments_auto_comment_ai_base_url", "https://api.deepseek.com")
     private var aiModel by prefOption("moments_auto_comment_ai_model", "deepseek-flash")
     private var aiPersona by prefOption("moments_auto_comment_ai_persona", AutoCommentAi.DEFAULT_PERSONA)
-    private var aiPrompt by prefOption("moments_auto_comment_ai_prompt", AutoCommentAi.DEFAULT_PROMPT)
     private var aiMaxImages by prefOption("moments_auto_comment_ai_max_images", 3)
 
     private val handledSnsIds = ConcurrentHashMap.newKeySet<String>()
@@ -98,7 +97,6 @@ object AutoCommentMoments : AutoMomentsBase() {
             var baseUrlInput by remember { mutableStateOf(aiBaseUrl) }
             var modelInput by remember { mutableStateOf(aiModel) }
             var personaInput by remember { mutableStateOf(aiPersona) }
-            var promptInput by remember { mutableStateOf(aiPrompt) }
             var maxImagesInput by remember { mutableIntStateOf(aiMaxImages) }
 
             AlertDialogContent(
@@ -175,21 +173,6 @@ object AutoCommentMoments : AutoMomentsBase() {
                                     confirmLabel = stringResource(R.string.dialog_confirm),
                                     dismissLabel = stringResource(R.string.dialog_cancel),
                                     valueHint = stringResource(R.string.moments_auto_comment_ai_persona_hint),
-                                    singleLine = false,
-                                )
-                            }
-                            item {
-                                TextFieldDialogWidget(
-                                    title = stringResource(R.string.moments_auto_comment_ai_prompt_title),
-                                    value = promptInput,
-                                    onValueChange = {
-                                        promptInput = it
-                                        aiPrompt = it
-                                    },
-                                    dialogTitle = stringResource(R.string.moments_auto_comment_ai_prompt_title),
-                                    confirmLabel = stringResource(R.string.dialog_confirm),
-                                    dismissLabel = stringResource(R.string.dialog_cancel),
-                                    valueHint = stringResource(R.string.moments_auto_comment_ai_prompt_hint),
                                     singleLine = false,
                                 )
                             }
@@ -346,7 +329,6 @@ object AutoCommentMoments : AutoMomentsBase() {
                         baseUrl = aiBaseUrl,
                         model = aiModel,
                         persona = aiPersona,
-                        prompt = aiPrompt,
                         maxImages = aiMaxImages,
                     ),
                 )
