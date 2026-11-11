@@ -15,7 +15,6 @@ import com.xiao.feng.features.api.ui.WeMomentsApi
 import com.xiao.feng.utils.HostInfo
 import com.xiao.feng.utils.WeLogger
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
 import java.io.ByteArrayOutputStream
