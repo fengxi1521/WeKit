@@ -4002,7 +4002,7 @@
     <string name="scheduled_messages_need_text">Enter the message text</string>
     <string name="scheduled_messages_need_time">Add at least one send time</string>
     <string name="scheduled_messages_send_now">Send</string>
-    <string name="scheduled_messages_send_now_result">Sent to %1$d of %2$d chats</string>
+    <string name="scheduled_messages_send_now_result">Queued for %1$d of %2$d chats</string>
     <string name="scheduled_messages_once_deleted">Deleted after sending</string>
     <string name="scheduled_messages_target_chat">Chats</string>
     <string name="scheduled_messages_target_moments">Moments</string>

@@ -318,18 +318,8 @@ object ScheduledMessageSchedule {
         }
         val targets = message.targets
         val items = message.normalizedItems()
-        if (message.nextIntervalMillis() > 0L && targets.size > 1) {
-            scope.launch { sendOneByOne(message, targets, items) }
-            return targets.size
-        }
-        var sent = 0
-        for (target in targets) {
-            if (runCatching { sendItems(message, target, items) }.getOrDefault(false)) {
-                sent++
-            }
-        }
-        WeLogger.i(TAG, "manual send of ${message.id} reached $sent/${targets.size} chat(s)")
-        return sent
+        scope.launch { sendOneByOne(message, targets, items) }
+        return targets.size
     }
 
     private fun registerReceiver() {

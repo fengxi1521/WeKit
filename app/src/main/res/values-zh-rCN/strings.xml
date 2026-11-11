@@ -4034,7 +4034,7 @@
     <string name="scheduled_messages_need_text">请输入消息内容</string>
     <string name="scheduled_messages_need_time">请至少添加一个发送时刻</string>
     <string name="scheduled_messages_send_now">发送</string>
-    <string name="scheduled_messages_send_now_result">已发送到 %1$d/%2$d 个会话</string>
+    <string name="scheduled_messages_send_now_result">已加入发送队列：%1$d/%2$d</string>
     <string name="scheduled_messages_once_deleted">发送后自动删除</string>
     <string name="scheduled_messages_target_chat">聊天</string>
     <string name="scheduled_messages_target_moments">朋友圈</string>

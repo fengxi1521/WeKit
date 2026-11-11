@@ -3990,7 +3990,7 @@
     <string name="scheduled_messages_need_text">請輸入訊息內容</string>
     <string name="scheduled_messages_need_time">請至少新增一個傳送時刻</string>
     <string name="scheduled_messages_send_now">傳送</string>
-    <string name="scheduled_messages_send_now_result">已傳送到 %1$d/%2$d 個會話</string>
+    <string name="scheduled_messages_send_now_result">已加入傳送佇列：%1$d/%2$d</string>
     <string name="scheduled_messages_once_deleted">傳送後自動刪除</string>
     <string name="scheduled_messages_target_chat">聊天</string>
     <string name="scheduled_messages_target_moments">朋友圈</string>
