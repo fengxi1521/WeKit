@@ -4163,4 +4163,9 @@
     <string name="chat_keyword_notify_block_enable_title">启用通知屏蔽</string>
     <string name="chat_keyword_notify_block_keywords_title">屏蔽关键词</string>
     <string name="chat_keyword_notify_block_keywords_hint">多个关键词用逗号分隔</string>
+    <string name="feature_group_nickname_color_name">群昵称颜色</string>
+    <string name="feature_group_nickname_color_description">自定义群聊消息中发送者昵称的颜色</string>
+    <string name="chat_group_nickname_color_follow_title">跟随系统</string>
+    <string name="chat_group_nickname_color_color_title">昵称颜色</string>
+    <string name="chat_group_nickname_color_bold_title">加粗昵称</string>
 </resources>

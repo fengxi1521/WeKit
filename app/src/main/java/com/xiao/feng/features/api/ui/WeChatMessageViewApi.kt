@@ -151,6 +151,12 @@ object WeChatMessageViewApi : ApiFeature(), IResolveDex {
      */
     private val nicknameUserTvFields = ConcurrentHashMap<Class<*>, List<Field>>()
 
+    /** Sender-name view of the message currently bound by [param], or null for rows without one. */
+    fun getNicknameTextView(param: HookParam): TextView? {
+        val holder = param.thisObject ?: return null
+        return nicknameUserTv(holder)
+    }
+
     private fun nicknameUserTv(holder: Any): TextView? {
         val fields = nicknameUserTvFields.getOrPut(holder.javaClass) {
             holder.reflekt()

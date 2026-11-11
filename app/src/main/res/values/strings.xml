@@ -4131,4 +4131,9 @@
     <string name="chat_keyword_notify_block_enable_title">Enable notification blocking</string>
     <string name="chat_keyword_notify_block_keywords_title">Blocked keywords</string>
     <string name="chat_keyword_notify_block_keywords_hint">Separate multiple keywords with commas</string>
+    <string name="feature_group_nickname_color_name">Group nickname color</string>
+    <string name="feature_group_nickname_color_description">Customize the sender nickname color in group chats</string>
+    <string name="chat_group_nickname_color_follow_title">Follow host</string>
+    <string name="chat_group_nickname_color_color_title">Nickname color</string>
+    <string name="chat_group_nickname_color_bold_title">Bold nickname</string>
 </resources>
