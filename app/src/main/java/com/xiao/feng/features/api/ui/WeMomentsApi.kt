@@ -159,6 +159,8 @@ object WeMomentsApi : ApiFeature(), IResolveDex {
     // --- end used by AutoMomentsBase ---
     private val methodSendLike by dexMethod()
     private val methodSendComment by dexMethod()
+    /** `SnsInfoStorage.replaceUserBySnsId(long, SnsInfo)` — fires after a post is written to storage. */
+    val methodReplaceUserBySnsId by dexMethod()
     private val methodCancelLike by dexMethod()
     private val methodGetSnsInfoByLocalId by dexMethod()
     val methodGetSnsInfoStorage by dexMethod()
@@ -628,6 +630,11 @@ object WeMomentsApi : ApiFeature(), IResolveDex {
     fun isDeleted(snsInfo: Any?): Boolean {
         val normalized = normalizeSnsInfo(snsInfo) ?: return false
         return normalized.reflekt().firstMethodOrNull { name = "isDeadSource"; parameters(); superclass() }?.invoke() as? Boolean == true
+    }
+
+    fun isAd(snsInfo: Any?): Boolean {
+        val normalized = normalizeSnsInfo(snsInfo) ?: return false
+        return normalized.reflekt().firstMethodOrNull { name = "isAd"; parameters(); superclass() }?.invoke() as? Boolean == true
     }
 
     fun getContent(snsInfo: Any?): ByteArray? {

@@ -970,6 +970,9 @@
     <string name="moments_auto_comment_interval_title">评论间隔</string>
     <string name="moments_auto_comment_browsing_title">浏览时评论</string>
     <string name="moments_auto_comment_browsing_description">浏览到新朋友圈时也自动评论；关闭后仅评论新发布的</string>
+    <string name="moments_auto_comment_whitelist_title">白名单</string>
+    <string name="moments_auto_comment_blacklist_title">黑名单</string>
+    <string name="moments_auto_comment_list_hint">多个微信号用逗号或空格分隔。白名单非空时只评论名单内的好友；黑名单始终排除</string>
     <string name="feature_auto_refresh_name">自动刷新</string>
     <string name="feature_auto_refresh_description">定时自动刷新朋友圈列表</string>
     <string name="feature_auto_repost_moments_name">自动转发</string>

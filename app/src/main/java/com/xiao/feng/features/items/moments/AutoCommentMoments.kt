@@ -1,6 +1,5 @@
 package com.xiao.feng.features.items.moments
 
-import android.content.ContentValues
 import android.view.ViewGroup
 import androidx.activity.ComponentActivity
 import androidx.compose.foundation.layout.PaddingValues
@@ -15,7 +14,6 @@ import androidx.compose.ui.unit.dp
 import com.xiao.feng.R
 import com.xiao.feng.data.KvStore.prefOption
 import com.xiao.feng.features.api.core.WeApi
-import com.xiao.feng.features.api.core.WeDatabaseListenerApi
 import com.xiao.feng.features.api.ui.WeMomentsApi
 import com.xiao.feng.features.core.FeatureCategoryIds
 import com.xiao.feng.ui.content.AlertDialogContent
@@ -32,11 +30,11 @@ import java.util.concurrent.ConcurrentHashMap
 /**
  * Posts a configured comment on newly published Moments.
  *
- * The trigger is the host's own `SnsInfo` insert, so the feature does not need the timeline UI to
- * be open. Posts older than the moment the feature was enabled are never touched, and every
- * commented post is remembered so a restart does not comment twice.
+ * The trigger is the host writing a post into `SnsInfo` storage, so the feature also works while
+ * the timeline UI is closed. Posts older than the moment the feature was enabled are never
+ * touched, and every commented post is remembered so a restart does not comment twice.
  */
-object AutoCommentMoments : AutoMomentsBase(), WeDatabaseListenerApi.IInsertListener {
+object AutoCommentMoments : AutoMomentsBase() {
 
     override val technicalId = "朋友圈自动评论"
     override val nameRes = R.string.feature_auto_comment_moments_name
@@ -51,6 +49,8 @@ object AutoCommentMoments : AutoMomentsBase(), WeDatabaseListenerApi.IInsertList
     private var commentText by prefOption("moments_auto_comment_text", "")
     private var intervalSeconds by prefOption("moments_auto_comment_interval_seconds", 3)
     private var commentWhenBrowsing by prefOption("moments_auto_comment_when_browsing", false)
+    private var whitelistRaw by prefOption("moments_auto_comment_whitelist", "")
+    private var blacklistRaw by prefOption("moments_auto_comment_blacklist", "")
     private var savedHandledIds by prefOption("moments_auto_comment_handled", emptySet<String>())
 
     private val handledSnsIds = ConcurrentHashMap.newKeySet<String>()
@@ -65,13 +65,14 @@ object AutoCommentMoments : AutoMomentsBase(), WeDatabaseListenerApi.IInsertList
         handledSnsIds.clear()
         handledSnsIds.addAll(savedHandledIds)
         lastAttemptAt.clear()
-        WeDatabaseListenerApi.addListener(this)
+        WeMomentsApi.methodReplaceUserBySnsId.hookAfter {
+            if (result == true) processSnsInfoAsync(args[1], "storage")
+        }
         installTimelineHooks()
     }
 
     override fun onDisable() {
         stopAutomation()
-        WeDatabaseListenerApi.removeListener(this)
     }
 
     override fun onClick(context: ComponentActivity) {
@@ -79,6 +80,8 @@ object AutoCommentMoments : AutoMomentsBase(), WeDatabaseListenerApi.IInsertList
             var textInput by remember { mutableStateOf(commentText) }
             var intervalInput by remember { mutableIntStateOf(intervalSeconds) }
             var browsingInput by remember { mutableStateOf(commentWhenBrowsing) }
+            var whitelistInput by remember { mutableStateOf(whitelistRaw) }
+            var blacklistInput by remember { mutableStateOf(blacklistRaw) }
 
             AlertDialogContent(
                 title = { Text(stringResource(R.string.feature_auto_comment_moments_name)) },
@@ -125,6 +128,34 @@ object AutoCommentMoments : AutoMomentsBase(), WeDatabaseListenerApi.IInsertList
                                 },
                             )
                         }
+                        item {
+                            TextFieldDialogWidget(
+                                title = stringResource(R.string.moments_auto_comment_whitelist_title),
+                                value = whitelistInput,
+                                onValueChange = {
+                                    whitelistInput = it
+                                    whitelistRaw = it
+                                },
+                                dialogTitle = stringResource(R.string.moments_auto_comment_whitelist_title),
+                                confirmLabel = stringResource(R.string.dialog_confirm),
+                                dismissLabel = stringResource(R.string.dialog_cancel),
+                                valueHint = stringResource(R.string.moments_auto_comment_list_hint),
+                            )
+                        }
+                        item {
+                            TextFieldDialogWidget(
+                                title = stringResource(R.string.moments_auto_comment_blacklist_title),
+                                value = blacklistInput,
+                                onValueChange = {
+                                    blacklistInput = it
+                                    blacklistRaw = it
+                                },
+                                dialogTitle = stringResource(R.string.moments_auto_comment_blacklist_title),
+                                confirmLabel = stringResource(R.string.dialog_confirm),
+                                dismissLabel = stringResource(R.string.dialog_cancel),
+                                valueHint = stringResource(R.string.moments_auto_comment_list_hint),
+                            )
+                        }
                     }
                 },
                 dismissButton = {
@@ -132,25 +163,6 @@ object AutoCommentMoments : AutoMomentsBase(), WeDatabaseListenerApi.IInsertList
                 },
             )
         }
-    }
-
-    override fun onInsert(table: String, values: ContentValues) {
-        if (table != "SnsInfo") return
-        if (commentText.isBlank()) return
-
-        val owner = values.getAsString("userName")?.trim().orEmpty()
-        if (owner == WeApi.selfWxId) return
-
-        val sourceType = values.getAsInteger("sourceType") ?: 0
-        if (sourceType and WeMomentsApi.ACTIVE_SOURCE_MASK == 0 ||
-            sourceType and WeMomentsApi.AD_SOURCE_FLAG != 0
-        ) {
-            return
-        }
-
-        val snsId = values.getAsLong("snsId") ?: return
-        val snsInfo = WeMomentsApi.getSnsInfoBySnsId(snsId) ?: return
-        processSnsInfoAsync(snsInfo, "database")
     }
 
     override fun processVisibleItems(list: ViewGroup) {
@@ -178,8 +190,9 @@ object AutoCommentMoments : AutoMomentsBase(), WeDatabaseListenerApi.IInsertList
         val owner = WeMomentsApi.getOwnerWxId(snsInfo)?.trim().orEmpty()
         if (owner.isBlank() || owner == WeApi.selfWxId) return
         if (commentText.isBlank()) return
+        if (isOwnerFiltered(owner)) return
         if (WeMomentsApi.getCreateTimeSeconds(snsInfo) <= scope.publishedAfterSeconds) return
-        if (WeMomentsApi.isDeleted(snsInfo)) return
+        if (WeMomentsApi.isDeleted(snsInfo) || WeMomentsApi.isAd(snsInfo)) return
 
         val snsTableId = WeMomentsApi.getSnsTableId(snsInfo) ?: return
         if (isIntercepted(snsInfo) || snsTableId in handledSnsIds) return
@@ -213,6 +226,18 @@ object AutoCommentMoments : AutoMomentsBase(), WeDatabaseListenerApi.IInsertList
             result.error?.let { WeLogger.w(TAG, message, it) } ?: WeLogger.w(TAG, message)
         }
     }
+
+    private fun isOwnerFiltered(owner: String): Boolean {
+        if (owner in parseWxIds(blacklistRaw)) return true
+        val whitelist = parseWxIds(whitelistRaw)
+        return whitelist.isNotEmpty() && owner !in whitelist
+    }
+
+    private fun parseWxIds(raw: String): Set<String> =
+        raw.split(',', '，', ';', '；', '\n', '\r', ' ', '\t')
+            .map { it.trim() }
+            .filter { it.isNotEmpty() }
+            .toSet()
 
     private fun rememberHandled(snsTableId: String) {
         if (!handledSnsIds.add(snsTableId)) return

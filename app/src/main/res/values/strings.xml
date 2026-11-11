@@ -1006,6 +1006,9 @@
     <string name="moments_auto_comment_interval_title">Comment interval</string>
     <string name="moments_auto_comment_browsing_title">Comment while browsing</string>
     <string name="moments_auto_comment_browsing_description">Also comment on Moments seen while browsing. When off, only newly published posts are commented</string>
+    <string name="moments_auto_comment_whitelist_title">Whitelist</string>
+    <string name="moments_auto_comment_blacklist_title">Blacklist</string>
+    <string name="moments_auto_comment_list_hint">Separate wxids with commas or spaces. When the whitelist is not empty, only listed friends are commented; the blacklist is always excluded</string>
     <string name="feature_auto_refresh_name">Auto refresh</string>
     <string name="feature_auto_refresh_description">Automatically refresh the Moments list regularly</string>
     <string name="feature_auto_repost_moments_name">Auto-repost Moments</string>
