@@ -3,12 +3,15 @@ package com.xiao.feng.features.items.moments
 import android.view.ViewGroup
 import androidx.activity.ComponentActivity
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.xiao.feng.R
@@ -53,6 +56,13 @@ object AutoCommentMoments : AutoMomentsBase() {
     private var blacklistRaw by prefOption("moments_auto_comment_blacklist", "")
     private var savedHandledIds by prefOption("moments_auto_comment_handled", emptySet<String>())
 
+    private var aiEnabled by prefOption("moments_auto_comment_ai_enabled", false)
+    private var aiApiKey by prefOption("moments_auto_comment_ai_api_key", "")
+    private var aiBaseUrl by prefOption("moments_auto_comment_ai_base_url", "https://api.deepseek.com")
+    private var aiModel by prefOption("moments_auto_comment_ai_model", "deepseek-flash")
+    private var aiPrompt by prefOption("moments_auto_comment_ai_prompt", AutoCommentAi.DEFAULT_PROMPT)
+    private var aiMaxImages by prefOption("moments_auto_comment_ai_max_images", 3)
+
     private val handledSnsIds = ConcurrentHashMap.newKeySet<String>()
     private val lastAttemptAt = ConcurrentHashMap<String, Long>()
     private val actionLock = Any()
@@ -82,11 +92,107 @@ object AutoCommentMoments : AutoMomentsBase() {
             var browsingInput by remember { mutableStateOf(commentWhenBrowsing) }
             var whitelistInput by remember { mutableStateOf(whitelistRaw) }
             var blacklistInput by remember { mutableStateOf(blacklistRaw) }
+            var aiEnabledInput by remember { mutableStateOf(aiEnabled) }
+            var apiKeyInput by remember { mutableStateOf(aiApiKey) }
+            var baseUrlInput by remember { mutableStateOf(aiBaseUrl) }
+            var modelInput by remember { mutableStateOf(aiModel) }
+            var promptInput by remember { mutableStateOf(aiPrompt) }
+            var maxImagesInput by remember { mutableIntStateOf(aiMaxImages) }
 
             AlertDialogContent(
                 title = { Text(stringResource(R.string.feature_auto_comment_moments_name)) },
                 text = {
-                    SegmentedColumn(contentPadding = PaddingValues(0.dp)) {
+                    SegmentedColumn(
+                        modifier = Modifier.verticalScroll(rememberScrollState()),
+                        contentPadding = PaddingValues(0.dp),
+                    ) {
+                        item {
+                            SwitchWidget(
+                                title = stringResource(R.string.moments_auto_comment_ai_title),
+                                description = stringResource(R.string.moments_auto_comment_ai_description),
+                                checked = aiEnabledInput,
+                                onCheckedChange = {
+                                    aiEnabledInput = it
+                                    aiEnabled = it
+                                },
+                            )
+                        }
+                        if (aiEnabledInput) {
+                            item {
+                                TextFieldDialogWidget(
+                                    title = stringResource(R.string.moments_auto_comment_ai_api_key_title),
+                                    value = apiKeyInput,
+                                    onValueChange = {
+                                        apiKeyInput = it
+                                        aiApiKey = it
+                                    },
+                                    dialogTitle = stringResource(R.string.moments_auto_comment_ai_api_key_title),
+                                    confirmLabel = stringResource(R.string.dialog_confirm),
+                                    dismissLabel = stringResource(R.string.dialog_cancel),
+                                    valueHint = stringResource(R.string.moments_auto_comment_ai_api_key_hint),
+                                    password = true,
+                                )
+                            }
+                            item {
+                                TextFieldDialogWidget(
+                                    title = stringResource(R.string.moments_auto_comment_ai_base_url_title),
+                                    value = baseUrlInput,
+                                    onValueChange = {
+                                        baseUrlInput = it
+                                        aiBaseUrl = it
+                                    },
+                                    dialogTitle = stringResource(R.string.moments_auto_comment_ai_base_url_title),
+                                    confirmLabel = stringResource(R.string.dialog_confirm),
+                                    dismissLabel = stringResource(R.string.dialog_cancel),
+                                    valueHint = stringResource(R.string.moments_auto_comment_ai_base_url_hint),
+                                )
+                            }
+                            item {
+                                TextFieldDialogWidget(
+                                    title = stringResource(R.string.moments_auto_comment_ai_model_title),
+                                    value = modelInput,
+                                    onValueChange = {
+                                        modelInput = it
+                                        aiModel = it
+                                    },
+                                    dialogTitle = stringResource(R.string.moments_auto_comment_ai_model_title),
+                                    confirmLabel = stringResource(R.string.dialog_confirm),
+                                    dismissLabel = stringResource(R.string.dialog_cancel),
+                                    valueHint = stringResource(R.string.moments_auto_comment_ai_model_hint),
+                                )
+                            }
+                            item {
+                                TextFieldDialogWidget(
+                                    title = stringResource(R.string.moments_auto_comment_ai_prompt_title),
+                                    value = promptInput,
+                                    onValueChange = {
+                                        promptInput = it
+                                        aiPrompt = it
+                                    },
+                                    dialogTitle = stringResource(R.string.moments_auto_comment_ai_prompt_title),
+                                    confirmLabel = stringResource(R.string.dialog_confirm),
+                                    dismissLabel = stringResource(R.string.dialog_cancel),
+                                    valueHint = stringResource(R.string.moments_auto_comment_ai_prompt_hint),
+                                    singleLine = false,
+                                )
+                            }
+                            item {
+                                BaseItemContainer {
+                                    IntNumberPickerWidget(
+                                        title = stringResource(R.string.moments_auto_comment_ai_max_images_title),
+                                        value = maxImagesInput,
+                                        startInt = 0,
+                                        endInt = 9,
+                                        stepSize = 1,
+                                        valueSuffix = "",
+                                        onValueChange = {
+                                            maxImagesInput = it
+                                            aiMaxImages = it
+                                        },
+                                    )
+                                }
+                            }
+                        }
                         item {
                             TextFieldDialogWidget(
                                 title = stringResource(R.string.moments_auto_comment_text_title),
@@ -189,7 +295,7 @@ object AutoCommentMoments : AutoMomentsBase() {
 
         val owner = WeMomentsApi.getOwnerWxId(snsInfo)?.trim().orEmpty()
         if (owner.isBlank() || owner == WeApi.selfWxId) return
-        if (commentText.isBlank()) return
+        if (!aiEnabled && commentText.isBlank()) return
         if (isOwnerFiltered(owner)) return
         if (WeMomentsApi.getCreateTimeSeconds(snsInfo) <= scope.publishedAfterSeconds) return
         if (WeMomentsApi.isDeleted(snsInfo) || WeMomentsApi.isAd(snsInfo)) return
@@ -215,7 +321,33 @@ object AutoCommentMoments : AutoMomentsBase() {
                     success = true, sent = false, message = "deleted/recalled",
                 )
             }
-            WeMomentsApi.comment(snsInfo, template)
+            val generated = if (aiEnabled) {
+                AutoCommentAi.generate(
+                    snsInfo = snsInfo,
+                    config = AutoCommentAi.Config(
+                        apiKey = aiApiKey,
+                        baseUrl = aiBaseUrl,
+                        model = aiModel,
+                        prompt = aiPrompt,
+                        maxImages = aiMaxImages,
+                    ),
+                )
+            } else {
+                null
+            }
+            // Generation waits on the CDN and the model, so the feature may have been switched off.
+            if (!isAutomationCurrent(scope)) {
+                return@sendWithDelay WeMomentsApi.ActionResult(
+                    success = true, sent = false, message = "automation stopped",
+                )
+            }
+            val text = generated?.takeIf { it.isNotBlank() } ?: template
+            if (text.isBlank()) {
+                return@sendWithDelay WeMomentsApi.ActionResult(
+                    success = false, sent = false, message = "empty AI comment",
+                )
+            }
+            WeMomentsApi.comment(snsInfo, text)
         }
 
         if (result.success) {
