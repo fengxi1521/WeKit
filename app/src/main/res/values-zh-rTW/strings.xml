@@ -4114,4 +4114,9 @@
     <string name="chat_keyword_notify_quiet_end_title">結束時間</string>
     <string name="chat_keyword_notify_subtext_group">群訊息</string>
     <string name="chat_keyword_notify_subtext_private">好友訊息</string>
+    <string name="feature_keyword_notification_block_name">關鍵詞屏蔽通知</string>
+    <string name="feature_keyword_notification_block_description">包含指定關鍵詞的訊息不再彈出微信通知，訊息仍會正常接收</string>
+    <string name="chat_keyword_notify_block_enable_title">啟用通知屏蔽</string>
+    <string name="chat_keyword_notify_block_keywords_title">屏蔽關鍵詞</string>
+    <string name="chat_keyword_notify_block_keywords_hint">多個關鍵詞用逗號分隔</string>
 </resources>

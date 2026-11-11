@@ -4126,4 +4126,9 @@
     <string name="chat_keyword_notify_quiet_end_title">End time</string>
     <string name="chat_keyword_notify_subtext_group">Group message</string>
     <string name="chat_keyword_notify_subtext_private">Direct message</string>
+    <string name="feature_keyword_notification_block_name">Keyword notification blocking</string>
+    <string name="feature_keyword_notification_block_description">Do not pop a WeChat notification for messages whose content matches a keyword. Messages are still received in the chat.</string>
+    <string name="chat_keyword_notify_block_enable_title">Enable notification blocking</string>
+    <string name="chat_keyword_notify_block_keywords_title">Blocked keywords</string>
+    <string name="chat_keyword_notify_block_keywords_hint">Separate multiple keywords with commas</string>
 </resources>
