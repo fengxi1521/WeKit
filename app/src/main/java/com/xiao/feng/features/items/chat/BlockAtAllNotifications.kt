@@ -150,19 +150,16 @@ object BlockAtAllNotificationsRuntime : ApiFeature(), IResolveDex {
     override val descriptionRes = R.string.feature_block_at_all_notifications_description
 
     private const val TAG = "BlockAtAllNotifications"
+    private const val PENDING_TTL_MILLIS = 30_000L
+    private const val MAX_PENDING_PER_GROUP = 16
 
-    /** @所有人 在消息/通知文本中的标记。 */
-    private val AT_ALL_MARKERS = listOf("@所有人", "@全体成员", "@ all people")
+    private data class PendingAtAll(
+        val rawContent: String,
+        val capturedAt: Long,
+    )
 
-    /**
-     * @所有人 消息落库后宿主通常在同一秒内出通知。超出该窗口就不再拦截,
-     * 避免把同一群里随后到达的普通消息通知一起吞掉。
-     */
-    private const val CONSUME_WINDOW_MILLIS = 8_000L
-    private const val MAX_TRACKED_GROUPS = 64
-
-    private val stateLock = Any()
-    private val lastAtAllAt = HashMap<String, Long>()
+    private val pendingLock = Any()
+    private val pendingByGroup = HashMap<String, ArrayDeque<PendingAtAll>>()
 
     private val methodDealNotify by dexMethod()
 
@@ -173,78 +170,69 @@ object BlockAtAllNotificationsRuntime : ApiFeature(), IResolveDex {
     override fun onEnable() {
         WeMessageApi.methodMsgInfoStorageInsertMessage.hookAfter {
             val message = MessageInfo(args[0]!!)
-            if (message.isSelfSender || !message.isInGroupChat) return@hookAfter
-            if (!message.isAtAllMessage()) return@hookAfter
-            markAtAllMessage(message.talker)
+            if (message.isSelfSender || !message.isInGroupChat || !message.isNotifyAll) return@hookAfter
+            recordPending(message.talker, message.content)
         }
 
         methodDealNotify.hookBefore(100) {
-            val groupId = findGroupChatId(args) ?: return@hookBefore
-            if (!BlockAtAllNotifications.shouldSuppress(groupId)) return@hookBefore
-            if (!hasRecentAtAll(groupId) && !hasAtAllText(args)) return@hookBefore
-            clearAtAll(groupId)
-            WeLogger.i(TAG, "suppressing @all notification from $groupId")
+            val talker = args[1] as String
+            val rawContent = args[2] as String
+            if (!consumePending(talker, rawContent)) return@hookBefore
+            if (!BlockAtAllNotifications.shouldSuppress(talker)) return@hookBefore
+            WeLogger.i(TAG, "suppressing @all notification from $talker")
             result = null
         }
 
         methodNotifyForLightPush.hookBefore(100) {
-            val groupId = findGroupChatId(args) ?: return@hookBefore
-            if (!BlockAtAllNotifications.shouldSuppress(groupId)) return@hookBefore
+            val talker = args[1] as String
+            if (!BlockAtAllNotifications.shouldSuppress(talker)) return@hookBefore
             val msgSource = args[5] as Map<*, *>?
-            if (!hasRecentAtAll(groupId) && !msgSource.containsAtAllMention()) return@hookBefore
-            clearAtAll(groupId)
-            WeLogger.i(TAG, "suppressing LightPush @all notification from $groupId")
+            if (!msgSource.containsAtAllMention()) return@hookBefore
+            WeLogger.i(TAG, "suppressing LightPush @all notification from $talker")
             result = null
         }
     }
 
     override fun onDisable() {
-        synchronized(stateLock) { lastAtAllAt.clear() }
+        synchronized(pendingLock) { pendingByGroup.clear() }
     }
 
-    /** 优先用宿主的 msgsource 判定, 拿不到 lvBuffer 时退回文本标记。 */
-    private fun MessageInfo.isAtAllMessage(): Boolean =
-        isNotifyAll || AT_ALL_MARKERS.any { actualContent.contains(it) }
-
-    /** 通知参数里群号不一定排在固定位置, 统一在所有字符串参数里找 @chatroom。 */
-    private fun findGroupChatId(args: Array<Any?>): String? =
-        args.filterIsInstance<String>().firstOrNull { it.isGroupChatWxId }
-
-    private fun hasAtAllText(args: Array<Any?>): Boolean =
-        args.any { arg -> arg is String && AT_ALL_MARKERS.any { arg.contains(it) } }
-
-    private fun markAtAllMessage(groupId: String) {
+    private fun recordPending(groupId: String, rawContent: String) {
         val now = System.currentTimeMillis()
-        synchronized(stateLock) {
-            if (lastAtAllAt.size >= MAX_TRACKED_GROUPS) {
-                lastAtAllAt.entries.removeAll { now - it.value > CONSUME_WINDOW_MILLIS }
-            }
-            lastAtAllAt[groupId] = now
+        synchronized(pendingLock) {
+            val queue = pendingByGroup.getOrPut(groupId) { ArrayDeque() }
+            discardExpired(queue, now)
+            queue.addLast(PendingAtAll(rawContent, now))
+            while (queue.size > MAX_PENDING_PER_GROUP) queue.removeFirst()
         }
     }
 
-    private fun hasRecentAtAll(groupId: String): Boolean {
+    private fun consumePending(groupId: String, rawContent: String): Boolean {
         val now = System.currentTimeMillis()
-        return synchronized(stateLock) {
-            val capturedAt = lastAtAllAt[groupId] ?: return@synchronized false
-            if (now - capturedAt > CONSUME_WINDOW_MILLIS) {
-                lastAtAllAt.remove(groupId)
-                false
-            } else {
-                true
-            }
+        return synchronized(pendingLock) {
+            val queue = pendingByGroup[groupId] ?: return@synchronized false
+            discardExpired(queue, now)
+            val entries = queue.toList()
+            val matchIndex = entries.indexOfFirst { it.rawContent == rawContent }
+            if (matchIndex < 0) return@synchronized false
+            queue.clear()
+            queue.addAll(entries.filterIndexed { index, _ -> index != matchIndex })
+            if (queue.isEmpty()) pendingByGroup.remove(groupId)
+            true
         }
     }
 
-    private fun clearAtAll(groupId: String) {
-        synchronized(stateLock) { lastAtAllAt.remove(groupId) }
+    private fun discardExpired(queue: ArrayDeque<PendingAtAll>, now: Long) {
+        while (queue.firstOrNull()?.let { now - it.capturedAt > PENDING_TTL_MILLIS } == true) {
+            queue.removeFirst()
+        }
     }
 
-    /** msgsource 可能保持 XML 字符串, 也可能已被宿主解析成嵌套 Map。 */
-    private fun Any?.containsAtAllMention(): Boolean = when (val value = this) {
-        is String -> value.contains("notify@all") || value.contains("announcement@all")
-        is Map<*, *> -> value.values.any { it.containsAtAllMention() }
-        is Iterable<*> -> value.any { it.containsAtAllMention() }
-        else -> false
+    private fun Map<*, *>?.containsAtAllMention(): Boolean {
+        val atUsers = this?.get(".msgsource.atuserlist") as? String ?: return false
+        return atUsers.split(',').any { user ->
+            val normalized = user.trim()
+            normalized == "notify@all" || normalized == "announcement@all"
+        }
     }
 }
