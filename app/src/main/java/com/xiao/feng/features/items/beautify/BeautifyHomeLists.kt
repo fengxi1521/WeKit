@@ -11,13 +11,10 @@ import android.graphics.drawable.GradientDrawable
 import android.graphics.drawable.InsetDrawable
 import android.graphics.drawable.LayerDrawable
 import android.graphics.drawable.RippleDrawable
-import android.os.Bundle
 import android.view.View
 import android.view.ViewGroup
 import android.widget.AbsListView
-import android.widget.ImageView
 import android.widget.ListView
-import android.widget.TextView
 import androidx.activity.ComponentActivity
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.material3.Text
@@ -74,33 +71,23 @@ object BeautifyHomeLists : ClickableFeature() {
 
     private const val CORNER_RADIUS_DP = 20
     private const val SIDE_INSET_DP = 12
-
-    /** 卡片组上下留白: 只在组的首/末行外侧留, 组内行之间不留。 */
-    private const val OUTER_INSET_DP = 8
-
-    /** 相邻两行之间的原生空隙超过该值即视为分组边界。 */
-    private const val GROUP_GAP_THRESHOLD_DP = 2
-
-    private const val ADDRESS_UI_FRAGMENT = "com.tencent.mm.ui.contact.address.MvvmAddressUIFragment"
-    private const val BIZ_ENTRANCE_VIEW = "com.tencent.mm.ui.contact.BizContactEntranceView"
+    private const val ROW_GAP_DP = 6
 
     private const val LIGHT_SURFACE = 0xFFFFFFFF.toInt()
     private const val DARK_SURFACE = 0xFF1F1F21.toInt()
     private const val LIGHT_PAGE = 0xFFF0F0F3.toInt()
     private const val DARK_PAGE = 0xFF101012.toInt()
+    private const val LIGHT_STROKE = 0x14000000
+    private const val DARK_STROKE = 0x1FFFFFFF
     private const val LIGHT_RIPPLE = 0x12000000
     private const val DARK_RIPPLE = 0x1FFFFFFF
 
     // 与会话列表一致: 打开特性即生效, 内层开关只用来临时关掉圆角卡片。
     private var islandEnabled by prefOption("beautify_home_lists_island", true)
 
-    /** 一行在合并后的卡片组中的位置, 决定哪几个角是圆角。 */
-    private enum class RowPosition { SINGLE, TOP, MIDDLE, BOTTOM }
-
     private class RowState(
         var original: Drawable?,
-        var applied: Drawable,
-        var position: RowPosition,
+        val applied: Drawable,
         val paddingLeft: Int,
         val paddingTop: Int,
         val paddingRight: Int,
@@ -111,12 +98,6 @@ object BeautifyHomeLists : ClickableFeature() {
     }
 
     private val rows = WeakHashMap<View, RowState>()
-
-    /** 最近一次布局算出的分组位置; 行被回收再绑定时先用它, 下一次布局会纠正。 */
-    private val rowPositions = WeakHashMap<View, RowPosition>()
-
-    /** 通讯录顶部那块手工构建的入口列表, 不属于主列表, 需要单独套卡片。 */
-    private val contactsHeaders = WeakHashMap<ViewGroup, Boolean>()
 
     /** 已确认属于主页签的列表, 切换开关时据此立即重刷, 不用等下一次滚动/布局。 */
     private val lists = WeakHashMap<View, Boolean>()
@@ -130,7 +111,6 @@ object BeautifyHomeLists : ClickableFeature() {
     override fun onEnable() {
         hookRecyclerAdapter()
         hookListLayout()
-        hookContactsHeader()
         keepAppliedBackground()
     }
 
@@ -165,32 +145,6 @@ object BeautifyHomeLists : ClickableFeature() {
             // bind 时行还没 attach, isMainTabView 的 rootView 判断会失败, 推迟一帧。
             if (row.isAttachedToWindow) decorate(row) else row.post { decorate(row) }
         }
-    }
-
-    /**
-     * 通讯录顶部由 MvvmAddressUIFragment 手工搭的入口块 (新的朋友/群聊/企业微信联系人…)
-     * 不在主列表里, 所以 onLayout 钩子碰不到它, 单独监听 fragment 创建后套卡片。
-     */
-    private fun hookContactsHeader() {
-        val fragmentClass = loadHostClass(ADDRESS_UI_FRAGMENT) ?: return
-        val method = runCatching {
-            fragmentClass.reflekt().firstMethod { parameters(Bundle::class) }
-        }.onFailure {
-            WeLogger.w(TAG, "MvvmAddressUIFragment entry not found: $it")
-        }.getOrNull() ?: return
-        method.hookAfter {
-            val entrance = thisObject!!.reflekt()
-                .firstFieldOrNull { type { it.name == BIZ_ENTRANCE_VIEW } }
-                ?.get() as? View ?: return@hookAfter
-            val header = entrance.parent as? ViewGroup ?: return@hookAfter
-            contactsHeaders[header] = true
-            header.post { styleContactsHeader(header) }
-        }
-    }
-
-    private fun styleContactsHeader(header: ViewGroup) {
-        if (!isEnabled || !islandEnabled) return
-        decorateRow(header, RowPosition.SINGLE)
     }
 
     private fun hookListLayout() {
@@ -312,53 +266,9 @@ object BeautifyHomeLists : ClickableFeature() {
         }
         val group = list as? ViewGroup ?: return
         lists[list] = true
-        decorateGrouped(group)
-    }
-
-    /**
-     * 同一个分组内的行合成一张卡片: 组内行不再各自留上下空隙, 也不再画描边,
-     * 只有组的第一行圆上角、最后一行圆下角。分组边界取宿主列表自身的行间空隙,
-     * 第一个内容行 (资料卡) 和最后一个内容行始终单独成组。
-     */
-    private fun decorateGrouped(group: ViewGroup) {
-        val density = group.resources.displayMetrics.density
-        val gapThreshold = (GROUP_GAP_THRESHOLD_DP * density).roundToInt().coerceAtLeast(1)
-        val contentIndices = (0 until group.childCount).filter { hasVisibleContent(group.getChildAt(it)) }
-        if (contentIndices.isEmpty()) return
-
-        val lastContentIndex = contentIndices.last()
-        contentIndices.forEachIndexed { position, index ->
-            val row = group.getChildAt(index)
-            val previous = contentIndices.getOrNull(position - 1)
-            val next = contentIndices.getOrNull(position + 1)
-            val topBreak = previous == null || previous == 0 || index == lastContentIndex ||
-                row.top - group.getChildAt(previous).bottom > gapThreshold
-            val bottomBreak = next == null || next == lastContentIndex || index == 0 ||
-                group.getChildAt(next).top - row.bottom > gapThreshold
-            val rowPosition = when {
-                topBreak && bottomBreak -> RowPosition.SINGLE
-                topBreak -> RowPosition.TOP
-                bottomBreak -> RowPosition.BOTTOM
-                else -> RowPosition.MIDDLE
-            }
-            rowPositions[row] = rowPosition
-            decorateRow(row, rowPosition)
+        for (index in 0 until group.childCount) {
+            decorateConfirmed(group.getChildAt(index))
         }
-    }
-
-    /** 底部的空白占位行没有任何可见内容, 给它加卡片就成了那条莫名其妙的空行。 */
-    private fun hasVisibleContent(view: View): Boolean {
-        if (view.visibility != View.VISIBLE || view.height <= 0) return false
-        when (view) {
-            is TextView -> if (!view.text.isNullOrBlank()) return true
-            is ImageView -> if (view.drawable != null) return true
-        }
-        if (view is ViewGroup) {
-            for (index in 0 until view.childCount) {
-                if (hasVisibleContent(view.getChildAt(index))) return true
-            }
-        }
-        return false
     }
 
     private fun refreshAll() {
@@ -368,40 +278,37 @@ object BeautifyHomeLists : ClickableFeature() {
                 return@runOnUiThread
             }
             lists.keys.toList().forEach(::decorateList)
-            contactsHeaders.keys.toList().forEach(::styleContactsHeader)
         }
     }
 
     private fun decorate(row: View) {
         if (!isDecoratableRow(row)) return
-        if (!hasVisibleContent(row)) return
-        decorateRow(row, rowPositions[row] ?: RowPosition.MIDDLE)
+        decorateConfirmed(row)
     }
 
     /** Card styling for a row already known to belong to a confirmed LauncherUI tab list. */
-    private fun decorateRow(row: View, position: RowPosition) {
+    private fun decorateConfirmed(row: View) {
         val density = row.resources.displayMetrics.density
         val horizontalInset = (SIDE_INSET_DP * density).roundToInt()
+        val verticalInset = (ROW_GAP_DP * density / 2f).roundToInt()
         val state = rows[row] ?: RowState(
             row.background,
-            buildCardBackground(row, position, horizontalInset),
-            position,
+            buildIslandBackground(row, verticalInset),
             row.paddingLeft,
             row.paddingTop,
             row.paddingRight,
             row.paddingBottom,
         ).also { rows[row] = it }
 
-        if (state.position != position) {
-            state.position = position
-            state.applied = buildCardBackground(row, position, horizontalInset)
-        }
-
-        // 只让出左右边距; 组内行之间不再留空隙, 这样它们才会连成一张卡片。
+        // 行内容也要让出卡片描边和行间距, 否则文字会压在卡片圆角外面。
         val left = state.paddingLeft + horizontalInset
+        val top = state.paddingTop + verticalInset
         val right = state.paddingRight + horizontalInset
-        if (row.paddingLeft != left || row.paddingRight != right) {
-            row.setPadding(left, state.paddingTop, right, state.paddingBottom)
+        val bottom = state.paddingBottom + verticalInset
+        if (row.paddingLeft != left || row.paddingTop != top ||
+            row.paddingRight != right || row.paddingBottom != bottom
+        ) {
+            row.setPadding(left, top, right, bottom)
         }
         if (row is ViewGroup) hideChildBackgrounds(row, state)
         if (row.background !== state.applied) row.background = state.applied
@@ -444,7 +351,6 @@ object BeautifyHomeLists : ClickableFeature() {
     private fun restoreAll() {
         val snapshot = rows.entries.toList()
         rows.clear()
-        contactsHeaders.clear()
         snapshot.forEach { (row, state) ->
             row.setPadding(
                 state.paddingLeft, state.paddingTop,
@@ -459,44 +365,36 @@ object BeautifyHomeLists : ClickableFeature() {
         }
     }
 
-    /**
-     * 组内中间行不画描边, 否则每行四周的边框会在卡片内部形成一条条分割线;
-     * 只靠圆角区分组的上下边缘。
-     */
-    private fun buildCardBackground(row: View, position: RowPosition, horizontalInset: Int): Drawable {
+    private fun buildIslandBackground(row: View, verticalInset: Int): Drawable {
         val density = row.resources.displayMetrics.density
         val radius = CORNER_RADIUS_DP * density
-        val outerInset = (OUTER_INSET_DP * density).roundToInt()
-        // 组的上/下外侧留一点空隙, 否则最顶部那张卡片会贴着状态栏, 上圆角看不出来。
-        val topInset = if (position == RowPosition.TOP || position == RowPosition.SINGLE) outerInset else 0
-        val bottomInset = if (position == RowPosition.BOTTOM || position == RowPosition.SINGLE) outerInset else 0
+        val horizontalInset = (SIDE_INSET_DP * density).roundToInt()
         val dark = row.context.isDarkMode
-
-        fun cornerRadii(): FloatArray {
-            val top = if (position == RowPosition.TOP || position == RowPosition.SINGLE) radius else 0f
-            val bottom = if (position == RowPosition.BOTTOM || position == RowPosition.SINGLE) radius else 0f
-            return floatArrayOf(top, top, top, top, bottom, bottom, bottom, bottom)
-        }
 
         val card = GradientDrawable().apply {
             shape = GradientDrawable.RECTANGLE
-            cornerRadii = cornerRadii()
+            cornerRadius = radius
             setColor(if (dark) DARK_SURFACE else LIGHT_SURFACE)
+            // 主页签本身已经是白底/深底, 没有描边时卡片和背景会糊在一起看不出圆角。
+            setStroke(
+                (0.5f * density).roundToInt().coerceAtLeast(1),
+                if (dark) DARK_STROKE else LIGHT_STROKE,
+            )
         }
-        val content = InsetDrawable(card, horizontalInset, topInset, horizontalInset, bottomInset)
+        val content = InsetDrawable(card, horizontalInset, verticalInset, horizontalInset, verticalInset)
         val mask = GradientDrawable().apply {
             shape = GradientDrawable.RECTANGLE
-            cornerRadii = cornerRadii()
+            cornerRadius = radius
             setColor(Color.WHITE)
         }
-        val rippleMask = InsetDrawable(mask, horizontalInset, topInset, horizontalInset, bottomInset)
+        val rippleMask =
+            InsetDrawable(mask, horizontalInset, verticalInset, horizontalInset, verticalInset)
         val ripple = RippleDrawable(
             ColorStateList.valueOf(if (dark) DARK_RIPPLE else LIGHT_RIPPLE),
             content,
             rippleMask,
         )
-        // 行背景自己铺一层页面底色, 卡片四周的留白才不会露出宿主列表的白色底,
-        // 否则白卡片接白底看不出圆角, 通讯录顶部尤其明显。
+        // 卡片四周留出的空隙用列表页底色填平, 相邻卡片之间才有"圆角岛"的间隔。
         val page = ColorDrawable(if (dark) DARK_PAGE else LIGHT_PAGE)
         return LayerDrawable(arrayOf(page, ripple))
     }
