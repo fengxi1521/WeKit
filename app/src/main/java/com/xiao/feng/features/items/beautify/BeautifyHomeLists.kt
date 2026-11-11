@@ -10,6 +10,7 @@ import android.graphics.drawable.Drawable
 import android.graphics.drawable.GradientDrawable
 import android.graphics.drawable.InsetDrawable
 import android.graphics.drawable.RippleDrawable
+import android.os.Bundle
 import android.view.View
 import android.view.ViewGroup
 import android.widget.AbsListView
@@ -73,8 +74,14 @@ object BeautifyHomeLists : ClickableFeature() {
     private const val CORNER_RADIUS_DP = 20
     private const val SIDE_INSET_DP = 12
 
+    /** 卡片组上下留白: 只在组的首/末行外侧留, 组内行之间不留。 */
+    private const val OUTER_INSET_DP = 8
+
     /** 相邻两行之间的原生空隙超过该值即视为分组边界。 */
     private const val GROUP_GAP_THRESHOLD_DP = 2
+
+    private const val ADDRESS_UI_FRAGMENT = "com.tencent.mm.ui.contact.address.MvvmAddressUIFragment"
+    private const val BIZ_ENTRANCE_VIEW = "com.tencent.mm.ui.contact.BizContactEntranceView"
 
     private const val LIGHT_SURFACE = 0xFFFFFFFF.toInt()
     private const val DARK_SURFACE = 0xFF1F1F21.toInt()
@@ -105,6 +112,9 @@ object BeautifyHomeLists : ClickableFeature() {
     /** 最近一次布局算出的分组位置; 行被回收再绑定时先用它, 下一次布局会纠正。 */
     private val rowPositions = WeakHashMap<View, RowPosition>()
 
+    /** 通讯录顶部那块手工构建的入口列表, 不属于主列表, 需要单独套卡片。 */
+    private val contactsHeaders = WeakHashMap<ViewGroup, Boolean>()
+
     /** 已确认属于主页签的列表, 切换开关时据此立即重刷, 不用等下一次滚动/布局。 */
     private val lists = WeakHashMap<View, Boolean>()
 
@@ -117,6 +127,7 @@ object BeautifyHomeLists : ClickableFeature() {
     override fun onEnable() {
         hookRecyclerAdapter()
         hookListLayout()
+        hookContactsHeader()
         keepAppliedBackground()
     }
 
@@ -151,6 +162,32 @@ object BeautifyHomeLists : ClickableFeature() {
             // bind 时行还没 attach, isMainTabView 的 rootView 判断会失败, 推迟一帧。
             if (row.isAttachedToWindow) decorate(row) else row.post { decorate(row) }
         }
+    }
+
+    /**
+     * 通讯录顶部由 MvvmAddressUIFragment 手工搭的入口块 (新的朋友/群聊/企业微信联系人…)
+     * 不在主列表里, 所以 onLayout 钩子碰不到它, 单独监听 fragment 创建后套卡片。
+     */
+    private fun hookContactsHeader() {
+        val fragmentClass = loadHostClass(ADDRESS_UI_FRAGMENT) ?: return
+        val method = runCatching {
+            fragmentClass.reflekt().firstMethod { parameters(Bundle::class) }
+        }.onFailure {
+            WeLogger.w(TAG, "MvvmAddressUIFragment entry not found: $it")
+        }.getOrNull() ?: return
+        method.hookAfter {
+            val entrance = thisObject.reflekt()
+                .firstFieldOrNull { type { it.name == BIZ_ENTRANCE_VIEW } }
+                ?.get() as? View ?: return@hookAfter
+            val header = entrance.parent as? ViewGroup ?: return@hookAfter
+            contactsHeaders[header] = true
+            header.post { styleContactsHeader(header) }
+        }
+    }
+
+    private fun styleContactsHeader(header: ViewGroup) {
+        if (!isEnabled || !islandEnabled) return
+        decorateRow(header, RowPosition.SINGLE)
     }
 
     private fun hookListLayout() {
@@ -308,7 +345,7 @@ object BeautifyHomeLists : ClickableFeature() {
 
     /** 底部的空白占位行没有任何可见内容, 给它加卡片就成了那条莫名其妙的空行。 */
     private fun hasVisibleContent(view: View): Boolean {
-        if (view.visibility != View.VISIBLE) return false
+        if (view.visibility != View.VISIBLE || view.height <= 0) return false
         when (view) {
             is TextView -> if (!view.text.isNullOrBlank()) return true
             is ImageView -> if (view.drawable != null) return true
@@ -328,6 +365,7 @@ object BeautifyHomeLists : ClickableFeature() {
                 return@runOnUiThread
             }
             lists.keys.toList().forEach(::decorateList)
+            contactsHeaders.keys.toList().forEach(::styleContactsHeader)
         }
     }
 
@@ -403,6 +441,7 @@ object BeautifyHomeLists : ClickableFeature() {
     private fun restoreAll() {
         val snapshot = rows.entries.toList()
         rows.clear()
+        contactsHeaders.clear()
         snapshot.forEach { (row, state) ->
             row.setPadding(
                 state.paddingLeft, state.paddingTop,
@@ -422,7 +461,12 @@ object BeautifyHomeLists : ClickableFeature() {
      * 只靠圆角区分组的上下边缘。
      */
     private fun buildCardBackground(row: View, position: RowPosition, horizontalInset: Int): Drawable {
-        val radius = CORNER_RADIUS_DP * row.resources.displayMetrics.density
+        val density = row.resources.displayMetrics.density
+        val radius = CORNER_RADIUS_DP * density
+        val outerInset = (OUTER_INSET_DP * density).roundToInt()
+        // 组的上/下外侧留一点空隙, 否则最顶部那张卡片会贴着状态栏, 上圆角看不出来。
+        val topInset = if (position == RowPosition.TOP || position == RowPosition.SINGLE) outerInset else 0
+        val bottomInset = if (position == RowPosition.BOTTOM || position == RowPosition.SINGLE) outerInset else 0
         val dark = row.context.isDarkMode
 
         fun cornerRadii(): FloatArray {
@@ -436,13 +480,13 @@ object BeautifyHomeLists : ClickableFeature() {
             cornerRadii = cornerRadii()
             setColor(if (dark) DARK_SURFACE else LIGHT_SURFACE)
         }
-        val content = InsetDrawable(card, horizontalInset, 0, horizontalInset, 0)
+        val content = InsetDrawable(card, horizontalInset, topInset, horizontalInset, bottomInset)
         val mask = GradientDrawable().apply {
             shape = GradientDrawable.RECTANGLE
             cornerRadii = cornerRadii()
             setColor(Color.WHITE)
         }
-        val rippleMask = InsetDrawable(mask, horizontalInset, 0, horizontalInset, 0)
+        val rippleMask = InsetDrawable(mask, horizontalInset, topInset, horizontalInset, bottomInset)
         return RippleDrawable(
             ColorStateList.valueOf(if (dark) DARK_RIPPLE else LIGHT_RIPPLE),
             content,
