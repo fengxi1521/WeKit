@@ -4090,4 +4090,6 @@
     <string name="chat_message_text_appearance_title">文字外觀</string>
     <string name="chat_message_text_size_title">文字大小</string>
     <string name="chat_message_line_spacing_title">行距</string>
+    <string name="chat_message_text_follow_color_title">跟隨微信用字顏色</string>
+    <string name="chat_message_text_color_title">文字顏色</string>
 </resources>

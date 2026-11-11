@@ -4102,4 +4102,6 @@
     <string name="chat_message_text_appearance_title">Text appearance</string>
     <string name="chat_message_text_size_title">Text size</string>
     <string name="chat_message_line_spacing_title">Line spacing</string>
+    <string name="chat_message_text_follow_color_title">Follow WeChat text color</string>
+    <string name="chat_message_text_color_title">Text color</string>
 </resources>
