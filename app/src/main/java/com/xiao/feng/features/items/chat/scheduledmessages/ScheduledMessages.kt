@@ -124,7 +124,7 @@ fun ScheduledMessage.isValidMoments(): Boolean {
     if (hasOther) return false
     return when {
         videoCount > 1 -> false
-        videoCount == 1 -> true
+        videoCount == 1 -> imageCount == 0
         imageCount > 9 -> false
         imageCount > 0 -> true
         else -> hasText
