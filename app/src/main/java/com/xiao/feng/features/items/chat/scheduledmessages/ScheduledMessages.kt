@@ -595,7 +595,7 @@ object ScheduledMessageSchedule {
             it.kind == ScheduledMessageKind.ONCE && it.atEpochMillis <= now
         }
         val (late, dropped) = elapsed.partition {
-            it.sendOnTimeout && now - it.atEpochMillis <= SEND_TIMEOUT_GRACE_MS
+            it.enabled && it.sendOnTimeout && now - it.atEpochMillis <= SEND_TIMEOUT_GRACE_MS
         }
         late.forEach(::deliver)
         removeStored(elapsed.mapTo(mutableSetOf()) { it.id })

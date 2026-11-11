@@ -509,18 +509,35 @@ private fun showScheduledMessageEditor(
                         style = MaterialTheme.typography.labelLarge,
                     )
 
-                    val typeOptions = ScheduledMessageContentType.entries.map {
+                    val typeOptions = (
+                            if (draft.targetType == ScheduledMessageTargetType.MOMENTS) {
+                                listOf(
+                                    ScheduledMessageContentType.TEXT,
+                                    ScheduledMessageContentType.IMAGE,
+                                    ScheduledMessageContentType.VIDEO,
+                                )
+                            } else {
+                                ScheduledMessageContentType.entries
+                            }
+                            ).map {
                         DropdownOption(it, contentItemTypeLabel(it))
                     }
 
                     draft.items.forEachIndexed { index, item ->
+                        val itemTypeOptions = if (typeOptions.any { it.value == item.type }) {
+                            typeOptions
+                        } else {
+                            // Keep the current type selectable after switching the target to
+                            // Moments, so an incompatible item can still be changed or removed.
+                            typeOptions + DropdownOption(item.type, contentItemTypeLabel(item.type))
+                        }
                         Column(modifier = Modifier.fillMaxWidth()) {
                             DropDownMenuWidget(
                                 iconPlaceholder = false,
                                 title = stringResource(R.string.scheduled_messages_item_type),
                                 description = null,
                                 value = item.type,
-                                options = typeOptions,
+                                options = itemTypeOptions,
                                 onValueChange = { updateItem(index, item.copy(type = it)) },
                             )
 
