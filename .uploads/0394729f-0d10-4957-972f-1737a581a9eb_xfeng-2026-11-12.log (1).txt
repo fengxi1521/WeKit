@@ -1,0 +1,6 @@
+2026-11-12 11:15:14.361 D/XiaoFeng WeLauncher: loading in process name=com.tencent.mm:appbrand0, type=APPBRAND
+2026-11-12 11:15:14.462 D/XiaoFeng ResourcesInjector: successfully injected module resources
+2026-11-12 11:15:14.826 I/XiaoFeng FeaturePointsTable: loaded 133 bundled feature entries
+2026-11-12 11:15:14.828 E/XiaoFeng FeaturesLoader: chat/关键词屏蔽通知: no bundled feature-point entry
+2026-11-12 11:15:14.834 W/XiaoFeng FeaturesLoader: skipping 关键词屏蔽通知 — bundled feature points are incomplete
+2026-11-12 11:15:14.840 I/XiaoFeng FeaturesLoader: loading all features took 8.528906ms
