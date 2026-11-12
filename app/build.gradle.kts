@@ -323,6 +323,12 @@ ksp {
     arg("room.generateKotlin", "true")
 }
 
+// Every variant exports its Room schema into the same project directory. When Gradle runs the
+// variant KSP tasks in parallel, one can read a schema JSON that another is still writing.
+tasks.matching { it.name.startsWith("ksp") }.configureEach {
+    mustRunAfter(tasks.matching { other -> other.name.startsWith("ksp") && other.name != name })
+}
+
 dependencies {
     implementation(project(":libs:python-runtime-api"))
     implementation(platform(libs.androidx.compose.bom))
