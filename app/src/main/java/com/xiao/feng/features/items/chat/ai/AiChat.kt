@@ -92,7 +92,7 @@ object AiChat : ClickableFeature(), WeDatabaseListenerApi.IInsertListener {
     private const val KEY_BUBBLE_MIN = "ai_chat_bubble_min_minutes"
     private const val KEY_BUBBLE_MAX = "ai_chat_bubble_max_minutes"
 
-    var enabled: Boolean by prefOption(KEY_ENABLED, false)
+    var chatEnabled: Boolean by prefOption(KEY_ENABLED, false)
     var targets: Set<String> by prefOption(KEY_TARGETS, emptySet<String>())
     var apiKey: String by prefOption(KEY_API_KEY, "")
     var baseUrl: String by prefOption(KEY_BASE_URL, DEFAULT_BASE_URL)
@@ -137,11 +137,11 @@ object AiChat : ClickableFeature(), WeDatabaseListenerApi.IInsertListener {
     fun restartAutomation() {
         bubbleJob?.cancel()
         bubbleJob = null
-        if (!enabled || !bubbleEnabled || targets.isEmpty()) return
+        if (!chatEnabled || !bubbleEnabled || targets.isEmpty()) return
         bubbleJob = scope.launch {
             while (isActive) {
                 delay(nextBubbleIntervalMillis())
-                if (!enabled || !bubbleEnabled) continue
+                if (!chatEnabled || !bubbleEnabled) continue
                 if (!withinBubbleWindow()) continue
                 val talker = targets.randomOrNull() ?: continue
                 runCatching { bubble(talker) }
@@ -151,7 +151,7 @@ object AiChat : ClickableFeature(), WeDatabaseListenerApi.IInsertListener {
     }
 
     override fun onInsert(table: String, values: ContentValues) {
-        if (table != "message" || !enabled) return
+        if (table != "message" || !chatEnabled) return
         if ((values.getAsInteger("isSend") ?: 0) != 0) return
         if ((values.getAsInteger("type") ?: return) != TEXT_MESSAGE_TYPE) return
 
@@ -173,7 +173,7 @@ object AiChat : ClickableFeature(), WeDatabaseListenerApi.IInsertListener {
         scope.launch {
             delay(REPLY_DEBOUNCE_MILLIS + replyDelaySeconds.coerceAtLeast(0) * 1000L)
             if (generations[talker] != generation) return@launch
-            if (!enabled || talker !in targets) return@launch
+            if (!chatEnabled || talker !in targets) return@launch
             val now = System.currentTimeMillis()
             if (now - (lastReplyAt[talker] ?: 0L) < REPLY_COOLDOWN_MILLIS) return@launch
             lastReplyAt[talker] = now

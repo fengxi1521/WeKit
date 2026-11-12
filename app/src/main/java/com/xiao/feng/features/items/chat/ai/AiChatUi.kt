@@ -34,7 +34,7 @@ import kotlinx.coroutines.withContext
 
 fun showAiChatDialog(context: ComponentActivity) {
     showComposeDialog(context) {
-        var enabledInput by remember { mutableStateOf(AiChat.enabled) }
+        var enabledInput by remember { mutableStateOf(AiChat.chatEnabled) }
         var targetsInput by remember { mutableStateOf(AiChat.targets) }
         var apiKeyInput by remember { mutableStateOf(AiChat.apiKey) }
         var baseUrlInput by remember { mutableStateOf(AiChat.baseUrl) }
@@ -75,7 +75,7 @@ fun showAiChatDialog(context: ComponentActivity) {
                                 checked = enabledInput,
                                 onCheckedChange = {
                                     enabledInput = it
-                                    AiChat.enabled = it
+                                    AiChat.chatEnabled = it
                                     AiChat.restartAutomation()
                                 },
                             )
