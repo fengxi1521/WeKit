@@ -733,10 +733,12 @@ object WeMomentsApi : ApiFeature(), IResolveDex {
 
     /**
      * 从 [snsInfo] 反射解析出原生 TimeLineObject（长按菜单场景外，例如后台扫描时使用）。
+     * 后台场景的 SnsInfo 往往没有可供调用的原生 TimeLineObject getter，此时用 proto 字节
+     * 通过 host 自己的 `parseFrom(byte[])` 重建一个原生对象，否则图片/视频路径无法解析。
      */
     fun getNativeTimeline(snsInfo: Any?): Any? {
         val normalized = normalizeSnsInfo(snsInfo) ?: return null
-        return runCatching {
+        val fromGetter = runCatching {
             normalized.reflekt().firstMethodOrNull {
                 parameters()
                 superclass()
@@ -744,6 +746,25 @@ object WeMomentsApi : ApiFeature(), IResolveDex {
             }?.invoke()
         }.getOrElse { error ->
             WeLogger.e(TAG, "failed to resolve native TimeLineObject", error)
+            null
+        }
+        if (fromGetter != null) return fromGetter
+
+        val bytes = getContent(normalized) ?: return null
+        return runCatching {
+            // parseFrom(byte[]) is an instance method inherited from the protobuf base class, so
+            // allocate a blank TimeLineObject and let it parse the stored content bytes.
+            val instance = timelineObjectClass.getDeclaredConstructor().newInstance()
+            instance.reflekt()
+                .firstMethod {
+                    name = "parseFrom"
+                    parameters(ByteArray::class)
+                    superclass()
+                }
+                .invoke(bytes)
+            instance
+        }.getOrElse { error ->
+            WeLogger.e(TAG, "failed to parse native TimeLineObject from proto bytes", error)
             null
         }
     }

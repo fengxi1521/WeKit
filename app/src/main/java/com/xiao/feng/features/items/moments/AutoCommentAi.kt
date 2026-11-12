@@ -16,6 +16,7 @@ import com.xiao.feng.utils.HostInfo
 import com.xiao.feng.utils.WeLogger
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
 import java.io.ByteArrayOutputStream
 import java.io.File
@@ -25,7 +26,8 @@ import java.io.File
  * OpenAI-compatible Chat Completions endpoint. `deepseek-flash` accepts images as standard
  * `image_url` content blocks, so the same request also covers text-only posts.
  *
- * Runs on [AutoMomentsBase]'s item worker, never on the main thread.
+ * Image resolution runs on the main thread (the host's download trigger expects it), while decoding
+ * and the LLM request run on worker threads.
  */
 object AutoCommentAi {
 
@@ -71,83 +73,131 @@ object AutoCommentAi {
             return null
         }
         val text = WeMomentsApi.getContentText(snsInfo).orEmpty()
-        val images = runBlocking(Dispatchers.IO) { collectImages(snsInfo, config.maxImages) }
+        // Resolve/trigger image downloads on the main thread like the host's own "view large image"
+        // flow, then decode the files off the main thread.
+        val images = runBlocking {
+            val paths = withContext(Dispatchers.Main.immediate) {
+                resolveImagePaths(snsInfo, config.maxImages)
+            }
+            withContext(Dispatchers.IO) { paths.mapNotNull(::encodeImage) }
+        }
         if (text.isBlank() && images.isEmpty()) {
             WeLogger.i(TAG, "skipping comment: the post has neither text nor readable images")
             return null
         }
 
-        val userText = buildString {
-            append("朋友圈文字：")
-            append(text.trim().ifBlank { "（无文字）" })
-            if (images.isNotEmpty()) {
-                append("\n附图 ")
-                append(images.size)
-                append(" 张，请结合图片内容评论。")
-            }
-        }
-        val messages = listOf(
-            LlmMessage(LlmRole.SYSTEM, config.persona.trim().ifBlank { DEFAULT_PERSONA }),
-            LlmMessage(LlmRole.USER, userText, images = images),
+        val systemMessage = LlmMessage(
+            LlmRole.SYSTEM,
+            config.persona.trim().ifBlank { DEFAULT_PERSONA },
         )
 
-        return runCatching {
-            val provider = ModelProviderEntity(
-                id = PROVIDER_ID,
-                type = ModelProviderType.OPENAI_CHAT_COMPLETION,
-                name = "DeepSeek",
-                baseUrl = config.baseUrl.trim().trimEnd('/').ifBlank { DEFAULT_BASE_URL },
-                apiKey = config.apiKey.trim(),
-            )
-            val model = ModelEntity(
-                id = MODEL_ROW_ID,
-                providerId = PROVIDER_ID,
-                modelIdRemote = config.model.trim().ifBlank { DEFAULT_MODEL },
-                reasoningEffort = null,
-                // Comments are short; skip the thinking pass so replies arrive quickly.
-                customJsonOverride = """{"thinking":{"type":"disabled"}}""",
-                displayName = "DeepSeek",
-                maxTokens = 256,
-                supportsVision = true,
-            )
-            val request = ModelProviderManager.buildRequest(
-                model = model,
-                messages = messages,
-                tools = emptyList(),
-                sessionId = SESSION_ID,
-            )
-            runBlocking(Dispatchers.IO) {
-                withTimeout(REQUEST_TIMEOUT_MS) {
-                    var reply: String? = null
-                    ModelProviderManager.clientFor(provider).stream(request).collect { event ->
-                        when (event) {
-                            is LlmStreamEvent.Completed -> reply = event.message.content
-                            is LlmStreamEvent.Failed -> throw event.error
-                            else -> Unit
-                        }
-                    }
-                    reply
+        fun messagesFor(attached: List<LlmImage>): List<LlmMessage> {
+            val userText = buildString {
+                append("朋友圈文字：")
+                append(text.trim().ifBlank { "（无文字）" })
+                if (attached.isNotEmpty()) {
+                    append("\n附图 ")
+                    append(attached.size)
+                    append(" 张，请结合图片内容评论。")
                 }
             }
-        }.onFailure {
-            WeLogger.w(TAG, "DeepSeek comment generation failed", it)
-        }.getOrNull()?.let(::sanitize)
+            return listOf(systemMessage, LlmMessage(LlmRole.USER, userText, images = attached))
+        }
+
+        val provider = ModelProviderEntity(
+            id = PROVIDER_ID,
+            type = ModelProviderType.OPENAI_CHAT_COMPLETION,
+            name = "DeepSeek",
+            baseUrl = config.baseUrl.trim().trimEnd('/').ifBlank { DEFAULT_BASE_URL },
+            apiKey = config.apiKey.trim(),
+        )
+        val model = ModelEntity(
+            id = MODEL_ROW_ID,
+            providerId = PROVIDER_ID,
+            modelIdRemote = config.model.trim().ifBlank { DEFAULT_MODEL },
+            reasoningEffort = null,
+            // Comments are short; skip the thinking pass so replies arrive quickly.
+            customJsonOverride = """{"thinking":{"type":"disabled"}}""",
+            displayName = "DeepSeek",
+            maxTokens = 256,
+            supportsVision = true,
+        )
+
+        return runCatching { ask(provider, model, messagesFor(images)) }
+            .recoverCatching { error ->
+                // Some endpoints/models reject image content blocks. Rather than falling back to
+                // the fixed template, retry with the post text only so the comment is still written
+                // from the post itself.
+                if (images.isEmpty()) throw error
+                WeLogger.w(
+                    TAG,
+                    "request with ${images.size} image(s) failed, retrying with text only",
+                    error,
+                )
+                ask(provider, model, messagesFor(emptyList()))
+            }
+            .onFailure { WeLogger.w(TAG, "DeepSeek comment generation failed", it) }
+            .getOrNull()
+            ?.let(::sanitize)
     }
 
-    private suspend fun collectImages(snsInfo: Any?, limit: Int): List<LlmImage> {
+    private fun ask(
+        provider: ModelProviderEntity,
+        model: ModelEntity,
+        messages: List<LlmMessage>,
+    ): String? {
+        val request = ModelProviderManager.buildRequest(
+            model = model,
+            messages = messages,
+            tools = emptyList(),
+            sessionId = SESSION_ID,
+        )
+        return runBlocking(Dispatchers.IO) {
+            withTimeout(REQUEST_TIMEOUT_MS) {
+                var reply: String? = null
+                ModelProviderManager.clientFor(provider).stream(request).collect { event ->
+                    when (event) {
+                        is LlmStreamEvent.Completed -> reply = event.message.content
+                        is LlmStreamEvent.Failed -> throw event.error
+                        else -> Unit
+                    }
+                }
+                reply
+            }
+        }
+    }
+
+    /** Resolves up to [limit] cached image paths, asking the host to download any missing picture. */
+    private suspend fun resolveImagePaths(snsInfo: Any?, limit: Int): List<String> {
         if (limit <= 0) return emptyList()
-        val content = WeMomentsApi.getMomentContent(snsInfo) ?: return emptyList()
-        val images = mutableListOf<LlmImage>()
+        val content = WeMomentsApi.getMomentContent(snsInfo)
+        if (content == null) {
+            WeLogger.w(TAG, "no MomentContent for this post, images skipped")
+            return emptyList()
+        }
+        WeLogger.i(
+            TAG,
+            "post media: proto=${content.mediaList.size}, native=${content.nativeMediaList.size}",
+        )
+        val paths = mutableListOf<String>()
         for (index in content.mediaList.indices) {
-            if (images.size >= limit) break
+            if (paths.size >= limit) break
             val media = content.mediaList[index]
-            val nativeMedia = content.nativeMediaList.getOrNull(index) ?: continue
+            val nativeMedia = content.nativeMediaList.getOrNull(index)
+            if (nativeMedia == null) {
+                WeLogger.w(TAG, "image $index: no native media object")
+                continue
+            }
             val path = WeMomentsApi.getCachedImagePath(media, nativeMedia)
                 ?: WeMomentsApi.ensureImageCached(media, nativeMedia, IMAGE_FETCH_TIMEOUT_MS)
-                ?: continue
-            images += encodeImage(path) ?: continue
+            if (path == null) {
+                WeLogger.w(TAG, "image $index: no cached path and download did not finish")
+                continue
+            }
+            paths += path
         }
-        return images
+        WeLogger.i(TAG, "resolved ${paths.size} image path(s) for the comment")
+        return paths
     }
 
     /**
