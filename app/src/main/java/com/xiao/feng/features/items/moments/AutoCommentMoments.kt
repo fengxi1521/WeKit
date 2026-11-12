@@ -192,6 +192,18 @@ object AutoCommentMoments : AutoMomentsBase() {
                                     )
                                 }
                             }
+                            val report = AutoCommentAi.lastReport
+                            if (report != null) {
+                                item {
+                                    BaseItemContainer {
+                                        Text(
+                                            text = stringResource(
+                                                R.string.moments_auto_comment_ai_report_title,
+                                            ) + "\n" + report,
+                                        )
+                                    }
+                                }
+                            }
                         }
                         item {
                             TextFieldDialogWidget(

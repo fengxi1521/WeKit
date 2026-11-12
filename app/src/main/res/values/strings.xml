@@ -1014,6 +1014,7 @@
     <string name="moments_auto_comment_ai_persona_title">Persona prompt</string>
     <string name="moments_auto_comment_ai_persona_hint">Who writes the comment, personality, tone and reply rules. E.g. “You are Xiaoyu, an 18-year-old girl…”</string>
     <string name="moments_auto_comment_ai_max_images_title">Images to read</string>
+    <string name="moments_auto_comment_ai_report_title">Last AI comment diagnostics</string>
     <string name="moments_auto_comment_interval_title">Comment interval</string>
     <string name="moments_auto_comment_browsing_title">Comment while browsing</string>
     <string name="moments_auto_comment_browsing_description">Also comment on Moments seen while browsing. When off, only newly published posts are commented</string>

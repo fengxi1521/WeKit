@@ -978,6 +978,7 @@
     <string name="moments_auto_comment_ai_persona_title">人物设定（提示词）</string>
     <string name="moments_auto_comment_ai_persona_hint">描述评论者是谁、性格语气和回复要求。例如：你叫小雨，是一个 18 岁的少女……</string>
     <string name="moments_auto_comment_ai_max_images_title">读取图片数</string>
+    <string name="moments_auto_comment_ai_report_title">最近一次 AI 评论诊断</string>
     <string name="moments_auto_comment_interval_title">评论间隔</string>
     <string name="moments_auto_comment_browsing_title">浏览时评论</string>
     <string name="moments_auto_comment_browsing_description">浏览到新朋友圈时也自动评论；关闭后仅评论新发布的</string>

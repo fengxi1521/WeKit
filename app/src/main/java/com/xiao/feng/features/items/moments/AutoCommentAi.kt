@@ -46,10 +46,14 @@ object AutoCommentAi {
     private const val MAX_IMAGE_EDGE = 1024
     private const val JPEG_QUALITY = 85
 
-    private const val MEDIA_TYPE_VIDEO = 2
+    /** Sns upload element types: 2 = image, 6 = sight/video (see the moments publisher below). */
+    private const val MEDIA_TYPE_VIDEO = 6
     private const val HTTP_CONNECT_TIMEOUT_MS = 5_000
     private const val HTTP_READ_TIMEOUT_MS = 10_000
     private const val MAX_IMAGE_BYTES = 12 * 1024 * 1024
+
+    /** Last resort: let the host download the picture the way tapping it would. */
+    private const val HOST_FETCH_TIMEOUT_MS = 10_000L
 
     /**
      * The shared LLM client allows a 10-minute request — fine for an interactive agent turn, but
@@ -69,15 +73,24 @@ object AutoCommentAi {
 
     /** Returns a ready-to-post comment, or null when the request could not produce one. */
     fun generate(snsInfo: Any?, config: Config): String? {
-        if (config.apiKey.isBlank()) {
-            WeLogger.w(TAG, "DeepSeek API key is not configured")
+        val diag = mutableListOf<String>()
+        fun finish(message: String, report: List<String>): String? {
+            lastReport = report.joinToString("\n")
+            WeLogger.i(TAG, message)
             return null
         }
+        if (config.apiKey.isBlank()) {
+            return finish("DeepSeek API key is not configured", listOf("未配置 API Key"))
+        }
         val text = WeMomentsApi.getContentText(snsInfo).orEmpty()
-        val images = runBlocking(Dispatchers.IO) { collectImages(snsInfo, config.maxImages) }
+        diag += "文字 ${text.length} 字"
+        val images = runBlocking(Dispatchers.IO) { collectImages(snsInfo, config.maxImages, diag) }
+        diag += "可用图片 ${images.size} 张"
         if (text.isBlank() && images.isEmpty()) {
-            WeLogger.i(TAG, "skipping comment: the post has neither text nor readable images")
-            return null
+            return finish(
+                "skipping comment: the post has neither text nor readable images",
+                diag,
+            )
         }
 
         val systemMessage = LlmMessage(
@@ -117,12 +130,13 @@ object AutoCommentAi {
             supportsVision = true,
         )
 
-        return runCatching { ask(provider, model, messagesFor(images)) }
+        val reply = runCatching { ask(provider, model, messagesFor(images)) }
             .recoverCatching { error ->
                 // Some endpoints/models reject image content blocks. Rather than falling back to
                 // the fixed template, retry with the post text only so the comment is still written
                 // from the post itself.
                 if (images.isEmpty()) throw error
+                diag += "带图请求失败，改为纯文字重试：${error.message}"
                 WeLogger.w(
                     TAG,
                     "request with ${images.size} image(s) failed, retrying with text only",
@@ -130,10 +144,21 @@ object AutoCommentAi {
                 )
                 ask(provider, model, messagesFor(emptyList()))
             }
-            .onFailure { WeLogger.w(TAG, "DeepSeek comment generation failed", it) }
+            .onFailure {
+                diag += "请求失败：${it.message}"
+                WeLogger.w(TAG, "DeepSeek comment generation failed", it)
+            }
             .getOrNull()
             ?.let(::sanitize)
+        diag += if (reply != null) "生成成功" else "生成失败"
+        lastReport = diag.joinToString("\n")
+        return reply
     }
+
+    /** Human-readable summary of the most recent attempt, shown in the feature settings. */
+    @Volatile
+    var lastReport: String? = null
+        private set
 
     private fun ask(
         provider: ModelProviderEntity,
@@ -162,12 +187,20 @@ object AutoCommentAi {
     }
 
     /** Collects up to [limit] pictures, from the host cache first and the CDN url otherwise. */
-    private fun collectImages(snsInfo: Any?, limit: Int): List<LlmImage> {
-        if (limit <= 0) return emptyList()
+    private suspend fun collectImages(
+        snsInfo: Any?,
+        limit: Int,
+        diag: MutableList<String>,
+    ): List<LlmImage> {
+        if (limit <= 0) {
+            diag += "读取图片数设置为 0，只用文字"
+            return emptyList()
+        }
         // Read the media list from the stored proto directly: the native object is only needed for
         // local cache paths, and its resolution can fail for background (not-yet-rendered) posts.
         val mediaList = WeMomentsApi.getTimelineProto(snsInfo)?.contentObj?.mediaList.orEmpty()
         if (mediaList.isEmpty()) {
+            diag += "帖子内容里没有图片项"
             WeLogger.i(TAG, "post has no media entries")
             return emptyList()
         }
@@ -176,6 +209,7 @@ object AutoCommentAi {
         }.onFailure {
             WeLogger.w(TAG, "native media list unavailable, relying on CDN urls", it)
         }.getOrNull()
+        diag += "图片项 ${mediaList.size} 个，原生对象 ${nativeMediaList?.size ?: -1}"
         WeLogger.i(
             TAG,
             "post media: proto=${mediaList.size}, native=${nativeMediaList?.size ?: -1}",
@@ -184,7 +218,12 @@ object AutoCommentAi {
         for (index in mediaList.indices) {
             if (images.size >= limit) break
             val media = mediaList[index]
-            if (media.type == MEDIA_TYPE_VIDEO) continue
+            if (media.type == MEDIA_TYPE_VIDEO) {
+                diag += "第 ${index + 1} 张：视频，跳过"
+                continue
+            }
+            val url = mediaImageUrl(media)
+            diag += "第 ${index + 1} 张：type=${media.type} url=${url ?: "无"}"
 
             val cachedPath = runCatching {
                 val nativeMedia = nativeMediaList?.getOrNull(index) ?: return@runCatching null
@@ -196,18 +235,30 @@ object AutoCommentAi {
             var bytes = cachedPath?.let(::readCachedBytes)
             var origin = "cache"
             if (bytes == null) {
-                bytes = mediaImageUrl(media)?.let(::downloadImage)
+                bytes = url?.let(::downloadImage)
                 origin = "cdn"
             }
             if (bytes == null) {
-                WeLogger.w(TAG, "image $index: no cached file and CDN download failed")
+                val nativeMedia = nativeMediaList?.getOrNull(index)
+                if (nativeMedia != null) {
+                    origin = "host"
+                    bytes = WeMomentsApi
+                        .ensureImageCached(media, nativeMedia, HOST_FETCH_TIMEOUT_MS)
+                        ?.let(::readCachedBytes)
+                }
+            }
+            if (bytes == null) {
+                diag += "第 ${index + 1} 张：缓存、CDN、原生下载都失败"
+                WeLogger.w(TAG, "image $index: no cached file, no CDN copy and host download failed")
                 continue
             }
             val image = encodeImage(bytes)
             if (image == null) {
+                diag += "第 ${index + 1} 张：解码失败（${bytes.size} 字节）"
                 WeLogger.w(TAG, "image $index: decode/encode failed (${bytes.size} bytes)")
                 continue
             }
+            diag += "第 ${index + 1} 张：$origin，${bytes.size} 字节"
             WeLogger.i(TAG, "image $index: using $origin, ${bytes.size} bytes")
             images += image
         }
