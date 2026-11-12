@@ -957,6 +957,8 @@
     <string name="moments_auto_comment_text_hint">固定評論內容；AI 評論失敗時也會使用</string>
     <string name="moments_auto_comment_ai_title">AI 智慧評論</string>
     <string name="moments_auto_comment_ai_description">根據朋友圈文字和圖片呼叫 DeepSeek 產生評論；關閉時使用固定評論內容</string>
+    <string name="moments_auto_comment_ai_reply_replies_title">回覆評論的回覆</string>
+    <string name="moments_auto_comment_ai_reply_replies_description">有人回覆 AI 寫下的評論時，AI 會繼續回覆對方</string>
     <string name="moments_auto_comment_ai_api_key_title">API Key</string>
     <string name="moments_auto_comment_ai_api_key_hint">輸入 DeepSeek API Key</string>
     <string name="moments_auto_comment_ai_base_url_title">API 位址</string>

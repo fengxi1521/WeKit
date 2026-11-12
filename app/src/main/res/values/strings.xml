@@ -1005,6 +1005,8 @@
     <string name="moments_auto_comment_text_hint">Fixed comment text; also used when AI comments fail</string>
     <string name="moments_auto_comment_ai_title">AI comments</string>
     <string name="moments_auto_comment_ai_description">Generate each comment from the post text and pictures through DeepSeek. When off, the fixed comment text is used</string>
+    <string name="moments_auto_comment_ai_reply_replies_title">Reply to comment replies</string>
+    <string name="moments_auto_comment_ai_reply_replies_description">When someone replies to the comment the AI wrote, the AI keeps replying to them</string>
     <string name="moments_auto_comment_ai_api_key_title">API key</string>
     <string name="moments_auto_comment_ai_api_key_hint">Enter the DeepSeek API key</string>
     <string name="moments_auto_comment_ai_base_url_title">API base URL</string>

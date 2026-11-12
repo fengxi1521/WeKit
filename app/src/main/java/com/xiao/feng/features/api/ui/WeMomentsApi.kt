@@ -159,6 +159,8 @@ object WeMomentsApi : ApiFeature(), IResolveDex {
     // --- end used by AutoMomentsBase ---
     private val methodSendLike by dexMethod()
     private val methodSendComment by dexMethod()
+    /** `SnsComment.convertTo()` — fires when a comment row is written to `SnsComment` storage. */
+    val methodSnsCommentConvertTo by dexMethod()
     /** `SnsInfoStorage.replaceUserBySnsId(long, SnsInfo)` — fires after a post is written to storage. */
     val methodReplaceUserBySnsId by dexMethod()
     private val methodCancelLike by dexMethod()
@@ -595,7 +597,13 @@ object WeMomentsApi : ApiFeature(), IResolveDex {
     fun unlike(context: WeMomentsContextMenuApi.MomentsContext): ActionResult =
         unlike(context.snsInfo)
 
-    fun comment(snsInfo: Any?, content: String, sourceScene: Int = 0): ActionResult {
+    fun comment(
+        snsInfo: Any?,
+        content: String,
+        sourceScene: Int = 0,
+        replyCommentId: Long = 0L,
+        replyUsername: String = "",
+    ): ActionResult {
         val normalized = normalizeSnsInfo(snsInfo)
             ?: return ActionResult(success = false, sent = false, message = "snsInfo is null or unsupported")
         if (!isValidSnsInfo(normalized)) {
@@ -608,7 +616,14 @@ object WeMomentsApi : ApiFeature(), IResolveDex {
 
         return runCatching {
             methodSendComment.method.invoke(
-                null, normalized, COMMENT_ACTION_TYPE, text, 0L, "", false, sourceScene,
+                null,
+                normalized,
+                COMMENT_ACTION_TYPE,
+                text,
+                replyCommentId,
+                replyUsername,
+                false,
+                sourceScene,
             )
             ActionResult(success = true, sent = true, message = "comment request sent")
         }.getOrElse { error ->
@@ -686,6 +701,14 @@ object WeMomentsApi : ApiFeature(), IResolveDex {
 
     fun getSnsTableId(context: WeMomentsContextMenuApi.MomentsContext): String? =
         getSnsTableId(context.snsInfo)
+
+    /** Raw numeric sns id, matching `SnsComment.field_snsID`. */
+    fun getSnsIdLong(snsInfo: Any?): Long? {
+        val normalized = normalizeSnsInfo(snsInfo) ?: return null
+        return normalized.reflekt()
+            .firstFieldOrNull { name = "field_snsId"; superclass() }
+            ?.get()?.let { it as? Number }?.toLong()
+    }
 
     fun getOwnerWxId(snsInfo: Any?): String? {
         val normalized = normalizeSnsInfo(snsInfo) ?: return null

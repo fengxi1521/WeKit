@@ -1326,6 +1326,7 @@
                 "fieldInteractionSnsInfo": "Lcom/tencent/mm/plugin/sns/ui/improve/view/ImproveInteractionLayout;->m:Ljk4/p;",
                 "methodSendLike": "Lcom/tencent/mm/plugin/sns/model/h6;->n(Lcom/tencent/mm/plugin/sns/storage/SnsInfo;ILlj4/a;I)Lpc5/uf6;",
                 "methodSendComment": "Lcom/tencent/mm/plugin/sns/model/h6;->m(Lcom/tencent/mm/plugin/sns/storage/SnsInfo;ILjava/lang/String;JLjava/lang/String;ZI)Lpc5/uf6;",
+                "methodSnsCommentConvertTo": "Lim/la;->convertTo()Landroid/content/ContentValues;",
                 "methodReplaceUserBySnsId": "Lcom/tencent/mm/plugin/sns/storage/f2;->x4(JLcom/tencent/mm/plugin/sns/storage/SnsInfo;)Z",
                 "methodCancelLike": "Lcom/tencent/mm/plugin/sns/model/h6;->a(Ljava/lang/String;)V",
                 "methodGetSnsInfoByLocalId": "Lcom/tencent/mm/plugin/sns/storage/f2;->p2(I)Lcom/tencent/mm/plugin/sns/storage/SnsInfo;",

@@ -111,24 +111,8 @@ object AutoCommentAi {
             return listOf(systemMessage, LlmMessage(LlmRole.USER, userText, images = attached))
         }
 
-        val provider = ModelProviderEntity(
-            id = PROVIDER_ID,
-            type = ModelProviderType.OPENAI_CHAT_COMPLETION,
-            name = "DeepSeek",
-            baseUrl = config.baseUrl.trim().trimEnd('/').ifBlank { DEFAULT_BASE_URL },
-            apiKey = config.apiKey.trim(),
-        )
-        val model = ModelEntity(
-            id = MODEL_ROW_ID,
-            providerId = PROVIDER_ID,
-            modelIdRemote = config.model.trim().ifBlank { DEFAULT_MODEL },
-            reasoningEffort = null,
-            // Comments are short; skip the thinking pass so replies arrive quickly.
-            customJsonOverride = """{"thinking":{"type":"disabled"}}""",
-            displayName = "DeepSeek",
-            maxTokens = 256,
-            supportsVision = true,
-        )
+        val provider = providerFor(config)
+        val model = modelFor(config)
 
         val reply = runCatching { ask(provider, model, messagesFor(images)) }
             .recoverCatching { error ->
@@ -159,6 +143,63 @@ object AutoCommentAi {
     @Volatile
     var lastReport: String? = null
         private set
+
+    /**
+     * Replies to someone who answered our own AI-written comment: the same persona, but the task is
+     * a short comeback in the ongoing thread rather than a fresh comment on the post.
+     */
+    fun generateReply(
+        config: Config,
+        postText: String,
+        ourComment: String,
+        replyAuthor: String,
+        replyText: String,
+    ): String? {
+        if (config.apiKey.isBlank()) {
+            WeLogger.w(TAG, "skipping comment reply: DeepSeek API key is not configured")
+            return null
+        }
+        val userText = buildString {
+            append("朋友圈正文：")
+            append(postText.trim().ifBlank { "（无文字）" })
+            append("\n你之前在这条朋友圈下写过评论：")
+            append(ourComment.trim())
+            append("\n「")
+            append(replyAuthor.trim().ifBlank { "对方" })
+            append("」回复了你的这条评论：")
+            append(replyText.trim())
+            append("\n请针对这条回复再写一句自然的回应。要求：不超过 30 个字；")
+            append("只输出回复本身，不要加引号、不要解释。")
+        }
+        val messages = listOf(
+            LlmMessage(LlmRole.SYSTEM, config.persona.trim().ifBlank { DEFAULT_PERSONA }),
+            LlmMessage(LlmRole.USER, userText),
+        )
+        return runCatching { ask(providerFor(config), modelFor(config), messages) }
+            .onFailure { WeLogger.w(TAG, "DeepSeek comment reply generation failed", it) }
+            .getOrNull()
+            ?.let(::sanitize)
+    }
+
+    private fun providerFor(config: Config) = ModelProviderEntity(
+        id = PROVIDER_ID,
+        type = ModelProviderType.OPENAI_CHAT_COMPLETION,
+        name = "DeepSeek",
+        baseUrl = config.baseUrl.trim().trimEnd('/').ifBlank { DEFAULT_BASE_URL },
+        apiKey = config.apiKey.trim(),
+    )
+
+    private fun modelFor(config: Config) = ModelEntity(
+        id = MODEL_ROW_ID,
+        providerId = PROVIDER_ID,
+        modelIdRemote = config.model.trim().ifBlank { DEFAULT_MODEL },
+        reasoningEffort = null,
+        // Comments are short; skip the thinking pass so replies arrive quickly.
+        customJsonOverride = """{"thinking":{"type":"disabled"}}""",
+        displayName = "DeepSeek",
+        maxTokens = 256,
+        supportsVision = true,
+    )
 
     private fun ask(
         provider: ModelProviderEntity,
