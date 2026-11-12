@@ -324,9 +324,11 @@ ksp {
 }
 
 // Every variant exports its Room schema into the same project directory. When Gradle runs the
-// variant KSP tasks in parallel, one can read a schema JSON that another is still writing.
+// variant KSP tasks in parallel, one can read a schema JSON that another is still writing, so
+// impose a strict name order (acyclic) that makes them run one at a time.
 tasks.matching { it.name.startsWith("ksp") }.configureEach {
-    mustRunAfter(tasks.matching { other -> other.name.startsWith("ksp") && other.name != name })
+    val selfName = name
+    mustRunAfter(tasks.matching { other -> other.name.startsWith("ksp") && other.name < selfName })
 }
 
 dependencies {
