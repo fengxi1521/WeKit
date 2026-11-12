@@ -4175,4 +4175,36 @@
     <string name="chat_group_nickname_color_follow_title">跟隨系統</string>
     <string name="chat_group_nickname_color_color_title">暱稱顏色</string>
     <string name="chat_group_nickname_color_bold_title">加粗暱稱</string>
+
+    <string name="feature_ai_chat_name">AI 聊天</string>
+    <string name="feature_ai_chat_description">在選定的群聊和私聊裡讓 DeepSeek 自動聊天、接話和冒泡</string>
+    <string name="ai_chat_enabled_title">啟用 AI 聊天</string>
+    <string name="ai_chat_enabled_description">在已選會話中自動回覆</string>
+    <string name="ai_chat_targets_title">聊天</string>
+    <string name="ai_chat_targets_empty">尚未選擇聊天</string>
+    <string name="ai_chat_targets_count">已選 %1$d 個</string>
+    <string name="ai_chat_select_title">選擇聊天</string>
+    <string name="ai_chat_section_model">DeepSeek</string>
+    <string name="ai_chat_api_key_title">API Key</string>
+    <string name="ai_chat_api_key_hint">填寫 DeepSeek 的 API Key</string>
+    <string name="ai_chat_base_url_title">介面位址</string>
+    <string name="ai_chat_base_url_hint">https://api.deepseek.com</string>
+    <string name="ai_chat_model_title">模型</string>
+    <string name="ai_chat_model_hint">deepseek-flash</string>
+    <string name="ai_chat_persona_title">人設</string>
+    <string name="ai_chat_persona_hint">描述 AI 的性格和說話方式</string>
+    <string name="ai_chat_section_reply">回覆</string>
+    <string name="ai_chat_context_title">上下文條數</string>
+    <string name="ai_chat_context_description">每次帶給 DeepSeek 的最近訊息條數</string>
+    <string name="ai_chat_reply_delay_title">回覆延遲</string>
+    <string name="ai_chat_mention_title">群聊 @ 人</string>
+    <string name="ai_chat_mention_description">在群聊回覆時隨機 @ 發言人</string>
+    <string name="ai_chat_mention_percent_title">@ 機率</string>
+    <string name="ai_chat_section_bubble">冒泡</string>
+    <string name="ai_chat_bubble_title">開啟冒泡</string>
+    <string name="ai_chat_bubble_description">在設定時間段內主動發訊息</string>
+    <string name="ai_chat_bubble_start_title">冒泡開始</string>
+    <string name="ai_chat_bubble_end_title">冒泡結束</string>
+    <string name="ai_chat_bubble_min_title">最小間隔</string>
+    <string name="ai_chat_bubble_max_title">最大間隔</string>
 </resources>

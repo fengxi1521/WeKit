@@ -4187,4 +4187,36 @@
     <string name="chat_group_nickname_color_follow_title">Follow host</string>
     <string name="chat_group_nickname_color_color_title">Nickname color</string>
     <string name="chat_group_nickname_color_bold_title">Bold nickname</string>
+
+    <string name="feature_ai_chat_name">AI chat</string>
+    <string name="feature_ai_chat_description">Chat and bubble in selected group and private chats with DeepSeek</string>
+    <string name="ai_chat_enabled_title">Enable AI chat</string>
+    <string name="ai_chat_enabled_description">Reply automatically in the selected chats</string>
+    <string name="ai_chat_targets_title">Chats</string>
+    <string name="ai_chat_targets_empty">No chats selected</string>
+    <string name="ai_chat_targets_count">%1$d selected</string>
+    <string name="ai_chat_select_title">Select chats</string>
+    <string name="ai_chat_section_model">DeepSeek</string>
+    <string name="ai_chat_api_key_title">API key</string>
+    <string name="ai_chat_api_key_hint">DeepSeek API key</string>
+    <string name="ai_chat_base_url_title">Base URL</string>
+    <string name="ai_chat_base_url_hint">https://api.deepseek.com</string>
+    <string name="ai_chat_model_title">Model</string>
+    <string name="ai_chat_model_hint">deepseek-flash</string>
+    <string name="ai_chat_persona_title">Persona</string>
+    <string name="ai_chat_persona_hint">Describe the personality and tone of the AI</string>
+    <string name="ai_chat_section_reply">Reply</string>
+    <string name="ai_chat_context_title">Context messages</string>
+    <string name="ai_chat_context_description">How many recent messages are sent to DeepSeek</string>
+    <string name="ai_chat_reply_delay_title">Reply delay</string>
+    <string name="ai_chat_mention_title">Mention in groups</string>
+    <string name="ai_chat_mention_description">Randomly @ the sender when replying in a group</string>
+    <string name="ai_chat_mention_percent_title">Mention chance</string>
+    <string name="ai_chat_section_bubble">Bubble</string>
+    <string name="ai_chat_bubble_title">Enable bubble</string>
+    <string name="ai_chat_bubble_description">Proactively send a message during the time window</string>
+    <string name="ai_chat_bubble_start_title">Bubble start</string>
+    <string name="ai_chat_bubble_end_title">Bubble end</string>
+    <string name="ai_chat_bubble_min_title">Minimum interval</string>
+    <string name="ai_chat_bubble_max_title">Maximum interval</string>
 </resources>
