@@ -11,23 +11,26 @@ import com.xiao.feng.agent.model.LlmMessage
 import com.xiao.feng.agent.model.LlmRole
 import com.xiao.feng.agent.model.LlmStreamEvent
 import com.xiao.feng.agent.model.ModelProviderManager
+import com.xiao.feng.features.api.net.models.protobuf.TimelineObjectProto
 import com.xiao.feng.features.api.ui.WeMomentsApi
 import com.xiao.feng.utils.HostInfo
 import com.xiao.feng.utils.WeLogger
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
-import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
 import java.io.ByteArrayOutputStream
 import java.io.File
+import java.net.HttpURLConnection
+import java.net.URL
 
 /**
- * Writes a Moments comment from the post text plus its cached pictures through DeepSeek's
+ * Writes a Moments comment from the post text plus its pictures through DeepSeek's
  * OpenAI-compatible Chat Completions endpoint. `deepseek-flash` accepts images as standard
  * `image_url` content blocks, so the same request also covers text-only posts.
  *
- * Image resolution runs on the main thread (the host's download trigger expects it), while decoding
- * and the LLM request run on worker threads.
+ * Pictures are preferred from the host's local cache; when a post was never opened the image is
+ * downloaded straight from the CDN url stored in the post itself, so reading pictures does not
+ * depend on WeChat having warmed its cache or on the native media objects being resolvable.
  */
 object AutoCommentAi {
 
@@ -43,12 +46,10 @@ object AutoCommentAi {
     private const val MAX_IMAGE_EDGE = 1024
     private const val JPEG_QUALITY = 85
 
-    /**
-     * A post is commented the moment the host stores it, before anyone has opened the picture, so
-     * the big image is usually not cached yet. Ask the host to fetch it (the same path as tapping
-     * to view it) and wait at most this long — a slow CDN link then falls back to a text-only reply.
-     */
-    private const val IMAGE_FETCH_TIMEOUT_MS = 15_000L
+    private const val MEDIA_TYPE_VIDEO = 2
+    private const val HTTP_CONNECT_TIMEOUT_MS = 5_000
+    private const val HTTP_READ_TIMEOUT_MS = 10_000
+    private const val MAX_IMAGE_BYTES = 12 * 1024 * 1024
 
     /**
      * The shared LLM client allows a 10-minute request — fine for an interactive agent turn, but
@@ -73,14 +74,7 @@ object AutoCommentAi {
             return null
         }
         val text = WeMomentsApi.getContentText(snsInfo).orEmpty()
-        // Resolve/trigger image downloads on the main thread like the host's own "view large image"
-        // flow, then decode the files off the main thread.
-        val images = runBlocking {
-            val paths = withContext(Dispatchers.Main.immediate) {
-                resolveImagePaths(snsInfo, config.maxImages)
-            }
-            withContext(Dispatchers.IO) { paths.mapNotNull(::encodeImage) }
-        }
+        val images = runBlocking(Dispatchers.IO) { collectImages(snsInfo, config.maxImages) }
         if (text.isBlank() && images.isEmpty()) {
             WeLogger.i(TAG, "skipping comment: the post has neither text nor readable images")
             return null
@@ -167,58 +161,132 @@ object AutoCommentAi {
         }
     }
 
-    /** Resolves up to [limit] cached image paths, asking the host to download any missing picture. */
-    private suspend fun resolveImagePaths(snsInfo: Any?, limit: Int): List<String> {
+    /** Collects up to [limit] pictures, from the host cache first and the CDN url otherwise. */
+    private fun collectImages(snsInfo: Any?, limit: Int): List<LlmImage> {
         if (limit <= 0) return emptyList()
-        val content = WeMomentsApi.getMomentContent(snsInfo)
-        if (content == null) {
-            WeLogger.w(TAG, "no MomentContent for this post, images skipped")
+        // Read the media list from the stored proto directly: the native object is only needed for
+        // local cache paths, and its resolution can fail for background (not-yet-rendered) posts.
+        val mediaList = WeMomentsApi.getTimelineProto(snsInfo)?.contentObj?.mediaList.orEmpty()
+        if (mediaList.isEmpty()) {
+            WeLogger.i(TAG, "post has no media entries")
             return emptyList()
         }
+        val nativeMediaList = runCatching {
+            WeMomentsApi.getMomentContent(snsInfo)?.nativeMediaList
+        }.onFailure {
+            WeLogger.w(TAG, "native media list unavailable, relying on CDN urls", it)
+        }.getOrNull()
         WeLogger.i(
             TAG,
-            "post media: proto=${content.mediaList.size}, native=${content.nativeMediaList.size}",
+            "post media: proto=${mediaList.size}, native=${nativeMediaList?.size ?: -1}",
         )
-        val paths = mutableListOf<String>()
-        for (index in content.mediaList.indices) {
-            if (paths.size >= limit) break
-            val media = content.mediaList[index]
-            val nativeMedia = content.nativeMediaList.getOrNull(index)
-            if (nativeMedia == null) {
-                WeLogger.w(TAG, "image $index: no native media object")
+        val images = mutableListOf<LlmImage>()
+        for (index in mediaList.indices) {
+            if (images.size >= limit) break
+            val media = mediaList[index]
+            if (media.type == MEDIA_TYPE_VIDEO) continue
+
+            val cachedPath = runCatching {
+                val nativeMedia = nativeMediaList?.getOrNull(index) ?: return@runCatching null
+                WeMomentsApi.getCachedImagePath(media, nativeMedia)
+            }.onFailure {
+                WeLogger.w(TAG, "image $index: cached path lookup failed", it)
+            }.getOrNull()
+
+            var bytes = cachedPath?.let(::readCachedBytes)
+            var origin = "cache"
+            if (bytes == null) {
+                bytes = mediaImageUrl(media)?.let(::downloadImage)
+                origin = "cdn"
+            }
+            if (bytes == null) {
+                WeLogger.w(TAG, "image $index: no cached file and CDN download failed")
                 continue
             }
-            val path = WeMomentsApi.getCachedImagePath(media, nativeMedia)
-                ?: WeMomentsApi.ensureImageCached(media, nativeMedia, IMAGE_FETCH_TIMEOUT_MS)
-            if (path == null) {
-                WeLogger.w(TAG, "image $index: no cached path and download did not finish")
+            val image = encodeImage(bytes)
+            if (image == null) {
+                WeLogger.w(TAG, "image $index: decode/encode failed (${bytes.size} bytes)")
                 continue
             }
-            paths += path
+            WeLogger.i(TAG, "image $index: using $origin, ${bytes.size} bytes")
+            images += image
         }
-        WeLogger.i(TAG, "resolved ${paths.size} image path(s) for the comment")
-        return paths
+        WeLogger.i(TAG, "collected ${images.size} image(s) for the comment")
+        return images
     }
 
-    /**
-     * Cached Moments images may live on WeChat's VFS, so copy them out through the API helper
-     * before reading, then downscale and re-encode as JPEG.
-     */
-    private fun encodeImage(path: String): LlmImage? {
+    /** Cached Moments images may live on WeChat's VFS, so copy them out before reading. */
+    private fun readCachedBytes(path: String): ByteArray? {
         val dir = File(HostInfo.application.cacheDir, "auto_comment_ai").apply { mkdirs() }
         val temp = File(dir, "img_${System.nanoTime()}")
         if (!WeMomentsApi.copyExistingFile(path, temp.absolutePath)) return null
         return try {
-            val jpeg = compressJpeg(temp) ?: return null
-            LlmImage(Base64.encodeToString(jpeg, Base64.NO_WRAP), "image/jpeg")
+            temp.takeIf { it.length() > 0L }?.readBytes()
         } finally {
             temp.delete()
         }
     }
 
-    private fun compressJpeg(file: File): ByteArray? {
+    /** The post stores the original picture url; the thumbnail is only a last resort. */
+    private fun mediaImageUrl(media: TimelineObjectProto.MediaObjProto): String? =
+        listOfNotNull(media.url, media.thumbUrl).firstOrNull { it.startsWith("http") }
+
+    private fun downloadImage(rawUrl: String): ByteArray? {
+        // Post urls are often plain http; qpic's CDN serves the same object over https, which is
+        // what the host process can actually reach on modern Android.
+        val candidates = buildList {
+            if (rawUrl.startsWith("http://", ignoreCase = true)) {
+                add("https://" + rawUrl.substring("http://".length))
+            }
+            add(rawUrl)
+        }
+        for (url in candidates) {
+            val bytes = runCatching { fetchBytes(url) }
+                .onFailure { WeLogger.w(TAG, "image download failed: $url", it) }
+                .getOrNull()
+            if (bytes != null && bytes.isNotEmpty()) return bytes
+        }
+        return null
+    }
+
+    private fun fetchBytes(url: String): ByteArray? {
+        val connection = URL(url).openConnection() as HttpURLConnection
+        return try {
+            connection.connectTimeout = HTTP_CONNECT_TIMEOUT_MS
+            connection.readTimeout = HTTP_READ_TIMEOUT_MS
+            connection.instanceFollowRedirects = true
+            connection.setRequestProperty("User-Agent", "Mozilla/5.0 (Linux; Android 14)")
+            if (connection.responseCode !in 200..299) {
+                WeLogger.w(TAG, "image download HTTP ${connection.responseCode}: $url")
+                return null
+            }
+            if (connection.contentLengthLong > MAX_IMAGE_BYTES) {
+                WeLogger.w(TAG, "image too large (${connection.contentLengthLong} bytes): $url")
+                return null
+            }
+            connection.inputStream.use { stream ->
+                val output = ByteArrayOutputStream()
+                val buffer = ByteArray(16 * 1024)
+                while (true) {
+                    val read = stream.read(buffer)
+                    if (read < 0) break
+                    output.write(buffer, 0, read)
+                    if (output.size() > MAX_IMAGE_BYTES) {
+                        WeLogger.w(TAG, "image exceeded ${MAX_IMAGE_BYTES} bytes, aborting: $url")
+                        return null
+                    }
+                }
+                output.toByteArray()
+            }
+        } finally {
+            connection.disconnect()
+        }
+    }
+
+    /** Downscales and re-encodes as JPEG so a 9-picture post stays far below the body limit. */
+    private fun encodeImage(source: ByteArray): LlmImage? {
         val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
-        BitmapFactory.decodeFile(file.absolutePath, bounds)
+        BitmapFactory.decodeByteArray(source, 0, source.size, bounds)
         if (bounds.outWidth <= 0 || bounds.outHeight <= 0) return null
 
         var sampleSize = 1
@@ -228,13 +296,14 @@ object AutoCommentAi {
             sampleSize *= 2
         }
         val options = BitmapFactory.Options().apply { inSampleSize = sampleSize }
-        val decoded = BitmapFactory.decodeFile(file.absolutePath, options) ?: return null
+        val decoded = BitmapFactory.decodeByteArray(source, 0, source.size, options) ?: return null
         val scaled = scaleDown(decoded, MAX_IMAGE_EDGE)
         return try {
-            ByteArrayOutputStream().use { output ->
+            val jpeg = ByteArrayOutputStream().use { output ->
                 scaled.compress(Bitmap.CompressFormat.JPEG, JPEG_QUALITY, output)
                 output.toByteArray()
             }
+            LlmImage(Base64.encodeToString(jpeg, Base64.NO_WRAP), "image/jpeg")
         } finally {
             if (scaled !== decoded) scaled.recycle()
             decoded.recycle()
