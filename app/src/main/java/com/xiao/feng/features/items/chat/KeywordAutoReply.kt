@@ -54,6 +54,7 @@ object KeywordAutoReply : ClickableFeature(), WeDatabaseListenerApi.IInsertListe
     private const val TAG = "KeywordAutoReply"
     private const val KEY_ENABLED = "keyword_auto_reply_enabled"
     private const val KEY_RULES = "keyword_auto_reply_rules"
+    private const val KEY_TARGETS = "keyword_auto_reply_targets"
 
     /** WeChat's plain-text row type (`MessageType.TEXT.code`). */
     private const val TEXT_MESSAGE_TYPE = 1
@@ -63,6 +64,9 @@ object KeywordAutoReply : ClickableFeature(), WeDatabaseListenerApi.IInsertListe
     private const val MAX_DEDUP_KEYS = 128
 
     var featureEnabled: Boolean by prefOption(KEY_ENABLED, true)
+
+    /** 生效会话; 为空表示所有聊天。 */
+    var targets: Set<String> by prefOption(KEY_TARGETS, emptySet<String>())
 
     private var rulesRaw: String by prefOption(KEY_RULES, "")
 
@@ -115,6 +119,7 @@ object KeywordAutoReply : ClickableFeature(), WeDatabaseListenerApi.IInsertListe
         if (type != TEXT_MESSAGE_TYPE) return
 
         val talker = values.getAsString("talker") ?: return
+        if (targets.isNotEmpty() && talker !in targets) return
         val rawContent = values.getAsString("content") ?: return
         val content = (if (talker.isGroupChatWxId) rawContent.stripWxId() else rawContent).trim()
         if (content.isEmpty()) return

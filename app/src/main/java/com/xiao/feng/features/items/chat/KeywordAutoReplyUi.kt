@@ -18,6 +18,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -31,17 +32,35 @@ import com.composables.icons.materialsymbols.MaterialSymbols
 import com.composables.icons.materialsymbols.outlined.Add
 import com.composables.icons.materialsymbols.outlined.Delete
 import com.xiao.feng.R
+import com.xiao.feng.features.api.core.WeDatabaseApi
+import com.xiao.feng.features.api.core.models.IWeContact
 import com.xiao.feng.ui.content.AlertDialogContent
 import com.xiao.feng.ui.content.Button
+import com.xiao.feng.ui.content.ContactsSelector
 import com.xiao.feng.ui.content.DefaultColumn
 import com.xiao.feng.ui.content.IconButton
 import com.xiao.feng.ui.content.TextButton
 import com.xiao.feng.ui.utils.ListItem
 import com.xiao.feng.ui.utils.showComposeDialog
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 fun showKeywordAutoReplyDialog(context: ComponentActivity) {
     showComposeDialog(context) {
         val rules = remember { KeywordAutoReply.rules.toMutableStateList() }
+        var targets by remember { mutableStateOf(KeywordAutoReply.targets) }
+        var contacts by remember { mutableStateOf<List<IWeContact>>(emptyList()) }
+        LaunchedEffect(Unit) {
+            contacts = withContext(Dispatchers.IO) {
+                if (!WeDatabaseApi.isReady) return@withContext emptyList<IWeContact>()
+                runCatching {
+                    buildList {
+                        addAll(WeDatabaseApi.getFriends())
+                        addAll(WeDatabaseApi.getGroups())
+                    }
+                }.getOrDefault(emptyList())
+            }
+        }
 
         AlertDialogContent(
             modifier = Modifier.fillMaxWidth(),
@@ -72,6 +91,34 @@ fun showKeywordAutoReplyDialog(context: ComponentActivity) {
                             Text(stringResource(R.string.keyword_auto_reply_add))
                         }
                     }
+
+                    ListItem(
+                        modifier = Modifier.clickable {
+                            showComposeDialog(context) {
+                                ContactsSelector(
+                                    title = stringResource(R.string.keyword_auto_reply_targets_select),
+                                    contacts = contacts,
+                                    initialSelectedWxIds = targets,
+                                    onDismiss = this.onDismiss,
+                                    onConfirm = { selected ->
+                                        targets = selected
+                                        KeywordAutoReply.targets = selected
+                                        this.onDismiss()
+                                    },
+                                )
+                            }
+                        },
+                        content = { Text(stringResource(R.string.keyword_auto_reply_targets_title)) },
+                        supportingContent = {
+                            Text(
+                                if (targets.isEmpty()) {
+                                    stringResource(R.string.keyword_auto_reply_targets_empty)
+                                } else {
+                                    stringResource(R.string.keyword_auto_reply_targets_count, targets.size)
+                                }
+                            )
+                        },
+                    )
 
                     if (rules.isEmpty()) {
                         Text(

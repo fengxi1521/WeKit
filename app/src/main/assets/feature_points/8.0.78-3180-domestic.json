@@ -1390,6 +1390,15 @@
             "descriptors": {
                 "methodSetChatBackground": "Lcom/tencent/mm/ui/chatting/component/v2;->y0()V"
             }
+        },
+        {
+            "technicalId": "礼物领取服务",
+            "methodHash": "8b2d3e4c1f5a6b7c8d9e0f1a2b3c4d5e",
+            "descriptors": {
+                "classGiftService": "b20.e4",
+                "classGiftServiceImpl": "i20.k1",
+                "ctorGiftTask": "Li20/j1;-><init>(Li20/k1;Lcom/tencent/mm/storage/e9;)V"
+            }
         }
     ]
 }
