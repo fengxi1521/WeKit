@@ -4203,8 +4203,8 @@
     <string name="ai_chat_base_url_hint">https://api.deepseek.com</string>
     <string name="ai_chat_model_title">Model</string>
     <string name="ai_chat_model_hint">deepseek-flash</string>
-    <string name="ai_chat_persona_title">Persona</string>
-    <string name="ai_chat_persona_hint">Describe the personality and tone of the AI</string>
+    <string name="ai_chat_persona_title">Role prompt</string>
+    <string name="ai_chat_persona_hint">Persona and tone, sent as the system prompt</string>
     <string name="ai_chat_section_reply">Reply</string>
     <string name="ai_chat_context_title">Context messages</string>
     <string name="ai_chat_context_description">How many recent messages are sent to DeepSeek</string>

@@ -4191,8 +4191,8 @@
     <string name="ai_chat_base_url_hint">https://api.deepseek.com</string>
     <string name="ai_chat_model_title">模型</string>
     <string name="ai_chat_model_hint">deepseek-flash</string>
-    <string name="ai_chat_persona_title">人設</string>
-    <string name="ai_chat_persona_hint">描述 AI 的性格和說話方式</string>
+    <string name="ai_chat_persona_title">角色設定（提示詞）</string>
+    <string name="ai_chat_persona_hint">描述 AI 的人設與說話方式，會作為系統提示詞傳送</string>
     <string name="ai_chat_section_reply">回覆</string>
     <string name="ai_chat_context_title">上下文條數</string>
     <string name="ai_chat_context_description">每次帶給 DeepSeek 的最近訊息條數</string>
