@@ -6,23 +6,34 @@ import java.util.*;
 // ============================================================
 
 final String ALLOW_GROUP_KEY = "allow_group_list";
+final String DISABLED_GROUP_KEY = "disabled_group_list";
 final String GAME_KEY = "guess_num_answer";
 final String GAME_SWITCH = "game_switch";
 
-String loadAllowGroupList() {
+String loadConfigValue(String key) {
     try {
         File configFile = new File(pluginDir, "config.prop");
         if (configFile.exists()) {
             Properties props = new Properties();
             props.load(new FileInputStream(configFile));
-            return props.getProperty(ALLOW_GROUP_KEY, "").trim();
+            return props.getProperty(key, "").trim();
         }
     } catch (Throwable ignored) {}
-    return getString(ALLOW_GROUP_KEY, "");
+    return getString(key, "");
+}
+
+boolean isDisabledGroup(String roomWxid) {
+    String list = loadConfigValue(DISABLED_GROUP_KEY);
+    if (list.isEmpty()) return false;
+    for (String g : list.split(",")) {
+        if (g.trim().equals(roomWxid)) return true;
+    }
+    return false;
 }
 
 boolean isAllowGroup(String roomWxid) {
-    String list = loadAllowGroupList();
+    if (isDisabledGroup(roomWxid)) return false;
+    String list = loadConfigValue(ALLOW_GROUP_KEY);
     if (list.isEmpty()) return true;
     for (String g : list.split(",")) {
         if (g.trim().equals(roomWxid)) return true;

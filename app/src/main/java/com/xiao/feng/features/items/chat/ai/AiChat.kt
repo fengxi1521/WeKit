@@ -92,6 +92,10 @@ object AiChat : ClickableFeature(), WeDatabaseListenerApi.IInsertListener {
     private const val KEY_MENTION_ENABLED = "ai_chat_mention_enabled"
     private const val KEY_MENTION_PERCENT = "ai_chat_mention_percent"
     private const val KEY_REPLY_DELAY = "ai_chat_reply_delay_seconds"
+    private const val KEY_QUOTE_REPLY = "ai_chat_quote_reply"
+    private const val KEY_STICKER_ENABLED = "ai_chat_sticker_enabled"
+    private const val KEY_STICKER_PERCENT = "ai_chat_sticker_percent"
+    private const val KEY_STICKER_MD5S = "ai_chat_sticker_md5s"
     private const val KEY_BUBBLE_ENABLED = "ai_chat_bubble_enabled"
     private const val KEY_BUBBLE_START = "ai_chat_bubble_start_minute"
     private const val KEY_BUBBLE_END = "ai_chat_bubble_end_minute"
@@ -108,6 +112,10 @@ object AiChat : ClickableFeature(), WeDatabaseListenerApi.IInsertListener {
     var mentionEnabled: Boolean by prefOption(KEY_MENTION_ENABLED, true)
     var mentionPercent: Int by prefOption(KEY_MENTION_PERCENT, 30)
     var replyDelaySeconds: Int by prefOption(KEY_REPLY_DELAY, 4)
+    var quoteReply: Boolean by prefOption(KEY_QUOTE_REPLY, true)
+    var stickerEnabled: Boolean by prefOption(KEY_STICKER_ENABLED, true)
+    var stickerPercent: Int by prefOption(KEY_STICKER_PERCENT, 35)
+    var stickerMd5s: Set<String> by prefOption(KEY_STICKER_MD5S, emptySet<String>())
     var bubbleEnabled: Boolean by prefOption(KEY_BUBBLE_ENABLED, false)
     var bubbleStartMinute: Int by prefOption(KEY_BUBBLE_START, 9 * 60)
     var bubbleEndMinute: Int by prefOption(KEY_BUBBLE_END, 23 * 60)
@@ -211,23 +219,65 @@ object AiChat : ClickableFeature(), WeDatabaseListenerApi.IInsertListener {
         if (text.isEmpty()) return
 
         val msgId = values.getAsLong("msgId") ?: 0L
-        val dedupKey = "$talker|$msgId|${values.getAsLong("createTime") ?: 0L}|$text"
+        val createTime = values.getAsLong("createTime") ?: 0L
+        val dedupKey = "$talker|$msgId|$createTime|$text"
         if (!markSeen(dedupKey)) return
+
+        // 被 @ 的消息必须回复, 不能因为后面又来了别的消息就被代次检查取消。
+        val mentioned = isMentioningMe(talker, text)
 
         val generation = nextGeneration(talker)
         scope.launch {
             delay(REPLY_DEBOUNCE_MILLIS + replyDelaySeconds.coerceAtLeast(0) * 1000L)
-            if (generations[talker] != generation) return@launch
+            if (!mentioned && generations[talker] != generation) return@launch
             if (!chatEnabled || talker !in targets) return@launch
             val now = System.currentTimeMillis()
-            if (now - (lastReplyAt[talker] ?: 0L) < REPLY_COOLDOWN_MILLIS) return@launch
+            if (!mentioned && now - (lastReplyAt[talker] ?: 0L) < REPLY_COOLDOWN_MILLIS) return@launch
             lastReplyAt[talker] = now
-            runCatching { reply(talker, sender, msgId, text) }
+            runCatching { reply(talker, sender, msgId, createTime, text, mentioned) }
                 .onFailure { WeLogger.w(TAG, "reply failed for $talker", it) }
         }
     }
 
-    private suspend fun reply(talker: String, sender: String, triggerMsgId: Long, triggerText: String) {
+    /** 群聊里 @ 我 (群昵称或微信昵称)。 */
+    private fun isMentioningMe(talker: String, strippedContent: String): Boolean {
+        if (!talker.isGroupChatWxId || '@' !in strippedContent) return false
+        val self = WeApi.selfWxId
+        if (self.isBlank()) return false
+        val names = buildSet {
+            runCatching { WeDatabaseApi.getGroupMemberDisplayName(talker, self) }
+                .getOrDefault("")
+                .takeIf { it.isNotBlank() }?.let(::add)
+            runCatching { WeDatabaseApi.getDisplayName(self) }
+                .getOrDefault("")
+                .takeIf { it.isNotBlank() }?.let(::add)
+        }
+        return names.any { strippedContent.contains("@$it") }
+    }
+
+    /** 插入时的 ContentValues 没有自增 msgId 时, 按会话 + 时间查回这条消息。 */
+    private fun resolveMsgId(talker: String, createTime: Long): Long = runCatching {
+        val byTime = createTime > 0L
+        val sql = if (byTime) {
+            "SELECT msgId FROM message WHERE talker = ? AND isSend = 0 AND createTime = ? " +
+                "ORDER BY msgId DESC LIMIT 1"
+        } else {
+            "SELECT msgId FROM message WHERE talker = ? AND isSend = 0 ORDER BY msgId DESC LIMIT 1"
+        }
+        val args = if (byTime) arrayOf(talker, createTime.toString()) else arrayOf(talker)
+        WeDatabaseApi.db.rawQuery(sql, args)?.use { cursor ->
+            if (cursor.moveToFirst()) cursor.getLong(0) else 0L
+        } ?: 0L
+    }.getOrElse { 0L }
+
+    private suspend fun reply(
+        talker: String,
+        sender: String,
+        triggerMsgId: Long,
+        triggerCreateTime: Long,
+        triggerText: String,
+        mentioned: Boolean,
+    ) {
         val config = snapshot()
         if (config.apiKey.isBlank()) {
             WeLogger.w(TAG, "skipped: DeepSeek API key is not configured")
@@ -244,18 +294,38 @@ object AiChat : ClickableFeature(), WeDatabaseListenerApi.IInsertListener {
         )
         val answer = ask(config, messages) ?: return
 
-        val atSender = talker.isGroupChatWxId &&
+        // 优先引用原消息, 像微信里正常回消息一样; 不成功再退回普通发送。
+        // 消息是自动分配 msgId 的, 插入时 ContentValues 里通常还没有, 这里按会话+时间补查。
+        val quotedMsgId = if (triggerMsgId > 0L) triggerMsgId else resolveMsgId(talker, triggerCreateTime)
+        val quoted = config.quoteReply && quotedMsgId > 0L &&
+                runCatching { WeMessageApi.sendQuoteTextByMsgId(talker, quotedMsgId, answer) }
+                    .getOrDefault(false)
+
+        val atSender = !quoted &&
+                talker.isGroupChatWxId &&
                 config.mentionEnabled &&
                 sender.isNotBlank() &&
                 sender != WeApi.selfWxId &&
                 Random.nextInt(100) < config.mentionPercent.coerceIn(0, 100)
 
-        val sent = if (atSender) {
-            WeMessageApi.sendTextWithMsgSource(talker, answer, atMsgSource(sender))
-        } else {
-            WeMessageApi.sendText(talker, answer)
+        val sent = when {
+            quoted -> true
+            atSender -> WeMessageApi.sendTextWithMsgSource(talker, answer, atMsgSource(sender))
+            else -> WeMessageApi.sendText(talker, answer)
         }
-        WeLogger.i(TAG, "reply talker=$talker mention=$atSender sent=$sent")
+        WeLogger.i(TAG, "reply talker=$talker mention=${mentioned || atSender} quoted=$quoted sent=$sent")
+
+        if (sent) maybeSendSticker(talker, config)
+    }
+
+    /** 按设置的概率跟发一个用户挑过的微信表情包。 */
+    private fun maybeSendSticker(talker: String, config: Config) {
+        if (!config.stickerEnabled || config.stickerMd5s.isEmpty()) return
+        val percent = config.stickerPercent.coerceIn(0, 100)
+        if (percent <= 0 || Random.nextInt(100) >= percent) return
+        val md5 = config.stickerMd5s.random()
+        runCatching { AiChatStickers.send(talker, md5) }
+            .onFailure { WeLogger.w(TAG, "failed to send sticker $md5 to $talker", it) }
     }
 
     private suspend fun bubble(talker: String) {
@@ -370,6 +440,8 @@ object AiChat : ClickableFeature(), WeDatabaseListenerApi.IInsertListener {
             append("\n2. 承接上文，口语化、简短自然，一般不超过 50 个字。")
             append("\n3. 不要重复别人刚说过的话，也不要暴露自己是 AI 或机器人。")
             append("\n4. 不要使用 Markdown、列表或标题，可以用表情。")
+            append("\n5. 像真人闲聊：可以用短句、语气词（哈哈、嗯、确实、可以啊），不必每句都完整。")
+            append("\n6. 被 @ 或被引用时，直接回应对方那一句，不要答非所问。")
             if (bubble) {
                 append("\n\n现在聊天比较冷清，请你主动冒个泡：发一句能开启话题或活跃气氛的话。")
             }
@@ -471,6 +543,10 @@ object AiChat : ClickableFeature(), WeDatabaseListenerApi.IInsertListener {
         contextCount = contextCount.coerceIn(0, 100),
         mentionEnabled = mentionEnabled,
         mentionPercent = mentionPercent,
+        quoteReply = quoteReply,
+        stickerEnabled = stickerEnabled,
+        stickerPercent = stickerPercent,
+        stickerMd5s = stickerMd5s,
     )
 
     private fun newScope() = CoroutineScope(SupervisorJob() + Dispatchers.IO)
@@ -483,6 +559,10 @@ object AiChat : ClickableFeature(), WeDatabaseListenerApi.IInsertListener {
         val contextCount: Int,
         val mentionEnabled: Boolean,
         val mentionPercent: Int,
+        val quoteReply: Boolean,
+        val stickerEnabled: Boolean,
+        val stickerPercent: Int,
+        val stickerMd5s: Set<String>,
     )
 
     override fun onClick(context: ComponentActivity) = showAiChatDialog(context)

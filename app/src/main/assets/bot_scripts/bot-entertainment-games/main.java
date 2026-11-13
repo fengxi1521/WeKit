@@ -5,9 +5,42 @@
 // 数据文件拆分到 data/ 目录，通过 loadJava 加载
 // ============================================================
 
+import java.io.*;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
+
+// ======================== 生效群过滤 ========================
+
+final String ALLOW_GROUP_KEY = "allow_group_list";
+final String DISABLED_GROUP_KEY = "disabled_group_list";
+
+String loadConfigValue(String key) {
+    try {
+        File configFile = new File(pluginDir, "config.prop");
+        if (configFile.exists()) {
+            Properties props = new Properties();
+            props.load(new FileInputStream(configFile));
+            return props.getProperty(key, "").trim();
+        }
+    } catch (Throwable ignored) {}
+    return getString(key, "");
+}
+
+boolean isBotAllowedGroup(String roomWxid) {
+    String disabled = loadConfigValue(DISABLED_GROUP_KEY);
+    if (!disabled.isEmpty()) {
+        for (String g : disabled.split(",")) {
+            if (g.trim().equals(roomWxid)) return false;
+        }
+    }
+    String allowed = loadConfigValue(ALLOW_GROUP_KEY);
+    if (allowed.isEmpty()) return true;
+    for (String g : allowed.split(",")) {
+        if (g.trim().equals(roomWxid)) return true;
+    }
+    return false;
+}
 
 // ======================== 加载数据文件 ========================
 
@@ -249,6 +282,8 @@ void onHandleMsg(Object msg) {
         String sender = (String) invokeMethod(msg, "getSender", 0);
         String content = (String) invokeMethod(msg, "getContent", 0);
         boolean isGroup = (boolean) invokeMethod(msg, "isGroupChat", 0);
+
+        if (isGroup && !isBotAllowedGroup(talker)) return;
 
         if (content == null || content.isEmpty()) return;
         content = content.trim();

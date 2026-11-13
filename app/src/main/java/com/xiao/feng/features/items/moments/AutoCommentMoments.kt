@@ -57,6 +57,8 @@ object AutoCommentMoments : AutoMomentsBase() {
     private const val MAX_ANSWERED_REPLIES = 500
     private const val MAX_REPLY_AGE_SECONDS = 7L * 24 * 3600
     private const val SCAN_INTERVAL_MS = 60_000L
+    private const val REPLY_POLL_INTERVAL_MS = 45_000L
+    private const val REPLY_POLL_LIMIT = 200
 
     private var commentText by prefOption("moments_auto_comment_text", "")
     private var intervalSeconds by prefOption("moments_auto_comment_interval_seconds", 3)
@@ -110,6 +112,9 @@ object AutoCommentMoments : AutoMomentsBase() {
     private var replyHookInstalled = false
 
     @Volatile
+    private var replyPollThread: Thread? = null
+
+    @Volatile
     private var lastActionSentAt = 0L
 
     override fun onEnable() {
@@ -129,11 +134,73 @@ object AutoCommentMoments : AutoMomentsBase() {
         }
         installReplyHook()
         installTimelineHooks()
+        startReplyPolling()
     }
 
     override fun onDisable() {
         active = false
         stopAutomation()
+    }
+
+    /**
+     * 主动轮询 `SnsComment` 表兜底：评论同步只写评论表、不一定重写 `SnsInfo`，单靠 hook 会漏掉
+     * 别人对 AI 评论的回复。这里只读最近 7 天的评论行，再按 AI 评论过的 snsId 过滤。
+     */
+    private fun startReplyPolling() {
+        if (replyPollThread?.isAlive == true) return
+        replyPollThread = kotlin.concurrent.thread(
+            name = "moments-ai-reply-poll",
+            isDaemon = true,
+        ) {
+            while (active) {
+                try {
+                    Thread.sleep(REPLY_POLL_INTERVAL_MS)
+                } catch (_: InterruptedException) {
+                    return@thread
+                }
+                if (!active || !aiReplyToReplies) continue
+                runCatching { pollStoredReplies() }
+                    .onFailure { WeLogger.w(TAG, "failed to poll stored Moments replies", it) }
+            }
+        }
+    }
+
+    private fun pollStoredReplies() {
+        if (!active || !aiReplyToReplies) return
+        val knownPosts = synchronized(aiReplyLock) { aiCommentHistory.keys.toSet() }
+        if (knownPosts.isEmpty()) return
+        val minCreateTime = System.currentTimeMillis() / 1000 - MAX_REPLY_AGE_SECONDS
+        WeMomentsApi.rawQuerySnsInfo(
+            "SELECT snsID, commentSvrID, parentID, talker, isSend, curActionBuf, createTime " +
+                "FROM SnsComment WHERE createTime > ? ORDER BY createTime DESC LIMIT $REPLY_POLL_LIMIT",
+            arrayOf(minCreateTime.toString()),
+        ).use { cursor ->
+            val snsIndex = cursor.getColumnIndex("snsID")
+            val idIndex = cursor.getColumnIndex("commentSvrID")
+            val parentIndex = cursor.getColumnIndex("parentID")
+            val talkerIndex = cursor.getColumnIndex("talker")
+            val sendIndex = cursor.getColumnIndex("isSend")
+            val bufIndex = cursor.getColumnIndex("curActionBuf")
+            val timeIndex = cursor.getColumnIndex("createTime")
+            if (snsIndex < 0 || idIndex < 0 || parentIndex < 0 || talkerIndex < 0 || sendIndex < 0 || bufIndex < 0) return
+            while (cursor.moveToNext()) {
+                val snsId = cursor.getLong(snsIndex)
+                if (snsId.toString() !in knownPosts) continue
+                val buf = cursor.getBlob(bufIndex) ?: continue
+                val createdRaw = if (timeIndex >= 0) cursor.getLong(timeIndex) else 0L
+                handleCommentRow(
+                    snsId = snsId,
+                    commentId = cursor.getLong(idIndex),
+                    parentId = cursor.getLong(parentIndex),
+                    talker = cursor.getString(talkerIndex).orEmpty(),
+                    isSend = cursor.getInt(sendIndex) != 0,
+                    text = runCatching {
+                        SnsCommentActionProto.decode(buf).content.orEmpty()
+                    }.getOrDefault(""),
+                    createdSeconds = if (createdRaw > 1_000_000_000_000L) createdRaw / 1000 else createdRaw,
+                )
+            }
+        }
     }
 
     /**
@@ -550,7 +617,8 @@ object AutoCommentMoments : AutoMomentsBase() {
     /** Extracts the fields of a comment entity the host just wrote or loaded. */
     private fun inspectComment(comment: Any) {
         val isSend = readCommentFlag(comment, "field_isSend") ?: return
-        val snsId = readCommentLong(comment, "field_snsID")
+        val snsId = readCommentLong(comment, "field_snsID").takeIf { it != 0L }
+            ?: readCommentLong(comment, "field_snsId")
         if (snsId == 0L) return
         val createdRaw = readCommentLong(comment, "field_createTime")
         handleCommentRow(
@@ -590,7 +658,8 @@ object AutoCommentMoments : AutoMomentsBase() {
     ) {
         val snsKey = snsId.toString()
         if (isSend) {
-            if (commentId == 0L || talker != WeApi.selfWxId) return
+            // 自己发出的评论 isSend 已经能说明是谁, 不再强依赖 talker 字段。
+            if (commentId == 0L) return
             if (!isOurAiText(snsKey, text)) return
             recordAiCommentId(snsKey, commentId)
             return
@@ -621,11 +690,10 @@ object AutoCommentMoments : AutoMomentsBase() {
         val replyKey = "$snsId:$commentSvrId"
         runCatching {
             if (!answeredReplies.add(replyKey)) return@runCatching
-            // The stored parent row proves the replied-to comment is ours, so the check does not
-            // depend on having observed its server id when the host wrote it.
-            val ourComment = ourCommentText(snsId, parentId)
-                ?: aiCommentTexts[snsId.toString()]
-                    .takeIf { parentId in aiCommentIds[snsId.toString()].orEmpty() }
+            // 父评论还在本地就精确判断是不是 AI 写的；父评论 id 对不上（自己的评论可能先以 0
+            // 存库、之后才补服务端 id）时，退回“这条动态上 AI 评论过”的判断。
+            val parent = lookupParentComment(snsId, parentId)
+            val ourComment = parent.text ?: if (!parent.found) aiCommentTexts[snsId.toString()] else null
             if (ourComment == null) {
                 // The parent row may still be in flight; a later trigger re-inspects this reply.
                 answeredReplies.remove(replyKey)
@@ -638,26 +706,35 @@ object AutoCommentMoments : AutoMomentsBase() {
         }
     }
 
-    /** The text of a stored comment row when the AI wrote it, otherwise null. */
-    private fun ourCommentText(snsId: Long, commentSvrId: Long): String? {
-        if (commentSvrId == 0L) return null
+    private class ParentComment(val found: Boolean, val text: String?)
+
+    /**
+     * 查询被回复的父评论。`found=false` 表示本地查不到这一行（id 尚未同步），此时由调用方
+     * 退回按动态级 AI 评论历史判断。
+     */
+    private fun lookupParentComment(snsId: Long, commentSvrId: Long): ParentComment {
+        if (commentSvrId == 0L) return ParentComment(false, null)
         return runCatching {
             WeMomentsApi.rawQuerySnsInfo(
                 "SELECT * FROM SnsComment WHERE snsID = ? AND commentSvrID = ?",
                 arrayOf(snsId.toString(), commentSvrId.toString()),
             ).use { cursor ->
-                if (!cursor.moveToFirst()) return@use null
+                if (!cursor.moveToFirst()) return@use ParentComment(false, null)
                 val talkerIndex = cursor.getColumnIndex("talker")
+                val sendIndex = cursor.getColumnIndex("isSend")
                 val bufIndex = cursor.getColumnIndex("curActionBuf")
-                if (talkerIndex < 0 || bufIndex < 0) return@use null
-                if (cursor.getString(talkerIndex) != WeApi.selfWxId) return@use null
-                val buf = cursor.getBlob(bufIndex) ?: return@use null
+                if (bufIndex < 0) return@use ParentComment(true, null)
+                val isSend = sendIndex >= 0 && cursor.getInt(sendIndex) != 0
+                val talker = if (talkerIndex >= 0) cursor.getString(talkerIndex).orEmpty() else ""
+                val ours = isSend || talker == WeApi.selfWxId
+                if (!ours) return@use ParentComment(true, null)
+                val buf = cursor.getBlob(bufIndex) ?: return@use ParentComment(true, null)
                 val text = SnsCommentActionProto.decode(buf).content.orEmpty()
-                text.takeIf { isOurAiText(snsId.toString(), it) }
+                ParentComment(true, text.takeIf { isOurAiText(snsId.toString(), it) })
             }
         }.onFailure {
             WeLogger.w(TAG, "failed to query SnsComment row, sns=$snsId, comment=$commentSvrId", it)
-        }.getOrNull()
+        }.getOrElse { ParentComment(false, null) }
     }
 
     /** Re-reads a post's stored comments when the host rewrites the post after syncing. */

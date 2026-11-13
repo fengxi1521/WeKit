@@ -707,9 +707,23 @@ object WeMomentsApi : ApiFeature(), IResolveDex {
     /** Raw numeric sns id, matching `SnsComment.field_snsID`. */
     fun getSnsIdLong(snsInfo: Any?): Long? {
         val normalized = normalizeSnsInfo(snsInfo) ?: return null
-        return normalized.reflekt()
-            .firstFieldOrNull { name = "field_snsId"; superclass() }
-            ?.get()?.let { it as? Number }?.toLong()
+        val direct = sequenceOf("field_snsId", "field_snsID")
+            .mapNotNull { fieldName ->
+                normalized.reflekt().firstFieldOrNull { name = fieldName; superclass() }?.get()
+            }
+            .mapNotNull { value ->
+                when (value) {
+                    is Number -> value.toLong()
+                    is String -> value.trim().toLongOrNull()
+                    else -> null
+                }
+            }
+            .firstOrNull { it != 0L }
+        if (direct != null) return direct
+        return getSnsTableId(normalized)
+            ?.trim()
+            ?.let { it.toLongOrNull() ?: it.substringAfterLast('_').toLongOrNull() }
+            ?.takeIf { it != 0L }
     }
 
     fun getOwnerWxId(snsInfo: Any?): String? {

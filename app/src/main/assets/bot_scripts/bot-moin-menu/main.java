@@ -215,7 +215,6 @@ private boolean hasAdminPermission(String wxid){
 
 // ==================== 聊天功能配置 ====================
 private void loadChatConfig(){
-    if(chatConfigLoaded) return;
     String raw = readFile("chat_config.dat");
     CHAT_ENABLED = "1".equals(raw);
     chatConfigLoaded = true;
@@ -228,7 +227,6 @@ private void saveChatConfig(boolean enabled){
 
 // ==================== 群聊开关配置 ====================
 private void loadGroupConfig(){
-    if(groupConfigLoaded) return;
     String raw = readFile("group_config.dat");
     GROUP_CONFIG.clear();
     if(raw != null && !raw.isEmpty()){

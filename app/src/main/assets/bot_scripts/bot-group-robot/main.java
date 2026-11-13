@@ -72,7 +72,27 @@ String loadAllowGroupList() {
     } catch (Throwable ignored) {}
     return getString(ALLOW_GROUP_KEY, "");
 }
+boolean isDisabledGroup(String roomWxid) {
+    String list;
+    try {
+        File configFile = new File(pluginDir, "config.prop");
+        list = "";
+        if (configFile.exists()) {
+            Properties props = new Properties();
+            props.load(new FileInputStream(configFile));
+            list = props.getProperty("disabled_group_list", "").trim();
+        }
+    } catch (Throwable ignored) {
+        list = "";
+    }
+    if (list.isEmpty()) return false;
+    for (String g : list.split(",")) {
+        if (g.trim().equals(roomWxid)) return true;
+    }
+    return false;
+}
 boolean isAllowGroup(String roomWxid) {
+    if (isDisabledGroup(roomWxid)) return false;
     String list = loadAllowGroupList();
     // 内置版：未配置生效群时默认所有群生效，配置后只响应勾选的群
     if (list.isEmpty()) return true;

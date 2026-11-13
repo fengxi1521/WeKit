@@ -1,22 +1,35 @@
 package com.xiao.feng.features.items.chat.ai
 
 import androidx.activity.ComponentActivity
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import coil3.compose.AsyncImage
 import com.xiao.feng.R
 import com.xiao.feng.features.api.core.WeDatabaseApi
+import com.xiao.feng.features.api.core.WeMessageApi
 import com.xiao.feng.features.api.core.models.IWeContact
 import com.xiao.feng.ui.content.AlertDialogContent
 import com.xiao.feng.ui.content.Button
@@ -44,6 +57,10 @@ fun showAiChatDialog(context: ComponentActivity) {
         var mentionInput by remember { mutableStateOf(AiChat.mentionEnabled) }
         var mentionPercentInput by remember { mutableIntStateOf(AiChat.mentionPercent) }
         var delayInput by remember { mutableIntStateOf(AiChat.replyDelaySeconds) }
+        var quoteInput by remember { mutableStateOf(AiChat.quoteReply) }
+        var stickerInput by remember { mutableStateOf(AiChat.stickerEnabled) }
+        var stickerPercentInput by remember { mutableIntStateOf(AiChat.stickerPercent) }
+        var stickerMd5sInput by remember { mutableStateOf(AiChat.stickerMd5s) }
         var bubbleInput by remember { mutableStateOf(AiChat.bubbleEnabled) }
         var bubbleStartInput by remember { mutableIntStateOf(AiChat.bubbleStartMinute) }
         var bubbleEndInput by remember { mutableIntStateOf(AiChat.bubbleEndMinute) }
@@ -242,6 +259,72 @@ fun showAiChatDialog(context: ComponentActivity) {
                         }
 
                         SegmentedColumn(
+                            title = stringResource(R.string.ai_chat_section_humanize),
+                            contentPadding = PaddingValues(0.dp),
+                        ) {
+                            item {
+                                SwitchWidget(
+                                    title = stringResource(R.string.ai_chat_quote_title),
+                                    description = stringResource(R.string.ai_chat_quote_description),
+                                    checked = quoteInput,
+                                    onCheckedChange = {
+                                        quoteInput = it
+                                        AiChat.quoteReply = it
+                                    },
+                                )
+                            }
+                            item {
+                                SwitchWidget(
+                                    title = stringResource(R.string.ai_chat_sticker_title),
+                                    description = stringResource(R.string.ai_chat_sticker_description),
+                                    checked = stickerInput,
+                                    onCheckedChange = {
+                                        stickerInput = it
+                                        AiChat.stickerEnabled = it
+                                    },
+                                )
+                            }
+                            if (stickerInput) {
+                                item {
+                                    BaseWidget(
+                                        title = stringResource(R.string.ai_chat_sticker_select_title),
+                                        description = if (stickerMd5sInput.isEmpty()) {
+                                            stringResource(R.string.ai_chat_sticker_select_empty)
+                                        } else {
+                                            stringResource(
+                                                R.string.ai_chat_sticker_select_count,
+                                                stickerMd5sInput.size,
+                                            )
+                                        },
+                                        onClick = {
+                                            showStickerPickerDialog(context, stickerMd5sInput) { selected ->
+                                                stickerMd5sInput = selected
+                                                AiChat.stickerMd5s = selected
+                                            }
+                                        },
+                                    )
+                                }
+                                item {
+                                    BaseItemContainer {
+                                        IntNumberPickerWidget(
+                                            title = stringResource(R.string.ai_chat_sticker_percent_title),
+                                            description = stringResource(R.string.ai_chat_sticker_percent_description),
+                                            value = stickerPercentInput,
+                                            startInt = 0,
+                                            endInt = 100,
+                                            stepSize = 5,
+                                            valueSuffix = "%",
+                                            onValueChange = {
+                                                stickerPercentInput = it
+                                                AiChat.stickerPercent = it
+                                            },
+                                        )
+                                    }
+                                }
+                            }
+                        }
+
+                        SegmentedColumn(
                             title = stringResource(R.string.ai_chat_section_bubble),
                             contentPadding = PaddingValues(0.dp),
                         ) {
@@ -325,5 +408,89 @@ fun showAiChatDialog(context: ComponentActivity) {
                 }
             },
         )
+    }
+}
+
+/** 让用户从自己的微信自定义表情里挑出 AI 允许发送的那些。 */
+private fun showStickerPickerDialog(
+    context: ComponentActivity,
+    initial: Set<String>,
+    onUpdated: (Set<String>) -> Unit,
+) {
+    showComposeDialog(context) {
+        var allStickers by remember { mutableStateOf<List<String>?>(null) }
+        var selected by remember { mutableStateOf(initial) }
+
+        LaunchedEffect(Unit) {
+            allStickers = withContext(Dispatchers.IO) { AiChatStickers.listMd5s() }
+        }
+
+        AlertDialogContent(
+            title = { Text(stringResource(R.string.ai_chat_sticker_dialog_title)) },
+            text = {
+                when (val stickers = allStickers) {
+                    null -> Text(stringResource(R.string.ai_chat_sticker_loading))
+                    else -> if (stickers.isEmpty()) {
+                        Text(stringResource(R.string.ai_chat_sticker_empty))
+                    } else {
+                        LazyColumn {
+                            itemsIndexed(stickers, key = { _, md5 -> md5 }) { index, md5 ->
+                                StickerSelectRow(
+                                    md5 = md5,
+                                    index = index,
+                                    checked = md5 in selected,
+                                    onCheckedChange = { checked ->
+                                        selected = if (checked) selected + md5 else selected - md5
+                                        onUpdated(selected)
+                                    },
+                                )
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                Button(onClick = onDismiss) {
+                    Text(stringResource(R.string.action_done))
+                }
+            },
+        )
+    }
+}
+
+@Composable
+private fun StickerSelectRow(
+    md5: String,
+    index: Int,
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit,
+) {
+    var preview by remember(md5) { mutableStateOf<java.io.File?>(null) }
+
+    LaunchedEffect(md5) {
+        preview = withContext(Dispatchers.IO) {
+            val destination = AiChatStickers.stickerFile(md5)
+            val cached = destination.toFile()
+            if (cached.isFile) cached
+            else WeMessageApi.decodeStickerToFile(md5, destination)?.toFile()
+        }
+    }
+
+    BaseItemContainer {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Box(modifier = Modifier.size(44.dp), contentAlignment = Alignment.Center) {
+                preview?.let {
+                    AsyncImage(model = it, contentDescription = null, modifier = Modifier.size(44.dp))
+                }
+            }
+            Column(modifier = Modifier.weight(1f).padding(horizontal = 12.dp)) {
+                Text(stringResource(R.string.ai_chat_sticker_item, index + 1))
+                Text(md5.take(8), style = MaterialTheme.typography.bodySmall)
+            }
+            Switch(checked = checked, onCheckedChange = onCheckedChange)
+        }
     }
 }

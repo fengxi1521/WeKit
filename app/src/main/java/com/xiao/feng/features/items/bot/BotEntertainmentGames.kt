@@ -13,6 +13,8 @@ import com.xiao.feng.features.core.FeatureCategoryIds
  */
 object BotEntertainmentGames : ClickableFeature() {
 
+    const val SCRIPT_ID = "bot-entertainment-games"
+
     override val technicalId = "机器人 · 娱乐游戏"
     override val nameRes = R.string.feature_bot_games_name
     override val categoryIds = listOf(FeatureCategoryIds.BOT)
@@ -24,10 +26,10 @@ object BotEntertainmentGames : ClickableFeature() {
     }
 
     override fun onEnable() {
-        BundledBotRuntime.setScriptEnabled("bot-entertainment-games", true)
+        BundledBotRuntime.setScriptEnabled(SCRIPT_ID, true)
     }
 
     override fun onDisable() {
-        BundledBotRuntime.setScriptEnabled("bot-entertainment-games", false)
+        BundledBotRuntime.setScriptEnabled(SCRIPT_ID, false)
     }
 }
