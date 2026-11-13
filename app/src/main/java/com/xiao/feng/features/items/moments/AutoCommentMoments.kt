@@ -529,8 +529,8 @@ object AutoCommentMoments : AutoMomentsBase() {
     private fun isOurAiText(snsTableId: String, text: String): Boolean {
         val normalized = text.trim()
         if (normalized.isEmpty()) return false
-        if (aiCommentTexts[snsTableId] == normalized) return true
-        return aiCommentHistory[snsTableId]?.contains(normalized) == true
+        if (aiCommentTexts[snsTableId]?.trim() == normalized) return true
+        return aiCommentHistory[snsTableId]?.any { it.trim() == normalized } == true
     }
 
     private fun hasAiCommentHistory(snsTableId: String): Boolean =
