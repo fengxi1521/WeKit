@@ -75,12 +75,24 @@ void sendMenu(String talker) {
 }
 
 void onHandleMsg(Object msg) {
-    if (!msg.isGroupChat() || !msg.isText()) return;
+    if (!msg.isGroupChat()) return;
 
     String talker = msg.getTalker();
     if (!isAllowGroup(talker)) return;
 
-    String text = msg.getContent().trim();
+    // 引用回复的类型是 QUOTE，不是 TEXT；指令文本在 refermsg 的 title 里
+    String text = null;
+    String target = null;
+    if (msg.isQuote()) {
+        Object quote = msg.getQuoteMsg();
+        if (quote == null) return;
+        text = quote.getTitle().trim();
+        target = quote.getSendTalker();
+    } else if (msg.isText()) {
+        text = msg.getContent().trim();
+    }
+    if (text == null) return;
+
     if (text.equals("魔法菜单") || text.equals("表情菜单")) {
         sendMenu(talker);
         return;
@@ -89,20 +101,8 @@ void onHandleMsg(Object msg) {
     Object effectObj = emojiEffects.get(text);
     if (effectObj == null) return;
 
-    if (!msg.isQuote()) {
-        sendText(talker, "请长按对方的消息选择「引用」，再发送「" + text + "」");
-        return;
-    }
-
-    String target = null;
-    try {
-        Object quote = msg.getQuoteMsg();
-        if (quote != null) target = quote.getSendTalker();
-    } catch (Exception e) {
-        target = null;
-    }
     if (target == null || target.length() == 0) {
-        sendText(talker, "没有识别到引用消息的发送者，请重新引用后再试");
+        sendText(talker, "请长按对方的消息选择「引用」，再发送「" + text + "」");
         return;
     }
 
