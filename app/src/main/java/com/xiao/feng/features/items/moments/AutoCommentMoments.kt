@@ -53,8 +53,10 @@ object AutoCommentMoments : AutoMomentsBase() {
     private const val RETRY_INTERVAL_MS = 30_000L
     private const val MAX_HANDLED_IDS = 500
     private const val MAX_AI_COMMENT_META = 200
+    private const val MAX_AI_TEXTS_PER_POST = 20
     private const val MAX_ANSWERED_REPLIES = 500
     private const val MAX_REPLY_AGE_SECONDS = 7L * 24 * 3600
+    private const val SCAN_INTERVAL_MS = 60_000L
 
     private var commentText by prefOption("moments_auto_comment_text", "")
     private var intervalSeconds by prefOption("moments_auto_comment_interval_seconds", 3)
@@ -72,15 +74,24 @@ object AutoCommentMoments : AutoMomentsBase() {
     private var aiReplyToReplies by prefOption("moments_auto_comment_ai_reply_replies", true)
 
     private var savedAiCommentTexts by prefOption("moments_auto_comment_ai_texts", "")
+    private var savedAiCommentHistory by prefOption("moments_auto_comment_ai_history", "")
     private var savedAiCommentIds by prefOption("moments_auto_comment_ai_comment_ids", "")
     private var savedAnsweredReplies by prefOption("moments_auto_comment_ai_answered", emptySet<String>())
 
     private val handledSnsIds = ConcurrentHashMap.newKeySet<String>()
     private val lastAttemptAt = ConcurrentHashMap<String, Long>()
+    private val lastScanAt = ConcurrentHashMap<String, Long>()
     private val actionLock = Any()
 
     /** snsTableId -> the exact text of the latest comment we posted, used to recognise our rows. */
     private val aiCommentTexts = ConcurrentHashMap<String, String>()
+
+    /**
+     * snsTableId -> every text the AI has written on that post. Matching a stored comment row
+     * against this set is how a parent comment is proven to be ours, so the check still works when
+     * the server id was never observed while the host wrote the row.
+     */
+    private val aiCommentHistory = ConcurrentHashMap<String, MutableSet<String>>()
 
     /**
      * snsTableId -> svrIds of every comment the AI wrote on that post, including replies to
@@ -109,7 +120,12 @@ object AutoCommentMoments : AutoMomentsBase() {
         lastAttemptAt.clear()
         loadAiReplyState()
         WeMomentsApi.methodReplaceUserBySnsId.hookAfter {
-            if (result == true) processSnsInfoAsync(args[1]!!, "storage")
+            if (result != true) return@hookAfter
+            val snsInfo = args[1]!!
+            processSnsInfoAsync(snsInfo, "storage")
+            // The host rewrites the whole post when comments sync, which is the only chance to see
+            // replies on a post the user never opens again.
+            scanStoredCommentReplies(snsInfo)
         }
         installReplyHook()
         installTimelineHooks()
@@ -121,17 +137,26 @@ object AutoCommentMoments : AutoMomentsBase() {
     }
 
     /**
-     * `SnsComment.convertTo()` runs whenever the host writes a comment row — both our own sent
-     * comments (which reveals their server id) and incoming replies. Hooked once because the hook
-     * framework keeps it installed after the feature is switched off; [active] gates the callback.
+     * Comment rows reach us through three host paths, all feeding [handleCommentRow]:
+     * - `SnsComment.convertTo()` when a row is written (our own sends reveal their server id, and
+     *   an incoming reply arrives with its `parentID`);
+     * - `SnsComment.convertFrom(Cursor)` when the host loads a post's comments;
+     * - a `SnsComment` table scan whenever the post itself is rewritten.
+     * Hooked once because the hook framework keeps them installed after the feature is switched
+     * off; [active] gates the callback.
      */
     private fun installReplyHook() {
         if (replyHookInstalled) return
         replyHookInstalled = true
         WeMomentsApi.methodSnsCommentConvertTo.hookAfter {
             if (!active || !aiReplyToReplies) return@hookAfter
-            runCatching { onCommentWritten(thisObject!!) }
+            runCatching { inspectComment(thisObject!!) }
                 .onFailure { WeLogger.w(TAG, "failed to inspect written Moments comment", it) }
+        }
+        WeMomentsApi.methodSnsCommentConvertFromCursor.hookAfter {
+            if (!active || !aiReplyToReplies) return@hookAfter
+            runCatching { inspectComment(thisObject!!) }
+                .onFailure { WeLogger.w(TAG, "failed to inspect loaded Moments comment", it) }
         }
     }
 
@@ -417,7 +442,7 @@ object AutoCommentMoments : AutoMomentsBase() {
             val snsKey = WeMomentsApi.getSnsIdLong(snsInfo)?.toString()
             if (snsKey != null) rememberAiComment(snsKey, text)
             val action = WeMomentsApi.comment(snsInfo, text)
-            if (!action.sent && snsKey != null) forgetAiComment(snsKey)
+            if (!action.sent && snsKey != null) forgetAiComment(snsKey, text)
             action
         }
 
@@ -466,69 +491,219 @@ object AutoCommentMoments : AutoMomentsBase() {
 
     /** Remembers the comment we posted so its own DB row can be recognised later. */
     private fun rememberAiComment(snsTableId: String, text: String) {
+        val normalized = text.trim()
+        if (normalized.isEmpty()) return
         synchronized(aiReplyLock) {
-            aiCommentTexts[snsTableId] = text
+            aiCommentTexts[snsTableId] = normalized
+            val texts = aiCommentHistory.getOrPut(snsTableId) { ConcurrentHashMap.newKeySet() }
+            texts.add(normalized)
+            while (texts.size > MAX_AI_TEXTS_PER_POST) {
+                val iterator = texts.iterator()
+                if (!iterator.hasNext()) break
+                iterator.next()
+                iterator.remove()
+            }
             trimAiCommentTexts()
-            savedAiCommentTexts = DefaultJson.encodeToString(aiCommentTexts.toMap())
+            persistAiCommentState()
         }
     }
 
-    private fun forgetAiComment(snsTableId: String) {
+    private fun forgetAiComment(snsTableId: String, text: String) {
+        val normalized = text.trim()
         synchronized(aiReplyLock) {
-            if (aiCommentTexts.remove(snsTableId) == null) return
-            savedAiCommentTexts = DefaultJson.encodeToString(aiCommentTexts.toMap())
+            if (aiCommentTexts[snsTableId] == normalized) aiCommentTexts.remove(snsTableId)
+            aiCommentHistory[snsTableId]?.let { texts ->
+                texts.remove(normalized)
+                if (texts.isEmpty()) aiCommentHistory.remove(snsTableId)
+            }
+            persistAiCommentState()
         }
     }
+
+    /** Caller must hold [aiReplyLock]. */
+    private fun persistAiCommentState() {
+        savedAiCommentTexts = DefaultJson.encodeToString(aiCommentTexts.toMap())
+        savedAiCommentHistory = DefaultJson.encodeToString(aiCommentHistory.mapValues { it.value.toList() })
+    }
+
+    private fun isOurAiText(snsTableId: String, text: String): Boolean {
+        val normalized = text.trim()
+        if (normalized.isEmpty()) return false
+        if (aiCommentTexts[snsTableId] == normalized) return true
+        return aiCommentHistory[snsTableId]?.contains(normalized) == true
+    }
+
+    private fun hasAiCommentHistory(snsTableId: String): Boolean =
+        snsTableId in aiCommentTexts || snsTableId in aiCommentHistory
+
+    private fun recordAiCommentId(snsTableId: String, commentSvrId: Long) {
+        if (commentSvrId == 0L) return
+        synchronized(aiReplyLock) {
+            val ids = aiCommentIds.getOrPut(snsTableId) { ConcurrentHashMap.newKeySet() }
+            if (!ids.add(commentSvrId)) return
+            trimAiCommentIds()
+            savedAiCommentIds = DefaultJson.encodeToString(aiCommentIds.mapValues { it.value.toList() })
+        }
+        WeLogger.i(TAG, "recorded our Moments comment id, sns=$snsTableId, id=$commentSvrId")
+    }
+
+    /** Extracts the fields of a comment entity the host just wrote or loaded. */
+    private fun inspectComment(comment: Any) {
+        val isSend = readCommentFlag(comment, "field_isSend") ?: return
+        val snsId = readCommentLong(comment, "field_snsID")
+        if (snsId == 0L) return
+        val createdRaw = readCommentLong(comment, "field_createTime")
+        handleCommentRow(
+            snsId = snsId,
+            commentId = readCommentLong(comment, "field_commentSvrID"),
+            parentId = readCommentLong(comment, "field_parentID"),
+            talker = comment.reflekt().getField("field_talker", true) as? String ?: return,
+            isSend = isSend,
+            text = commentText(comment),
+            createdSeconds = if (createdRaw > 1_000_000_000_000L) createdRaw / 1000 else createdRaw,
+        )
+    }
+
+    private fun readCommentLong(comment: Any, name: String): Long =
+        (comment.reflekt().getField(name, true) as? Number)?.toLong() ?: 0L
+
+    private fun readCommentFlag(comment: Any, name: String): Boolean? =
+        when (val value = comment.reflekt().getField(name, true)) {
+            is Boolean -> value
+            is Number -> value.toInt() != 0
+            else -> null
+        }
 
     /**
-     * Called for every comment row the host writes:
-     * - our own sent row reveals the server id of the AI comment (`field_commentSvrID`);
-     * - an incoming reply carries `field_parentID`, so a match with that id is a reply to it.
+     * Decides what a single comment row means for the AI conversation:
+     * - one of our sent rows contributes its server id;
+     * - an incoming reply is answered when its parent is a comment the AI wrote.
      */
-    private fun onCommentWritten(comment: Any) {
-        val isSend = comment.reflekt().getField("field_isSend", true) as? Boolean ?: return
-        val snsId = (comment.reflekt().getField("field_snsID", true) as? Number)?.toLong() ?: return
-        if (snsId == 0L) return
-        val commentId = (comment.reflekt().getField("field_commentSvrID", true) as? Number)?.toLong() ?: 0L
-        val talker = comment.reflekt().getField("field_talker", true) as? String ?: return
+    private fun handleCommentRow(
+        snsId: Long,
+        commentId: Long,
+        parentId: Long,
+        talker: String,
+        isSend: Boolean,
+        text: String,
+        createdSeconds: Long,
+    ) {
         val snsKey = snsId.toString()
-
         if (isSend) {
             if (commentId == 0L || talker != WeApi.selfWxId) return
-            val expected = aiCommentTexts[snsKey] ?: return
-            if (commentText(comment).trim() != expected.trim()) return
-            synchronized(aiReplyLock) {
-                val ids = aiCommentIds.getOrPut(snsKey) { ConcurrentHashMap.newKeySet() }
-                if (ids.add(commentId)) {
-                    trimAiCommentIds()
-                    savedAiCommentIds = DefaultJson.encodeToString(
-                        aiCommentIds.mapValues { it.value.toList() },
-                    )
-                }
-            }
+            if (!isOurAiText(snsKey, text)) return
+            recordAiCommentId(snsKey, commentId)
             return
         }
-
-        val parentId = (comment.reflekt().getField("field_parentID", true) as? Number)?.toLong() ?: 0L
         if (parentId == 0L || commentId == 0L) return
         if (talker.isBlank() || talker == WeApi.selfWxId) return
-        // Matches both a direct reply to the root AI comment and a reply to one of the AI's
-        // follow-up replies, so the conversation keeps going as long as the other side does.
-        if (parentId !in aiCommentIds[snsKey].orEmpty()) return
-        val createdRaw = (comment.reflekt().getField("field_createTime", true) as? Number)?.toLong() ?: 0L
-        val createdSeconds = if (createdRaw > 1_000_000_000_000L) createdRaw / 1000 else createdRaw
-        if (createdSeconds > 0 && System.currentTimeMillis() / 1000 - createdSeconds > MAX_REPLY_AGE_SECONDS) return
-        val replyText = commentText(comment)
-        if (replyText.isBlank()) return
-        val replyKey = "$snsKey:$commentId"
-        if (!answeredReplies.add(replyKey)) return
+        if (text.isBlank()) return
+        // Only posts the AI has commented on can have a reply aimed at it.
+        if (!hasAiCommentHistory(snsKey) && parentId !in aiCommentIds[snsKey].orEmpty()) return
+        if (createdSeconds > 0 &&
+            System.currentTimeMillis() / 1000 - createdSeconds > MAX_REPLY_AGE_SECONDS
+        ) return
+        if ("$snsKey:$commentId" in answeredReplies) return
+        WeLogger.i(
+            TAG,
+            "incoming Moments reply, sns=$snsKey, comment=$commentId, parent=$parentId, talker=$talker",
+        )
+        submitItemWork { answerIncomingReply(snsId, commentId, parentId, talker, text) }
+    }
 
+    private fun answerIncomingReply(
+        snsId: Long,
+        commentSvrId: Long,
+        parentId: Long,
+        talker: String,
+        replyText: String,
+    ) {
+        val replyKey = "$snsId:$commentSvrId"
+        runCatching {
+            if (!answeredReplies.add(replyKey)) return@runCatching
+            // The stored parent row proves the replied-to comment is ours, so the check does not
+            // depend on having observed its server id when the host wrote it.
+            val ourComment = ourCommentText(snsId, parentId)
+                ?: aiCommentTexts[snsId.toString()]
+                    .takeIf { parentId in aiCommentIds[snsId.toString()].orEmpty() }
+            if (ourComment == null) {
+                // The parent row may still be in flight; a later trigger re-inspects this reply.
+                answeredReplies.remove(replyKey)
+                return@runCatching
+            }
+            replyToAiComment(snsId, commentSvrId, talker, replyText, replyKey, ourComment)
+        }.onFailure {
+            answeredReplies.remove(replyKey)
+            WeLogger.w(TAG, "failed to reply to an AI comment", it)
+        }
+    }
+
+    /** The text of a stored comment row when the AI wrote it, otherwise null. */
+    private fun ourCommentText(snsId: Long, commentSvrId: Long): String? {
+        if (commentSvrId == 0L) return null
+        return runCatching {
+            WeMomentsApi.rawQuerySnsInfo(
+                "SELECT * FROM SnsComment WHERE snsID = ? AND commentSvrID = ?",
+                arrayOf(snsId.toString(), commentSvrId.toString()),
+            ).use { cursor ->
+                if (!cursor.moveToFirst()) return@use null
+                val talkerIndex = cursor.getColumnIndex("talker")
+                val bufIndex = cursor.getColumnIndex("curActionBuf")
+                if (talkerIndex < 0 || bufIndex < 0) return@use null
+                if (cursor.getString(talkerIndex) != WeApi.selfWxId) return@use null
+                val buf = cursor.getBlob(bufIndex) ?: return@use null
+                val text = SnsCommentActionProto.decode(buf).content.orEmpty()
+                text.takeIf { isOurAiText(snsId.toString(), it) }
+            }
+        }.onFailure {
+            WeLogger.w(TAG, "failed to query SnsComment row, sns=$snsId, comment=$commentSvrId", it)
+        }.getOrNull()
+    }
+
+    /** Re-reads a post's stored comments when the host rewrites the post after syncing. */
+    private fun scanStoredCommentReplies(snsInfo: Any) {
+        val snsId = WeMomentsApi.getSnsIdLong(snsInfo) ?: return
+        val snsKey = snsId.toString()
+        if (!hasAiCommentHistory(snsKey)) return
+        val now = System.currentTimeMillis()
+        val last = lastScanAt[snsKey] ?: 0L
+        if (now - last < SCAN_INTERVAL_MS) return
+        if (lastScanAt.size > MAX_AI_COMMENT_META) lastScanAt.clear()
+        lastScanAt[snsKey] = now
         submitItemWork {
-            runCatching { replyToAiComment(snsId, commentId, talker, replyText, replyKey) }
-                .onFailure {
-                    answeredReplies.remove(replyKey)
-                    WeLogger.w(TAG, "failed to reply to an AI comment", it)
-                }
+            runCatching { scanStoredComments(snsId) }
+                .onFailure { WeLogger.w(TAG, "failed to scan stored Moments comments", it) }
+        }
+    }
+
+    private fun scanStoredComments(snsId: Long) {
+        if (!active || !aiReplyToReplies) return
+        WeMomentsApi.rawQuerySnsInfo(
+            "SELECT * FROM SnsComment WHERE snsID = ?",
+            arrayOf(snsId.toString()),
+        ).use { cursor ->
+            val idIndex = cursor.getColumnIndex("commentSvrID")
+            val parentIndex = cursor.getColumnIndex("parentID")
+            val talkerIndex = cursor.getColumnIndex("talker")
+            val sendIndex = cursor.getColumnIndex("isSend")
+            val bufIndex = cursor.getColumnIndex("curActionBuf")
+            val timeIndex = cursor.getColumnIndex("createTime")
+            if (idIndex < 0 || parentIndex < 0 || talkerIndex < 0 || sendIndex < 0 || bufIndex < 0) return
+            while (cursor.moveToNext()) {
+                val buf = cursor.getBlob(bufIndex) ?: continue
+                val createdRaw = if (timeIndex >= 0) cursor.getLong(timeIndex) else 0L
+                handleCommentRow(
+                    snsId = snsId,
+                    commentId = cursor.getLong(idIndex),
+                    parentId = cursor.getLong(parentIndex),
+                    talker = cursor.getString(talkerIndex).orEmpty(),
+                    isSend = cursor.getInt(sendIndex) != 0,
+                    text = runCatching {
+                        SnsCommentActionProto.decode(buf).content.orEmpty()
+                    }.getOrDefault(""),
+                    createdSeconds = if (createdRaw > 1_000_000_000_000L) createdRaw / 1000 else createdRaw,
+                )
+            }
         }
     }
 
@@ -538,6 +713,7 @@ object AutoCommentMoments : AutoMomentsBase() {
         talker: String,
         replyText: String,
         replyKey: String,
+        ourComment: String,
     ) {
         val scope = captureAutomationScope()
         if (scope == null || !isAutomationCurrent(scope) || !aiEnabled || !aiReplyToReplies) {
@@ -553,7 +729,7 @@ object AutoCommentMoments : AutoMomentsBase() {
         val generated = AutoCommentAi.generateReply(
             config = aiConfig(),
             postText = WeMomentsApi.getContentText(snsInfo).orEmpty(),
-            ourComment = aiCommentTexts[snsId.toString()].orEmpty(),
+            ourComment = ourComment,
             replyAuthor = replyAuthor,
             replyText = replyText,
         )
@@ -589,10 +765,22 @@ object AutoCommentMoments : AutoMomentsBase() {
     private fun loadAiReplyState() {
         synchronized(aiReplyLock) {
             aiCommentTexts.clear()
+            aiCommentHistory.clear()
             aiCommentIds.clear()
             answeredReplies.clear()
             runCatching { DefaultJson.decodeFromString<Map<String, String>>(savedAiCommentTexts) }
                 .getOrNull()?.let(aiCommentTexts::putAll)
+            runCatching { DefaultJson.decodeFromString<Map<String, List<String>>>(savedAiCommentHistory) }
+                .getOrNull()
+                ?.forEach { (key, texts) ->
+                    aiCommentHistory[key] = ConcurrentHashMap.newKeySet<String>().apply { addAll(texts) }
+                }
+            // Rows recorded before the per-post text history existed still need to match.
+            if (aiCommentHistory.isEmpty()) {
+                aiCommentTexts.forEach { (key, text) ->
+                    aiCommentHistory[key] = ConcurrentHashMap.newKeySet<String>().apply { add(text) }
+                }
+            }
             runCatching { DefaultJson.decodeFromString<Map<String, List<Long>>>(savedAiCommentIds) }
                 .getOrNull()
                 ?.forEach { (key, ids) -> aiCommentIds[key] = ConcurrentHashMap.newKeySet<Long>().apply { addAll(ids) } }
@@ -605,8 +793,14 @@ object AutoCommentMoments : AutoMomentsBase() {
 
     private fun trimAiCommentTexts() {
         val overflow = aiCommentTexts.size - MAX_AI_COMMENT_META
-        if (overflow <= 0) return
-        aiCommentTexts.keys.asSequence().take(overflow).toList().forEach { aiCommentTexts.remove(it) }
+        if (overflow > 0) {
+            aiCommentTexts.keys.asSequence().take(overflow).toList().forEach { aiCommentTexts.remove(it) }
+        }
+        val historyOverflow = aiCommentHistory.size - MAX_AI_COMMENT_META
+        if (historyOverflow > 0) {
+            aiCommentHistory.keys.asSequence().take(historyOverflow).toList()
+                .forEach { aiCommentHistory.remove(it) }
+        }
     }
 
     private fun trimAiCommentIds() {

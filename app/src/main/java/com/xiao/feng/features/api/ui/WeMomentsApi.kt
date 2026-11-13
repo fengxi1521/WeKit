@@ -161,6 +161,8 @@ object WeMomentsApi : ApiFeature(), IResolveDex {
     private val methodSendComment by dexMethod()
     /** `SnsComment.convertTo()` — fires when a comment row is written to `SnsComment` storage. */
     val methodSnsCommentConvertTo by dexMethod()
+    /** `SnsComment.convertFrom(Cursor)` — fires for every comment row the host reads from storage. */
+    val methodSnsCommentConvertFromCursor by dexMethod()
     /** `SnsInfoStorage.replaceUserBySnsId(long, SnsInfo)` — fires after a post is written to storage. */
     val methodReplaceUserBySnsId by dexMethod()
     private val methodCancelLike by dexMethod()
