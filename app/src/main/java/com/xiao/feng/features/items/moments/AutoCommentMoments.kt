@@ -79,11 +79,15 @@ object AutoCommentMoments : AutoMomentsBase() {
     private val lastAttemptAt = ConcurrentHashMap<String, Long>()
     private val actionLock = Any()
 
-    /** snsTableId -> the exact text we posted, used to recognise our own comment rows. */
+    /** snsTableId -> the exact text of the latest comment we posted, used to recognise our rows. */
     private val aiCommentTexts = ConcurrentHashMap<String, String>()
 
-    /** snsTableId -> svrId of our AI-written comment, filled in once the host stores it. */
-    private val aiCommentIds = ConcurrentHashMap<String, Long>()
+    /**
+     * snsTableId -> svrIds of every comment the AI wrote on that post, including replies to
+     * replies. Any incoming comment whose parent is in this set gets answered, so the exchange can
+     * continue for as many rounds as the other side keeps replying.
+     */
+    private val aiCommentIds = ConcurrentHashMap<String, MutableSet<Long>>()
 
     private val answeredReplies = ConcurrentHashMap.newKeySet<String>()
     private val aiReplyLock = Any()
@@ -494,9 +498,13 @@ object AutoCommentMoments : AutoMomentsBase() {
             val expected = aiCommentTexts[snsKey] ?: return
             if (commentText(comment).trim() != expected.trim()) return
             synchronized(aiReplyLock) {
-                aiCommentIds[snsKey] = commentId
-                trimAiCommentIds()
-                savedAiCommentIds = DefaultJson.encodeToString(aiCommentIds.toMap())
+                val ids = aiCommentIds.getOrPut(snsKey) { ConcurrentHashMap.newKeySet() }
+                if (ids.add(commentId)) {
+                    trimAiCommentIds()
+                    savedAiCommentIds = DefaultJson.encodeToString(
+                        aiCommentIds.mapValues { it.value.toList() },
+                    )
+                }
             }
             return
         }
@@ -504,7 +512,9 @@ object AutoCommentMoments : AutoMomentsBase() {
         val parentId = (comment.reflekt().getField("field_parentID", true) as? Number)?.toLong() ?: 0L
         if (parentId == 0L || commentId == 0L) return
         if (talker.isBlank() || talker == WeApi.selfWxId) return
-        if (aiCommentIds[snsKey] != parentId) return
+        // Matches both a direct reply to the root AI comment and a reply to one of the AI's
+        // follow-up replies, so the conversation keeps going as long as the other side does.
+        if (parentId !in aiCommentIds[snsKey].orEmpty()) return
         val createdRaw = (comment.reflekt().getField("field_createTime", true) as? Number)?.toLong() ?: 0L
         val createdSeconds = if (createdRaw > 1_000_000_000_000L) createdRaw / 1000 else createdRaw
         if (createdSeconds > 0 && System.currentTimeMillis() / 1000 - createdSeconds > MAX_REPLY_AGE_SECONDS) return
@@ -552,6 +562,10 @@ object AutoCommentMoments : AutoMomentsBase() {
             WeLogger.w(TAG, "no AI reply generated, sns=$snsId")
             return
         }
+        val snsKey = snsId.toString()
+        // Remember the text before sending, so the host-written row of this reply is recognised and
+        // its server id joins aiCommentIds — that is what allows the next round to be answered.
+        rememberAiComment(snsKey, generated)
         val result = WeMomentsApi.comment(
             snsInfo = snsInfo,
             content = generated,
@@ -579,8 +593,12 @@ object AutoCommentMoments : AutoMomentsBase() {
             answeredReplies.clear()
             runCatching { DefaultJson.decodeFromString<Map<String, String>>(savedAiCommentTexts) }
                 .getOrNull()?.let(aiCommentTexts::putAll)
-            runCatching { DefaultJson.decodeFromString<Map<String, Long>>(savedAiCommentIds) }
-                .getOrNull()?.let(aiCommentIds::putAll)
+            runCatching { DefaultJson.decodeFromString<Map<String, List<Long>>>(savedAiCommentIds) }
+                .getOrNull()
+                ?.forEach { (key, ids) -> aiCommentIds[key] = ConcurrentHashMap.newKeySet<Long>().apply { addAll(ids) } }
+                ?: runCatching { DefaultJson.decodeFromString<Map<String, Long>>(savedAiCommentIds) }
+                    .getOrNull()
+                    ?.forEach { (key, id) -> aiCommentIds[key] = ConcurrentHashMap.newKeySet<Long>().apply { add(id) } }
             answeredReplies.addAll(savedAnsweredReplies)
         }
     }

@@ -140,10 +140,25 @@ object SkipRewardedAds : SwitchFeature(), IResolveDex {
         }
 
         // 4) bridge 事件日志: mbAd_* 全家 + 广告会话窗口, 观察完整 MB 流程。
+        // 同时接管视频激励广告: 广告页通过 onVideoTimeUpdate 上报播放进度, 直接把它改到
+        // 片尾 (position=60 / duration=1), 宿主就会判定播放完成并发放奖励。这条链路不依赖
+        // 混淆过的 SDK bundle, 是 8.0.78 上仍然有效的方式。
         val bindingClass = "com.tencent.mm.appbrand.commonjni.AppBrandJsBridgeBinding".toClass()
         bindingClass.reflekt().firstMethod { name = "subscribeHandler" }.hookBefore {
-            val type = args.getOrNull(0) as? String ?: return@hookBefore
-            val data = (args.getOrNull(1) as? String).orEmpty()
+            val type = args[0] as String
+            if (type == "onVideoTimeUpdate") {
+                val payload = args[1] as? String
+                if (payload != null) {
+                    val json = runCatching { JSONObject(payload) }.getOrNull()
+                    if (json != null) {
+                        json.put("position", 60)
+                        json.put("duration", 1)
+                        args[1] = json.toString()
+                        WeLogger.i(TAG, "rewrote video ad progress data=${json.toString().take(200)}")
+                    }
+                }
+            }
+            val data = (args[1] as? String).orEmpty()
             val now = System.currentTimeMillis()
             val looksAd = type.startsWith("mbAd_") ||
                 AD_EVENT_MARKERS.any { type.contains(it, ignoreCase = true) }

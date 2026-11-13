@@ -3550,6 +3550,10 @@
     <string name="payment_history_empty">紅包 [%1$s] 領取完畢: 已被領完</string>
     <string name="payment_history_unknown_status">紅包 [%1$s] 狀態未知 (status=%2$d)</string>
     <string name="payment_red_packet_global_summary">配置默認搶紅包條件與搶到後的操作</string>
+    <string name="payment_red_packet_block_new_groups">新進群不搶紅包</string>
+    <string name="payment_red_packet_block_new_groups_description">之後新加入的群預設不搶，可在群設定裡單獨開啟</string>
+    <string name="payment_red_packet_stats_title">搶紅包統計</string>
+    <string name="payment_red_packet_stats">累計 %1$d 個 · ¥%2$.2f；今日 %3$d 個 · ¥%4$.2f</string>
     <string name="payment_red_packet_default_grab">默認搶紅包</string>
     <string name="payment_red_packet_default_all">默認搶所有聯繫人, 分聯繫人設置可單獨關閉</string>
     <string name="payment_red_packet_default_none">默認不搶任何聯繫人, 分聯繫人設置可單獨開啓</string>
@@ -4180,6 +4184,10 @@
 
     <string name="feature_ai_chat_name">AI 聊天</string>
     <string name="feature_ai_chat_description">在選定的群聊和私聊裡讓 DeepSeek 自動聊天、接話和冒泡</string>
+    <string name="ai_chat_toggle_menu_on">AI 聊天（本聊天）：已開啟</string>
+    <string name="ai_chat_toggle_menu_off">AI 聊天（本聊天）：已關閉</string>
+    <string name="ai_chat_toggle_on">已在本聊天開啟 AI 聊天</string>
+    <string name="ai_chat_toggle_off">已在本聊天關閉 AI 聊天</string>
     <string name="ai_chat_enabled_title">啟用 AI 聊天</string>
     <string name="ai_chat_enabled_description">在已選會話中自動回覆</string>
     <string name="ai_chat_targets_title">聊天</string>
@@ -4227,6 +4235,10 @@
     <string name="qq_music_select_title">選擇會話</string>
     <string name="qq_music_allow_self_title">處理自己的指令</string>
     <string name="qq_music_allow_self_description">自己傳送的點歌指令也會回應</string>
+    <string name="qq_music_send_card_title">傳送音樂卡片</string>
+    <string name="qq_music_send_card_description">回覆一張可播放的 QQ 音樂卡片</string>
+    <string name="qq_music_send_voice_title">同時傳送歌曲語音</string>
+    <string name="qq_music_send_voice_description">下載歌曲並轉換成微信語音傳送</string>
     <string name="qq_music_triggers_title">點歌指令</string>
     <string name="qq_music_triggers_hint">點歌，來一首</string>
     <string name="qq_music_custom_singer_title">自訂歌手</string>
@@ -4240,4 +4252,9 @@
     <string name="qq_music_not_found">未搜尋到這首歌</string>
     <string name="qq_music_unavailable">取得播放連結失敗，可能是版權限制或數位專輯</string>
     <string name="qq_music_send_failed">音樂卡片傳送失敗</string>
+    <string name="qq_music_voice_failed">歌曲語音傳送失敗</string>
+    <string name="qq_music_both_failed">音樂卡片和歌曲語音都傳送失敗</string>
+    <string name="qq_music_channel_required">請至少開啟音樂卡片或歌曲語音傳送</string>
+    <string name="qq_music_toggle_enabled">該聊天點歌已開啟，其他人可以點歌了</string>
+    <string name="qq_music_toggle_disabled">該聊天點歌已關閉，只有你能點歌了</string>
 </resources>

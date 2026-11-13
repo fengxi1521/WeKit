@@ -2,6 +2,8 @@ package com.xiao.feng.features.items.chat.ai
 
 import android.content.ContentValues
 import androidx.activity.ComponentActivity
+import com.composables.icons.materialsymbols.MaterialSymbols
+import com.composables.icons.materialsymbols.outlined.Chat
 import com.xiao.feng.R
 import com.xiao.feng.agent.data.entity.ModelEntity
 import com.xiao.feng.agent.data.entity.ModelProviderEntity
@@ -16,9 +18,13 @@ import com.xiao.feng.features.api.core.WeDatabaseApi
 import com.xiao.feng.features.api.core.WeDatabaseListenerApi
 import com.xiao.feng.features.api.core.WeMessageApi
 import com.xiao.feng.features.api.core.models.WeMessage
+import com.xiao.feng.features.api.ui.WeChatInputBarMenuApi
+import com.xiao.feng.features.api.ui.WeCurrentConversationApi
 import com.xiao.feng.features.core.ClickableFeature
 import com.xiao.feng.features.core.FeatureCategoryIds
+import com.xiao.feng.features.items.chat.localizedChatString
 import com.xiao.feng.utils.WeLogger
+import com.xiao.feng.utils.android.showToast
 import com.xiao.feng.utils.strings.isGroupChatWxId
 import com.xiao.feng.utils.strings.stripWxId
 import kotlinx.coroutines.CoroutineScope
@@ -111,6 +117,31 @@ object AiChat : ClickableFeature(), WeDatabaseListenerApi.IInsertListener {
     private var scope = newScope()
     private var bubbleJob: Job? = null
 
+    /** 长按输入栏 "+" 打开的菜单里, 一键开关当前聊天的 AI。 */
+    private val menuProvider = WeChatInputBarMenuApi.IActionItemsProvider {
+        val talker = WeCurrentConversationApi.value
+        if (talker.isBlank()) return@IActionItemsProvider emptyList()
+        val enabled = talker in targets
+        listOf(
+            WeChatInputBarMenuApi.ActionItem(
+                id = "ai_chat_toggle",
+                icon = MaterialSymbols.Outlined.Chat,
+                label = localizedChatString(
+                    if (enabled) R.string.ai_chat_toggle_menu_on else R.string.ai_chat_toggle_menu_off,
+                ),
+                onClick = { context, _ ->
+                    val nowEnabled = toggleTarget(talker)
+                    showToast(
+                        context,
+                        localizedChatString(
+                            if (nowEnabled) R.string.ai_chat_toggle_on else R.string.ai_chat_toggle_off,
+                        ),
+                    )
+                },
+            ),
+        )
+    }
+
     /** 每个会话的发言代次: 新消息到达会作废旧消息排队的回复。 */
     private val generations = ConcurrentHashMap<String, Int>()
     private val lastReplyAt = ConcurrentHashMap<String, Long>()
@@ -119,11 +150,13 @@ object AiChat : ClickableFeature(), WeDatabaseListenerApi.IInsertListener {
     override fun onEnable() {
         if (!scope.isActive) scope = newScope()
         WeDatabaseListenerApi.addListener(this)
+        WeChatInputBarMenuApi.addProvider(menuProvider)
         restartAutomation()
     }
 
     override fun onDisable() {
         WeDatabaseListenerApi.removeListener(this)
+        WeChatInputBarMenuApi.removeProvider(menuProvider)
         bubbleJob?.cancel()
         bubbleJob = null
         dedupKeys.clear()
@@ -131,6 +164,18 @@ object AiChat : ClickableFeature(), WeDatabaseListenerApi.IInsertListener {
         generations.clear()
         scope.cancel()
         scope = newScope()
+    }
+
+    /** 切换某个会话是否交给 AI; 打开时顺带启用全局开关, 免得多一步设置。 */
+    private fun toggleTarget(talker: String): Boolean {
+        val next = targets.toMutableSet()
+        val enabled = if (next.remove(talker)) false else next.add(talker)
+        targets = next
+        if (enabled) chatEnabled = true
+        lastReplyAt.remove(talker)
+        restartAutomation()
+        WeLogger.i(TAG, "AI chat ${if (enabled) "enabled" else "disabled"} for $talker")
+        return enabled
     }
 
     /** 设置变化后重新评估冒泡循环。 */

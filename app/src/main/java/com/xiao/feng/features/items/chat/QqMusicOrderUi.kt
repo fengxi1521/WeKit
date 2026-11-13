@@ -32,6 +32,8 @@ fun showQqMusicOrderDialog(context: ComponentActivity) {
     showComposeDialog(context) {
         var targetsInput by remember { mutableStateOf(QqMusicOrder.targets) }
         var allowSelfInput by remember { mutableStateOf(QqMusicOrder.allowSelfCommand) }
+        var sendCardInput by remember { mutableStateOf(QqMusicOrder.sendAsCard) }
+        var sendVoiceInput by remember { mutableStateOf(QqMusicOrder.sendAsVoice) }
         var triggersInput by remember { mutableStateOf(QqMusicOrder.triggersRaw) }
         var customSingerInput by remember { mutableStateOf(QqMusicOrder.customSingerEnabled) }
         var defaultSingerInput by remember { mutableStateOf(QqMusicOrder.defaultSinger) }
@@ -89,6 +91,28 @@ fun showQqMusicOrderDialog(context: ComponentActivity) {
                                 onCheckedChange = {
                                     allowSelfInput = it
                                     QqMusicOrder.allowSelfCommand = it
+                                },
+                            )
+                        }
+                        item {
+                            SwitchWidget(
+                                title = stringResource(R.string.qq_music_send_card_title),
+                                description = stringResource(R.string.qq_music_send_card_description),
+                                checked = sendCardInput,
+                                onCheckedChange = {
+                                    sendCardInput = it
+                                    QqMusicOrder.sendAsCard = it
+                                },
+                            )
+                        }
+                        item {
+                            SwitchWidget(
+                                title = stringResource(R.string.qq_music_send_voice_title),
+                                description = stringResource(R.string.qq_music_send_voice_description),
+                                checked = sendVoiceInput,
+                                onCheckedChange = {
+                                    sendVoiceInput = it
+                                    QqMusicOrder.sendAsVoice = it
                                 },
                             )
                         }

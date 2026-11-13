@@ -41,8 +41,10 @@ import com.xiao.feng.data.KvStore.prefOption
 import com.xiao.feng.ui.content.AlertDialogContent
 import com.xiao.feng.ui.content.Button
 import com.xiao.feng.ui.content.TextButton
+import com.xiao.feng.ui.content.m3.BaseWidget
 import com.xiao.feng.ui.content.m3.RadioButtonWidget
 import com.xiao.feng.ui.content.m3.SegmentedColumn
+import com.xiao.feng.ui.content.m3.SwitchWidget
 import com.xiao.feng.ui.utils.showComposeDialog
 import com.xiao.feng.utils.WeLogger
 import com.xiao.feng.utils.android.showToast
@@ -52,6 +54,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
+import java.time.LocalDate
 import java.util.Calendar
 import kotlin.random.Random
 
@@ -195,6 +198,76 @@ object RedPacketSettings {
 
     private var legacyDelayReset by prefOption("red_packet_legacy_delay_reset", false)
 
+    /** 新进群保护: 开启后, 之后新出现的群默认不抢红包, 仍可在群设置里单独打开。 */
+    var blockNewGroups: Boolean by prefOption("red_packet_block_new_groups", false)
+
+    private var groupBaselineDone: Boolean by prefOption("red_packet_group_baseline_done", false)
+
+    /** 已见过的群聊, 用于识别新进群。 */
+    private var knownGroups: Set<String> by prefOption("red_packet_known_groups", emptySet<String>())
+
+    private var statsRaw: String by prefOption("red_packet_stats", "")
+
+    /** 抢红包统计 (累计与当天), 对应 Hchat 红包面板里的统计信息。 */
+    @Serializable
+    data class Stats(
+        val count: Int = 0,
+        val amountCents: Long = 0L,
+        val todayCount: Int = 0,
+        val todayAmountCents: Long = 0L,
+        val today: String = "",
+    )
+
+    fun stats(): Stats {
+        val raw = statsRaw
+        if (raw.isBlank()) return Stats()
+        return runCatching { DefaultJson.decodeFromString<Stats>(raw) }.getOrDefault(Stats())
+    }
+
+    fun recordGrab(amountCents: Long) {
+        val today = LocalDate.now().toString()
+        val current = stats()
+        val base = if (current.today == today) current else current.copy(todayCount = 0, todayAmountCents = 0)
+        statsRaw = DefaultJson.encodeToString(
+            base.copy(
+                count = base.count + 1,
+                amountCents = base.amountCents + amountCents,
+                todayCount = base.todayCount + 1,
+                todayAmountCents = base.todayAmountCents + amountCents,
+                today = today,
+            ),
+        )
+    }
+
+    /** 首次运行时把现有群聊记为已知, 避免把老群误判成新进群。 */
+    fun ensureGroupBaseline() {
+        if (groupBaselineDone) return
+        runBlocking(Dispatchers.IO) {
+            try {
+                knownGroups = WeDatabaseApi.getGroups()
+                    .map { it.wxId }
+                    .filter { it.isGroupChatWxId }
+                    .toSet()
+                groupBaselineDone = true
+                WeLogger.i(TAG, "preloaded ${knownGroups.size} known groups for new-group protection")
+            } catch (error: Exception) {
+                WeLogger.w(TAG, "failed to preload known groups", error)
+            }
+        }
+    }
+
+    /** 记录群聊; 返回 true 表示第一次见到 (新进群)。 */
+    fun registerGroup(groupId: String): Boolean {
+        val known = knownGroups
+        if (groupId in known) return false
+        knownGroups = known + groupId
+        return true
+    }
+
+    fun invalidateCache() {
+        cachedConfig = null
+    }
+
     fun requireReady() {
         loadConfig()
         resetUntouchedLegacyDelay()
@@ -243,6 +316,8 @@ object RedPacketSettings {
             return
         }
         showComposeDialog(context) {
+            var blockNewGroupsInput by remember { mutableStateOf(blockNewGroups) }
+            val statsSnapshot = remember { RedPacketSettings.stats() }
             AlertDialogContent(
                 title = { Text(stringResource(R.string.feature_auto_open_red_packets_name)) },
                 text = {
@@ -259,6 +334,30 @@ object RedPacketSettings {
                                 title = stringResource(R.string.automation_contact_settings),
                                 description = stringResource(R.string.automation_contact_settings_summary),
                                 onClick = { showContactSelector(context) },
+                            )
+                        }
+                        item {
+                            SwitchWidget(
+                                title = stringResource(R.string.payment_red_packet_block_new_groups),
+                                description = stringResource(R.string.payment_red_packet_block_new_groups_description),
+                                checked = blockNewGroupsInput,
+                                onCheckedChange = {
+                                    blockNewGroupsInput = it
+                                    blockNewGroups = it
+                                    if (it) ensureGroupBaseline()
+                                },
+                            )
+                        }
+                        item {
+                            BaseWidget(
+                                title = stringResource(R.string.payment_red_packet_stats_title),
+                                description = stringResource(
+                                    R.string.payment_red_packet_stats,
+                                    statsSnapshot.count,
+                                    statsSnapshot.amountCents / 100.0,
+                                    statsSnapshot.todayCount,
+                                    statsSnapshot.todayAmountCents / 100.0,
+                                ),
                             )
                         }
                     }
@@ -1059,6 +1158,11 @@ object RedPacketSettings {
 
     private suspend fun setContactOverrides(wxId: String, overrides: RuleOverrides) {
         putRule("CONTACT", wxId, "", overrides)
+    }
+
+    /** 新进群保护: 给该会话写入“不抢红包”规则, 用户之后可在群设置里改回来。 */
+    suspend fun disableGrabForContact(wxId: String) {
+        setContactOverrides(wxId, RuleOverrides(grab = AutomationToggleRule(enabled = false)))
     }
 
     private suspend fun setGroupMemberOverrides(groupId: String, memberId: String, overrides: RuleOverrides) {

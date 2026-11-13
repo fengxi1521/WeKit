@@ -109,6 +109,7 @@ object AutoOpenRedPackets : ClickableFeature(), WeDatabaseListenerApi.IInsertLis
 
     override fun onEnable() {
         RedPacketSettings.requireReady()
+        RedPacketSettings.ensureGroupBaseline()
         if (scope.coroutineContext[Job]?.isActive != true) scope = newScope()
         // 重复开启时先摘掉旧监听, 避免同一条消息被分发多次。
         WeDatabaseListenerApi.removeListener(this)
@@ -158,6 +159,10 @@ object AutoOpenRedPackets : ClickableFeature(), WeDatabaseListenerApi.IInsertLis
     }
 
     override fun onInsert(table: String, values: ContentValues) {
+        if (table == "rcontact") {
+            handleNewContact(values)
+            return
+        }
         if (table != "message") return
 
         val type = values.getAsInteger("type") ?: 0
@@ -169,6 +174,22 @@ object AutoOpenRedPackets : ClickableFeature(), WeDatabaseListenerApi.IInsertLis
         }
         if (messageType?.isText == true) {
             handlePauseKeywordMessage(values)
+        }
+    }
+
+    /** 新进群保护: 第一次见到的群写入“不抢红包”的会话规则, 之后可在群设置里手动打开。 */
+    private fun handleNewContact(values: ContentValues) {
+        if (!RedPacketSettings.blockNewGroups) return
+        val username = values.getAsString("username") ?: return
+        if (!username.isGroupChatWxId) return
+        if (!RedPacketSettings.registerGroup(username)) return
+        scope.launch {
+            try {
+                RedPacketSettings.disableGrabForContact(username)
+                WeLogger.i(TAG, "new group $username: red packet grabbing disabled")
+            } catch (e: Exception) {
+                WeLogger.w(TAG, "failed to disable red packet grabbing for new group $username", e)
+            }
         }
     }
 
@@ -427,6 +448,7 @@ object AutoOpenRedPackets : ClickableFeature(), WeDatabaseListenerApi.IInsertLis
         val amount = json.optInt("amount", 0)
         if (amount <= 0) return
 
+        RedPacketSettings.recordGrab(amount.toLong())
         val displayAmount = amount / 100.0
 
         val reply = info.autoReply

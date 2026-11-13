@@ -3550,6 +3550,10 @@
     <string name="payment_history_unknown_status">Red packet [%1$s]: unknown status (status=%2$d)</string>
 
     <string name="payment_red_packet_global_summary">Configure the default claiming conditions and post-claim actions</string>
+    <string name="payment_red_packet_block_new_groups">Do not grab in new groups</string>
+    <string name="payment_red_packet_block_new_groups_description">Groups joined after enabling this are skipped by default; enable them individually in group settings</string>
+    <string name="payment_red_packet_stats_title">Red packet statistics</string>
+    <string name="payment_red_packet_stats">Total %1$d · ¥%2$.2f; today %3$d · ¥%4$.2f</string>
     <string name="payment_red_packet_default_grab">Claim red packets by default</string>
     <string name="payment_red_packet_default_all">Claim red packets from all contacts by default; per-contact settings can disable this</string>
     <string name="payment_red_packet_default_none">Do not claim red packets from any contact by default; per-contact settings can enable this</string>
@@ -4192,6 +4196,10 @@
 
     <string name="feature_ai_chat_name">AI chat</string>
     <string name="feature_ai_chat_description">Chat and bubble in selected group and private chats with DeepSeek</string>
+    <string name="ai_chat_toggle_menu_on">AI chat (this chat): on</string>
+    <string name="ai_chat_toggle_menu_off">AI chat (this chat): off</string>
+    <string name="ai_chat_toggle_on">AI chat enabled for this chat</string>
+    <string name="ai_chat_toggle_off">AI chat disabled for this chat</string>
     <string name="ai_chat_enabled_title">Enable AI chat</string>
     <string name="ai_chat_enabled_description">Reply automatically in the selected chats</string>
     <string name="ai_chat_targets_title">Chats</string>
@@ -4239,6 +4247,10 @@
     <string name="qq_music_select_title">Select chats</string>
     <string name="qq_music_allow_self_title">Handle my own commands</string>
     <string name="qq_music_allow_self_description">Also respond to song requests you send yourself</string>
+    <string name="qq_music_send_card_title">Send a music card</string>
+    <string name="qq_music_send_card_description">Reply with a playable QQ Music card</string>
+    <string name="qq_music_send_voice_title">Also send the song as a voice message</string>
+    <string name="qq_music_send_voice_description">Download the track and convert it to a WeChat voice message</string>
     <string name="qq_music_triggers_title">Command prefixes</string>
     <string name="qq_music_triggers_hint">点歌, 来一首</string>
     <string name="qq_music_custom_singer_title">Custom singer</string>
@@ -4252,4 +4264,9 @@
     <string name="qq_music_not_found">Song not found</string>
     <string name="qq_music_unavailable">Could not get a playable link for this song</string>
     <string name="qq_music_send_failed">Failed to send the music card</string>
+    <string name="qq_music_voice_failed">Failed to send the song voice message</string>
+    <string name="qq_music_both_failed">Failed to send both the music card and the voice message</string>
+    <string name="qq_music_channel_required">Enable the music card or the voice message first</string>
+    <string name="qq_music_toggle_enabled">Song requests enabled for this chat; other members can request songs now</string>
+    <string name="qq_music_toggle_disabled">Song requests disabled for this chat; only you can request songs now</string>
 </resources>
