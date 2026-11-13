@@ -534,7 +534,7 @@ object AutoCommentMoments : AutoMomentsBase() {
     }
 
     private fun hasAiCommentHistory(snsTableId: String): Boolean =
-        snsTableId in aiCommentTexts || snsTableId in aiCommentHistory
+        aiCommentTexts.containsKey(snsTableId) || aiCommentHistory.containsKey(snsTableId)
 
     private fun recordAiCommentId(snsTableId: String, commentSvrId: Long) {
         if (commentSvrId == 0L) return
