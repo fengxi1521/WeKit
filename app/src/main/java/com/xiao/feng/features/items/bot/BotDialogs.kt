@@ -159,6 +159,132 @@ fun showBotMoinMenuDialog(activity: ComponentActivity) {
     showBotUsageDialog(activity, "娱乐菜单系统 · 使用说明", MOIN_USAGE)
 }
 
+private val NUMBER_GUESS_USAGE = """
+猜数字小游戏已内置，不需要启用「脚本引擎 (Java)」。
+
+在生效群里发送：
+· 游戏菜单 —— 查看玩法
+· 猜50 —— 猜 1~100 的数字，会提示偏大或偏小
+· 重置数字 —— 重新生成答案（管理员）
+· 游戏开关 —— 开启或关闭本群游戏（管理员）
+
+管理员默认为当前登录账号。
+""".trimIndent()
+
+private val LIFE_RESTART_USAGE = """
+人生重开模拟器已内置，不需要启用「脚本引擎 (Java)」。
+
+在生效群里发送：
+· 人生开关 —— 开启或关闭游戏（管理员）
+· 开始模拟 —— 开始新的一生
+· 游戏帮助 —— 查看完整玩法
+· 人生排行榜 —— 查看 TOP10
+
+开局从 6 个随机天赋中选择 3 个，之后每年从人生选项中选择一条路。
+勾选生效群后会自动视为已开启，无需再发送「人生开关」。
+""".trimIndent()
+
+private val MAGIC_EMOJI_USAGE = """
+魔法表情已内置，不需要启用「脚本引擎 (Java)」，也不依赖外部接口。
+
+用法：长按对方消息 → 引用 → 发送两字指令。
+
+可用指令：
+摸摸头、挠头、亲亲、爱心、大佬、拽哥
+生气、捶你、威胁、打死、去玩、射
+飞机、来了、踢飞、打球、摇乐、呼圈
+扭屁、摇起、按脚、口我、吃了、需要、咸鱼
+
+发送「魔法菜单」可随时查看指令列表。
+""".trimIndent()
+
+fun showBotNumberGuessDialog(activity: ComponentActivity) {
+    showBotScriptSettingsDialog(
+        activity,
+        "猜数字小游戏 · 使用说明与设置",
+        BotNumberGuess.SCRIPT_ID,
+        NUMBER_GUESS_USAGE,
+    )
+}
+
+fun showBotLifeRestartDialog(activity: ComponentActivity) {
+    showBotScriptSettingsDialog(
+        activity,
+        "人生重开模拟器 · 使用说明与设置",
+        BotLifeRestart.SCRIPT_ID,
+        LIFE_RESTART_USAGE,
+    )
+}
+
+fun showBotMagicEmojiDialog(activity: ComponentActivity) {
+    showBotScriptSettingsDialog(
+        activity,
+        "魔法表情 · 使用说明与设置",
+        BotMagicEmoji.SCRIPT_ID,
+        MAGIC_EMOJI_USAGE,
+    )
+}
+
+private fun showBotScriptSettingsDialog(
+    activity: ComponentActivity,
+    title: String,
+    scriptId: String,
+    usage: String,
+) {
+    showComposeDialog(activity) {
+        var effectiveGroups by remember { mutableStateOf(BotScriptSettings.effectiveGroups(scriptId)) }
+        val groups by produceState<List<WeGroup>>(initialValue = emptyList()) {
+            value = runCatching {
+                withContext(Dispatchers.IO) { WeDatabaseApi.getGroups() }
+            }.getOrDefault(emptyList())
+        }
+
+        AlertDialogContent(
+            title = { Text(title) },
+            text = {
+                LazyColumn(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(max = 520.dp),
+                ) {
+                    item { Text(usage, style = MaterialTheme.typography.bodyMedium) }
+                    item {
+                        Text(
+                            "生效群（不勾选则所有群生效）",
+                            style = MaterialTheme.typography.titleSmall,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
+                    if (groups.isEmpty()) {
+                        item {
+                            Text("没有读取到群聊列表，请确认微信已登录并有群聊。")
+                        }
+                    }
+                    lazySegmentedItems(groups, key = { it.wxId }) { group ->
+                        SwitchWidget(
+                            title = group.nickname.ifBlank { group.wxId },
+                            description = group.wxId,
+                            checked = group.wxId in effectiveGroups,
+                            onCheckedChange = { checked ->
+                                val updated = if (checked) {
+                                    effectiveGroups + group.wxId
+                                } else {
+                                    effectiveGroups - group.wxId
+                                }
+                                effectiveGroups = updated
+                                BotScriptSettings.saveEffectiveGroups(scriptId, updated)
+                            },
+                        )
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = onDismiss) { Text("关闭") }
+            },
+        )
+    }
+}
+
 private fun showBotUsageDialog(activity: ComponentActivity, title: String, usage: String) {
     showComposeDialog(activity) {
         AlertDialogContent(

@@ -501,6 +501,12 @@
     <string name="feature_bot_group_robot_description">Points, robbery, marriage, auctions, song requests and more group games. Send 菜单 in a group. Author: 小淇</string>
     <string name="feature_bot_moin_menu_name">Entertainment menu system</string>
     <string name="feature_bot_moin_menu_description">Send 菜单 in a group to open pet, fishing, weather, song request and other mini-games. Author: 小淇</string>
+    <string name="feature_bot_number_guess_name">Number guessing game</string>
+    <string name="feature_bot_number_guess_description">Send 猜50 in a group to guess a number between 1 and 100. Choose effective groups in settings.</string>
+    <string name="feature_bot_life_restart_name">Life restart simulator</string>
+    <string name="feature_bot_life_restart_description">Random talents and life events. Send 开始模拟 in a group. Choose effective groups in settings.</string>
+    <string name="feature_bot_magic_emoji_name">Magic emoji</string>
+    <string name="feature_bot_magic_emoji_description">Quote a message and send a two-character command to generate an animated emoji from the sender's avatar. Choose effective groups in settings.</string>
     <string name="feature_category_batch_title">Batch actions</string>
     <string name="feature_category_home_screen_menu_title">Home screen menu</string>
     <string name="feature_category_contact_details_title">Contact details</string>

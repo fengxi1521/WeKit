@@ -466,6 +466,12 @@
     <string name="feature_bot_group_robot_description">积分、打劫、婚恋、拍卖、点歌等群玩法，群里发送「菜单」查看（作者：小淇）</string>
     <string name="feature_bot_moin_menu_name">娱乐菜单系统</string>
     <string name="feature_bot_moin_menu_description">群里发送「菜单」打开宠物、钓鱼、天气、点歌等小游戏（作者：小淇）</string>
+    <string name="feature_bot_number_guess_name">猜数字小游戏</string>
+    <string name="feature_bot_number_guess_description">群里发送「猜50」猜 1~100 的数字，设置页可勾选生效群</string>
+    <string name="feature_bot_life_restart_name">人生重开模拟器</string>
+    <string name="feature_bot_life_restart_description">随机天赋与人生事件模拟，群里发送「开始模拟」，设置页可勾选生效群</string>
+    <string name="feature_bot_magic_emoji_name">魔法表情</string>
+    <string name="feature_bot_magic_emoji_description">引用消息后发送两字指令，用对方头像生成动画表情，设置页可勾选生效群</string>
     <string name="feature_category_batch_title">批量操作</string>
     <string name="feature_category_home_screen_menu_title">首页右上角菜单</string>
     <string name="feature_category_contact_details_title">联系人详情页面</string>

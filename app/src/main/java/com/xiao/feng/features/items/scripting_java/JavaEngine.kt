@@ -30,6 +30,7 @@ import com.xiao.feng.features.api.core.models.MessageType
 import com.xiao.feng.features.api.net.WeNetSceneApi
 import com.xiao.feng.features.api.ui.WeCurrentConversationApi
 import com.xiao.feng.features.api.ui.WeMomentsApi
+import com.xiao.feng.features.items.bot.MagicEmojiGenerator
 import com.xiao.feng.extensions.ScriptDepsPack
 import com.xiao.feng.utils.AudioUtils
 import com.xiao.feng.utils.BshSnapshotDecompiler
@@ -399,6 +400,18 @@ object JavaEngine {
                         raw.toIntOrNull()?.let { value -> return@BshMethod value }
                     }
                     return@BshMethod def
+                })
+
+            // getInt(value) → 数值转换（兼容 Hchat 脚本的 getInt(Object)）
+            setMethod(
+                BshMethod(
+                    "getInt", arrayOf(Any::class.java)
+                ) {
+                    return@BshMethod when (val value = it[0]) {
+                        null -> 0
+                        is Number -> value.toInt()
+                        else -> value.toString().trim().toIntOrNull() ?: 0
+                    }
                 })
 
             // putInt(key, value)
@@ -959,6 +972,20 @@ object JavaEngine {
                     val imgPath = it[1] as String
                     return@BshMethod runCatchingBsh("sendImage") {
                         WeMessageApi.sendImage(toUser, imgPath)
+                    }.getOrDefault(false)
+                })
+
+            // sendMagicEmoji(toUser, wxId, motion, caption) → Boolean
+            setMethod(
+                BshMethod(
+                    "sendMagicEmoji", arrayOf(BString, BString, BString, BString)
+                ) {
+                    val toUser = it[0] as String
+                    val wxId = it[1] as String
+                    val motion = it[2] as String
+                    val caption = it[3] as String
+                    return@BshMethod runCatchingBsh("sendMagicEmoji") {
+                        MagicEmojiGenerator.send(toUser, wxId, motion, caption)
                     }.getOrDefault(false)
                 })
 
