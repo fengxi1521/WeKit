@@ -506,7 +506,7 @@
     <string name="feature_bot_life_restart_name">Life restart simulator</string>
     <string name="feature_bot_life_restart_description">Random talents and life events. Send 开始模拟 in a group. Choose effective groups in settings.</string>
     <string name="feature_bot_magic_emoji_name">Magic emoji</string>
-    <string name="feature_bot_magic_emoji_description">Quote a message and send a two-character command to generate an animated emoji from the sender's avatar. Choose effective groups in settings.</string>
+    <string name="feature_bot_magic_emoji_description">Quote a message and send a two-character command to generate an animated emoji from the quoted sender avatar. Choose effective groups in settings.</string>
     <string name="feature_category_batch_title">Batch actions</string>
     <string name="feature_category_home_screen_menu_title">Home screen menu</string>
     <string name="feature_category_contact_details_title">Contact details</string>
