@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -22,6 +23,7 @@ import com.xiao.feng.features.api.core.models.IWeContact
 import com.xiao.feng.ui.content.AlertDialogContent
 import com.xiao.feng.ui.content.Button
 import com.xiao.feng.ui.content.ContactsSelector
+import com.xiao.feng.ui.content.TextButton
 import com.xiao.feng.ui.content.m3.BaseItemContainer
 import com.xiao.feng.ui.content.m3.BaseWidget
 import com.xiao.feng.ui.content.m3.IntNumberPickerWidget
@@ -37,6 +39,7 @@ fun showAtReplyDialog(context: ComponentActivity) {
         var enabled by remember { mutableStateOf(AtReply.isEnabled) }
         var targets by remember { mutableStateOf(AtReply.targets) }
         var delayInput by remember { mutableIntStateOf(AtReply.replyDelaySeconds) }
+        var personaInput by remember { mutableStateOf(AtReply.persona) }
         var groups by remember { mutableStateOf<List<IWeContact>>(emptyList()) }
 
         LaunchedEffect(Unit) {
@@ -82,6 +85,45 @@ fun showAtReplyDialog(context: ComponentActivity) {
                                                 targets = selected
                                                 AtReply.targets = selected
                                                 this.onDismiss()
+                                            },
+                                        )
+                                    }
+                                },
+                            )
+                        }
+                        item {
+                            BaseWidget(
+                                title = stringResource(R.string.at_reply_persona_title),
+                                description = personaInput.ifBlank {
+                                    stringResource(R.string.at_reply_persona_follow_ai)
+                                },
+                                onClick = {
+                                    showComposeDialog(context) {
+                                        var draft by remember { mutableStateOf(personaInput) }
+                                        AlertDialogContent(
+                                            title = { Text(stringResource(R.string.at_reply_persona_title)) },
+                                            text = {
+                                                OutlinedTextField(
+                                                    value = draft,
+                                                    onValueChange = { draft = it },
+                                                    modifier = Modifier.fillMaxWidth(),
+                                                    minLines = 4,
+                                                    supportingText = {
+                                                        Text(stringResource(R.string.at_reply_persona_description))
+                                                    },
+                                                )
+                                            },
+                                            confirmButton = {
+                                                Button(onClick = {
+                                                    personaInput = draft
+                                                    AtReply.persona = draft
+                                                    onDismiss()
+                                                }) { Text(stringResource(R.string.dialog_confirm)) }
+                                            },
+                                            dismissButton = {
+                                                TextButton(onClick = onDismiss) {
+                                                    Text(stringResource(R.string.dialog_cancel))
+                                                }
                                             },
                                         )
                                     }

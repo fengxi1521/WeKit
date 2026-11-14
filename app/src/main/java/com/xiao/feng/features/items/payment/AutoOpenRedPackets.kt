@@ -289,7 +289,7 @@ object AutoOpenRedPackets : ClickableFeature(), WeDatabaseListenerApi.IInsertLis
                 headImg = headImg,
                 nickName = nickName,
                 notificationEnabled = settings.notification.enabled,
-                autoReply = settings.autoReply.text.takeIf { settings.autoReply.enabled }.orEmpty(),
+                autoReply = settings.autoReply.pickText().orEmpty(),
                 autoReplyDelayMs = settings.autoReply.delayMillis(),
             )
             currentRedPacketMap[sendId] = info

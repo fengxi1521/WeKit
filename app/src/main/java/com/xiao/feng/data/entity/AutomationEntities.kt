@@ -37,6 +37,9 @@ data class RedPacketRuleEntity(
     val notificationEnabled: Boolean? = null,
     val replyEnabled: Boolean? = null,
     val replyText: String? = null,
+    /** 红包回复随机延时范围 (秒), 随回复规则一起保存。 */
+    val replyMinDelaySeconds: String? = null,
+    val replyMaxDelaySeconds: String? = null,
 )
 
 @Entity(

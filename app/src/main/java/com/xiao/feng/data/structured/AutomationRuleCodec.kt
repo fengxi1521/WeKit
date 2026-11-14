@@ -118,12 +118,14 @@ fun RedPacketSettings.RuleOverrides.toEntity(scopeType: String, talkerId: String
         notificationEnabled = notification?.enabled,
         replyEnabled = autoReply?.enabled,
         replyText = autoReply?.text,
+        replyMinDelaySeconds = autoReply?.minDelaySeconds,
+        replyMaxDelaySeconds = autoReply?.maxDelaySeconds,
     )
 }
 
 fun RedPacketRuleEntity.toOverrides(keywords: List<RedPacketKeywordEntity>): RedPacketSettings.RuleOverrides {
     validatePaymentScope(scopeType, talkerId, memberId)
-    require(keywords.all { it.ruleKind == "KEYWORD" || it.ruleKind == "SKIP_KEYWORD" || it.ruleKind == "PAUSE" }) { "Unknown red packet keyword rule" }
+    require(keywords.all { it.ruleKind == "KEYWORD" || it.ruleKind == "SKIP_KEYWORD" || it.ruleKind == "PAUSE" || it.ruleKind == "REPLY" }) { "Unknown red packet keyword rule" }
     return RedPacketSettings.RuleOverrides(
         grab = grabEnabled?.let(::AutomationToggleRule),
         grabSelf = grabSelfEnabled?.let(::AutomationToggleRule),
@@ -134,7 +136,17 @@ fun RedPacketRuleEntity.toOverrides(keywords: List<RedPacketKeywordEntity>): Red
         pause = pauseRule(pauseEnabled, pauseKeywordMode, pauseKeywordRegex, pauseKeywordIgnoreCase, pauseSeconds, keywords.filter { it.ruleKind == "PAUSE" }.sortedBy { it.position }.map { it.text }),
         delay = ruleGroup(delayEnabled, delayBaseMs, delayRandomRangeMs) { RedPacketSettings.DelayRule(it, delayBaseMs!!, delayRandomRangeMs!!) },
         notification = notificationEnabled?.let(::AutomationToggleRule),
-        autoReply = ruleGroup(replyEnabled, replyText) { RedPacketSettings.ReplyRule(it, replyText!!) },
+        autoReply = ruleGroup(replyEnabled, replyText) {
+            RedPacketSettings.ReplyRule(
+                enabled = it,
+                text = replyText!!,
+                texts = keywords.filter { keyword -> keyword.ruleKind == "REPLY" }
+                    .sortedBy { keyword -> keyword.position }
+                    .map { keyword -> keyword.text },
+                minDelaySeconds = replyMinDelaySeconds ?: "0",
+                maxDelaySeconds = replyMaxDelaySeconds ?: "0",
+            )
+        },
     )
 }
 

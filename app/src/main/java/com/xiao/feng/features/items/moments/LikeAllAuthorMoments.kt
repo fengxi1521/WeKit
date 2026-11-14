@@ -1,12 +1,29 @@
 package com.xiao.feng.features.items.moments
 
+import androidx.activity.ComponentActivity
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Text
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.input.KeyboardType
 import com.xiao.feng.R
+import com.xiao.feng.data.KvStore.prefOption
 import com.xiao.feng.features.api.core.WeApi
 import com.xiao.feng.features.api.ui.WeMomentsApi
 import com.xiao.feng.features.api.ui.WeMomentsContextMenuApi
+import com.xiao.feng.features.core.ClickableFeature
 import com.xiao.feng.features.core.FeatureCategoryIds
-import com.xiao.feng.features.core.SwitchFeature
+import com.xiao.feng.ui.content.AlertDialogContent
+import com.xiao.feng.ui.content.Button
+import com.xiao.feng.ui.content.TextButton
 import com.xiao.feng.ui.utils.ExposurePlus1Icon
+import com.xiao.feng.ui.utils.showComposeDialog
 import com.xiao.feng.utils.WeLogger
 import com.xiao.feng.utils.android.showToastSuspend
 import kotlinx.coroutines.CoroutineScope
@@ -21,7 +38,7 @@ import java.util.concurrent.ConcurrentHashMap
  * owned by that author is liked, including pinned posts, while posts that are already liked,
  * deleted, or advertisements are skipped.
  */
-object LikeAllAuthorMoments : SwitchFeature(), WeMomentsContextMenuApi.IMenuItemsProvider {
+object LikeAllAuthorMoments : ClickableFeature(), WeMomentsContextMenuApi.IMenuItemsProvider {
 
     override val technicalId = "一键点赞作者全部朋友圈"
     override val nameRes = R.string.feature_like_all_author_moments_name
@@ -31,12 +48,48 @@ object LikeAllAuthorMoments : SwitchFeature(), WeMomentsContextMenuApi.IMenuItem
 
     private const val TAG = "LikeAllAuthorMoments"
 
-    /** Minimum gap between two like requests, so a big album is not blasted at the host at once. */
-    private const val LIKE_INTERVAL_MS = 60L
+    /** 两次点赞之间的间隔 (毫秒), 可在设置里调整; 0 表示不等待。 */
+    private const val KEY_DELAY_MS = "like_all_author_delay_ms"
+    private const val DEFAULT_DELAY_MS = 60L
+    private const val MAX_DELAY_MS = 60_000L
+
+    var delayMs: String by prefOption(KEY_DELAY_MS, DEFAULT_DELAY_MS.toString())
 
     private val runningOwners = ConcurrentHashMap.newKeySet<String>()
 
     private data class LikeSummary(val liked: Int, val skipped: Int, val failed: Int)
+
+    override fun onClick(context: ComponentActivity) {
+        showComposeDialog(context) {
+            var input by remember { mutableStateOf(delayMs) }
+            AlertDialogContent(
+                title = { Text(stringResource(R.string.moments_like_all_author_settings_title)) },
+                text = {
+                    OutlinedTextField(
+                        value = input,
+                        onValueChange = { input = it.filter(Char::isDigit).take(6) },
+                        label = { Text(stringResource(R.string.moments_like_all_author_delay_ms)) },
+                        supportingText = { Text(stringResource(R.string.moments_like_all_author_delay_description)) },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                },
+                confirmButton = {
+                    Button(onClick = {
+                        delayMs = input
+                        onDismiss()
+                    }) { Text(stringResource(R.string.dialog_confirm)) }
+                },
+                dismissButton = {
+                    TextButton(onClick = onDismiss) { Text(stringResource(R.string.dialog_cancel)) }
+                },
+            )
+        }
+    }
+
+    private fun likeDelayMillis(): Long =
+        (delayMs.toLongOrNull() ?: DEFAULT_DELAY_MS).coerceIn(0L, MAX_DELAY_MS)
 
     override fun onEnable() {
         WeMomentsContextMenuApi.addProvider(this)
@@ -127,7 +180,7 @@ object LikeAllAuthorMoments : SwitchFeature(), WeMomentsContextMenuApi.IMenuItem
                 !result.success -> failed++
                 result.sent -> {
                     liked++
-                    delay(LIKE_INTERVAL_MS)
+                    delay(likeDelayMillis())
                 }
                 else -> skipped++
             }

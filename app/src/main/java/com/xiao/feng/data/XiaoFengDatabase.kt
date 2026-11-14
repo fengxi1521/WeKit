@@ -123,7 +123,7 @@ import java.io.File
         MomentAutomationKeywordEntity::class,
         MomentAutomationContentTypeEntity::class,
     ],
-    version = 24,
+    version = 25,
     exportSchema = true,
     autoMigrations = [
         AutoMigration(from = 9, to = 10), // adds external_services table
@@ -342,6 +342,15 @@ abstract class XiaoFengDatabase : RoomDatabase() {
             }
         }
 
+        // 24 → 25: red packet replies store their random delay range as columns.
+        val MIGRATION_24_25 = object : Migration(24, 25) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE `red_packet_rules` ADD COLUMN `replyMinDelaySeconds` TEXT")
+                db.execSQL("ALTER TABLE `red_packet_rules` ADD COLUMN `replyMaxDelaySeconds` TEXT")
+                db.execSQL("UPDATE `red_packet_rules` SET `replyMinDelaySeconds` = '0', `replyMaxDelaySeconds` = '0'")
+            }
+        }
+
         val migration21To22Sql = listOf(
             "CREATE TABLE IF NOT EXISTS `structured_store_state` (`domainKey` TEXT NOT NULL, `dataVersion` INTEGER NOT NULL, `status` TEXT NOT NULL, `sourceKind` TEXT NOT NULL, `sourceHash` TEXT, `exportable` INTEGER NOT NULL, `completedAt` INTEGER, `errorCode` TEXT, `errorSummary` TEXT, PRIMARY KEY(`domainKey`))",
             "INSERT OR IGNORE INTO documents (namespace, `key`, content, formatVersion, updatedAt, exportable) " +
@@ -475,7 +484,7 @@ abstract class XiaoFengDatabase : RoomDatabase() {
             dbFile.toString()
         )
             .setJournalMode(journalMode)
-            .addMigrations(MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14, MIGRATION_14_15, MIGRATION_15_16, MIGRATION_16_17, MIGRATION_17_18, MIGRATION_18_19, MIGRATION_19_20, MIGRATION_20_21, MIGRATION_21_22, MIGRATION_22_23, MIGRATION_23_24)
+            .addMigrations(MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14, MIGRATION_14_15, MIGRATION_15_16, MIGRATION_16_17, MIGRATION_17_18, MIGRATION_18_19, MIGRATION_19_20, MIGRATION_20_21, MIGRATION_21_22, MIGRATION_22_23, MIGRATION_23_24, MIGRATION_24_25)
             // Destructive fallback is scoped to the pre-release schemas (1–8) only, which no
             // migration path was ever written for. From 9 onwards every step must have a
             // migration: a missing one then fails loudly at open time instead of silently

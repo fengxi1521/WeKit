@@ -340,12 +340,14 @@ object AiChat : ClickableFeature(), WeDatabaseListenerApi.IInsertListener {
         sender: String,
         triggerMsgId: Long,
         triggerText: String,
+        persona: String = "",
     ): String? {
         val config = snapshot()
         if (config.apiKey.isBlank()) return null
+        val effective = if (persona.isBlank()) config else config.copy(persona = persona)
         val messages = buildMessages(
             talker = talker,
-            config = config,
+            config = effective,
             triggerMsgId = triggerMsgId.takeIf { it > 0L },
             triggerSender = sender,
             triggerText = triggerText,

@@ -3640,6 +3640,8 @@
     <string name="payment_red_packet_auto_reply">抢到后自动回复</string>
     <string name="payment_red_packet_reply_delay_min">回复延时下限（秒）</string>
     <string name="payment_red_packet_reply_delay_max">回复延时上限（秒）</string>
+    <string name="payment_red_packet_auto_reply_texts">随机回复内容</string>
+    <string name="payment_red_packet_auto_reply_add">添加一条回复</string>
     <string name="payment_red_packet_amount_placeholder">使用 $amount 表示抢到的金额</string>
     <string name="payment_transfer_global_summary">配置默认接收条件与接收后的操作</string>
     <string name="payment_transfer_default_accept">默认接收转账</string>
@@ -4099,6 +4101,9 @@
     <string name="moments_like_all_author_done">已点赞 %1$d 条，跳过 %2$d 条，失败 %3$d 条</string>
     <string name="moments_like_all_author_empty">没有找到该作者已缓存的朋友圈</string>
     <string name="moments_like_all_author_failed">点赞失败</string>
+    <string name="moments_like_all_author_settings_title">一键点赞设置</string>
+    <string name="moments_like_all_author_delay_ms">两次点赞的间隔（毫秒）</string>
+    <string name="moments_like_all_author_delay_description">每条朋友圈点赞之间等待的时间，0 表示不等待</string>
     <!-- Theme Studio -->
     <string name="theme_studio_title">主题工坊</string>
     <string name="theme_studio_desc">本机已有 %1$d 个主题</string>
@@ -4346,6 +4351,9 @@
     <string name="at_reply_select_title">选择生效群聊</string>
     <string name="at_reply_delay_title">回复延迟</string>
     <string name="at_reply_delay_description">被 @ 后等待多久再回复，更像真人</string>
+    <string name="at_reply_persona_title">人设提示词</string>
+    <string name="at_reply_persona_description">单独设置艾特回复的人设，留空则沿用「AI 聊天」里的人设</string>
+    <string name="at_reply_persona_follow_ai">跟随 AI 聊天的人设</string>
 
     <string name="group_welcome_targets_title">生效群聊</string>
     <string name="group_welcome_targets_all">全部群聊</string>

@@ -36,6 +36,7 @@ object AtReply : ClickableFeature(), WeDatabaseListenerApi.IInsertListener {
 
     private const val KEY_TARGETS = "at_reply_targets"
     private const val KEY_DELAY = "at_reply_delay_seconds"
+    private const val KEY_PERSONA = "at_reply_persona"
 
     private const val TEXT_MESSAGE_TYPE = 1
     private const val REPLY_DEBOUNCE_MILLIS = 1_500L
@@ -45,6 +46,9 @@ object AtReply : ClickableFeature(), WeDatabaseListenerApi.IInsertListener {
     var targets: Set<String> by prefOption(KEY_TARGETS, emptySet<String>())
 
     var replyDelaySeconds: Int by prefOption(KEY_DELAY, 2)
+
+    /** 单独的人设提示词; 留空表示沿用「AI 聊天」里的人格设定。 */
+    var persona: String by prefOption(KEY_PERSONA, "")
 
     private var scope = newScope()
     private val dedupKeys = LinkedHashMap<String, Unit>(MAX_DEDUP_KEYS, 0.75f, true)
@@ -94,7 +98,7 @@ object AtReply : ClickableFeature(), WeDatabaseListenerApi.IInsertListener {
         scope.launch {
             delay(REPLY_DEBOUNCE_MILLIS + replyDelaySeconds.coerceAtLeast(0) * 1000L)
             val answer = runCatching {
-                AiChat.requestReplyFor(talker, sender, msgId, text)
+                AiChat.requestReplyFor(talker, sender, msgId, text, persona)
             }.onFailure {
                 WeLogger.w(TAG, "failed to generate reply for $talker", it)
             }.getOrNull() ?: return@launch

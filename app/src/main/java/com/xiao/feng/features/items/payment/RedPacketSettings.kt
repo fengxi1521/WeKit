@@ -3,10 +3,14 @@ package com.xiao.feng.features.items.payment
 import android.content.Context
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -15,11 +19,16 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.composables.icons.materialsymbols.MaterialSymbols
+import com.composables.icons.materialsymbols.outlined.Add
+import com.composables.icons.materialsymbols.outlined.Delete
 import com.xiao.feng.R
 import com.xiao.feng.i18n.LocalXiaoFengLocalizedContext
 import com.xiao.feng.features.api.core.WeDatabaseApi
@@ -41,6 +50,7 @@ import com.xiao.feng.data.KvStore.prefOption
 import com.xiao.feng.ui.content.AlertDialogContent
 import com.xiao.feng.ui.content.Button
 import com.xiao.feng.ui.content.TextButton
+import com.xiao.feng.ui.content.m3.BaseSupportingWidget
 import com.xiao.feng.ui.content.m3.BaseWidget
 import com.xiao.feng.ui.content.m3.RadioButtonWidget
 import com.xiao.feng.ui.content.m3.SegmentedColumn
@@ -79,11 +89,20 @@ object RedPacketSettings {
     @Serializable
     data class ReplyRule(
         val enabled: Boolean = false,
+        /** 旧版单条回复; 新配置使用 [texts]。 */
         val text: String = "",
+        /** 多条回复, 抢到红包时随机抽一条发送。 */
+        val texts: List<String> = emptyList(),
         /** 收到红包后延迟回复的随机范围 (秒), 两个都是 0 表示立即回复。 */
         val minDelaySeconds: String = "0",
         val maxDelaySeconds: String = "0",
     ) {
+        val allTexts: List<String>
+            get() = texts.map(String::trim).filter { it.isNotEmpty() }
+                .ifEmpty { listOfNotNull(text.trim().takeIf { it.isNotEmpty() }) }
+
+        fun pickText(): String? = allTexts.randomOrNull()
+
         fun delayMillis(): Long {
             val min = (minDelaySeconds.toLongOrNull() ?: 0L).coerceAtLeast(0L)
             val max = (maxDelaySeconds.toLongOrNull() ?: 0L).coerceAtLeast(0L)
@@ -962,27 +981,74 @@ object RedPacketSettings {
                         },
                     )
                 }
-                item(key = "auto_reply_text", animatedVisibility = rules.autoReply.enabled) {
-                    val replyTitle = stringResource(R.string.automation_reply_content)
-                    val amountPlaceholder = stringResource(R.string.payment_red_packet_amount_placeholder)
-                    PaymentValueRow(
-                        title = replyTitle,
-                        value = rules.autoReply.text,
-                        enabled = editable(RuleKey.AUTO_REPLY),
-                        valueHint = amountPlaceholder,
-                        onClick = {
-                            onEditText(
-                                PaymentTextEditMode(
-                                    title = replyTitle,
-                                    initial = rules.autoReply.text,
-                                    supportingText = amountPlaceholder,
-                                    onCommit = {
-                                        onChange(RuleKey.AUTO_REPLY, rules.copy(autoReply = rules.autoReply.copy(text = it)))
-                                    },
-                                )
-                            )
-                        },
-                    )
+                item(key = "auto_reply_texts", animatedVisibility = rules.autoReply.enabled) {
+                    val repliesTitle = stringResource(R.string.payment_red_packet_auto_reply_texts)
+                    val addTitle = stringResource(R.string.payment_red_packet_auto_reply_add)
+                    BaseSupportingWidget(title = repliesTitle) {
+                        Column(modifier = Modifier.fillMaxWidth()) {
+                            rules.autoReply.allTexts.forEachIndexed { index, reply ->
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 16.dp, vertical = 4.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                ) {
+                                    Text(
+                                        text = reply,
+                                        modifier = Modifier.weight(1f),
+                                        maxLines = 2,
+                                        overflow = TextOverflow.Ellipsis,
+                                    )
+                                    IconButton(
+                                        enabled = editable(RuleKey.AUTO_REPLY),
+                                        onClick = {
+                                            val updated = rules.autoReply.allTexts.toMutableList()
+                                                .apply { removeAt(index) }
+                                            onChange(
+                                                RuleKey.AUTO_REPLY,
+                                                rules.copy(
+                                                    autoReply = rules.autoReply.copy(
+                                                        texts = updated,
+                                                        text = "",
+                                                    )
+                                                )
+                                            )
+                                        },
+                                    ) {
+                                        Icon(MaterialSymbols.Outlined.Delete, null)
+                                    }
+                                }
+                            }
+                            TextButton(
+                                enabled = editable(RuleKey.AUTO_REPLY),
+                                onClick = {
+                                    onEditText(
+                                        PaymentTextEditMode(
+                                            title = addTitle,
+                                            initial = "",
+                                            onCommit = { input ->
+                                                val reply = input.trim()
+                                                if (reply.isNotEmpty() && reply !in rules.autoReply.allTexts) {
+                                                    onChange(
+                                                        RuleKey.AUTO_REPLY,
+                                                        rules.copy(
+                                                            autoReply = rules.autoReply.copy(
+                                                                texts = rules.autoReply.allTexts + reply,
+                                                                text = "",
+                                                            )
+                                                        )
+                                                    )
+                                                }
+                                            },
+                                        )
+                                    )
+                                },
+                            ) {
+                                Icon(MaterialSymbols.Outlined.Add, null)
+                                Text(addTitle)
+                            }
+                        }
+                    }
                 }
 
                 item(key = "auto_reply_delay_min", animatedVisibility = rules.autoReply.enabled) {
@@ -1132,7 +1198,7 @@ object RedPacketSettings {
                 return context.getString(R.string.payment_red_packet_pause_invalid_seconds)
             }
         }
-        if (validates(RuleKey.AUTO_REPLY) && rules.autoReply.enabled && rules.autoReply.text.isBlank()) {
+        if (validates(RuleKey.AUTO_REPLY) && rules.autoReply.enabled && rules.autoReply.allTexts.isEmpty()) {
             return context.getString(R.string.automation_reply_required)
         }
         return null

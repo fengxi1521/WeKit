@@ -3599,6 +3599,8 @@
     <string name="payment_red_packet_auto_reply">Reply automatically after claiming</string>
     <string name="payment_red_packet_reply_delay_min">Reply delay: minimum (seconds)</string>
     <string name="payment_red_packet_reply_delay_max">Reply delay: maximum (seconds)</string>
+    <string name="payment_red_packet_auto_reply_texts">Random replies</string>
+    <string name="payment_red_packet_auto_reply_add">Add a reply</string>
     <string name="payment_red_packet_amount_placeholder">Use $amount for the claimed amount</string>
 
     <string name="payment_transfer_global_summary">Configure the default acceptance conditions and post-acceptance actions</string>
@@ -4067,6 +4069,9 @@
     <string name="moments_like_all_author_done">Liked %1$d Moments, skipped %2$d, failed %3$d</string>
     <string name="moments_like_all_author_empty">No cached Moments found for this author</string>
     <string name="moments_like_all_author_failed">Failed to like their Moments</string>
+    <string name="moments_like_all_author_settings_title">Like all settings</string>
+    <string name="moments_like_all_author_delay_ms">Delay between likes (ms)</string>
+    <string name="moments_like_all_author_delay_description">How long to wait between liking each Moment; 0 means no wait</string>
     <!-- Theme Studio -->
     <string name="theme_studio_title">Theme Studio</string>
     <string name="theme_studio_desc">%1$d theme(s) stored on this device</string>
@@ -4314,6 +4319,9 @@
     <string name="at_reply_select_title">Select groups</string>
     <string name="at_reply_delay_title">Reply delay</string>
     <string name="at_reply_delay_description">How long to wait after being mentioned before replying, which feels more human</string>
+    <string name="at_reply_persona_title">Persona prompt</string>
+    <string name="at_reply_persona_description">A separate persona for mention replies; leave blank to reuse the AI chat persona</string>
+    <string name="at_reply_persona_follow_ai">Follow the AI chat persona</string>
 
     <string name="group_welcome_targets_title">Groups</string>
     <string name="group_welcome_targets_all">All group chats</string>
