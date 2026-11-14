@@ -11,6 +11,7 @@ import com.xiao.feng.features.items.moments.MomentsAutomationSettings
 import com.xiao.feng.features.items.moments.StoredMomentAutomationConfig
 import com.xiao.feng.features.items.payment.RedPacketSettings
 import com.xiao.feng.features.items.payment.TransferSettings
+import com.xiao.feng.utils.TargetProcesses
 import com.xiao.feng.utils.WeLogger
 import com.xiao.feng.utils.fs.KnownPaths
 import com.xiao.feng.utils.fs.LegacyPaths
@@ -50,10 +51,38 @@ object JsonDataMigration {
     @Volatile
     private var completed: Set<String> = emptySet()
 
+    @Volatile
+    private var completionLoaded = false
+
     fun isCompleted(namespace: String, key: String): Boolean = "$namespace/$key" in completed
 
     fun requireCompleted(namespace: String, key: String) {
-        check(isCompleted(namespace, key)) { "JSON migration has not completed: $namespace/$key" }
+        ensureCompletionLoaded()
+        check("$namespace/$key" in completed) { "JSON migration has not completed: $namespace/$key" }
+    }
+
+    /**
+     * `run()` only executes in MAIN. Other processes read the completion markers it wrote so that
+     * structured settings stay readable where the host runs them without a main-process round trip
+     * (for example red packet rules inside the :push process).
+     */
+    private fun ensureCompletionLoaded() {
+        if (completionLoaded) return
+        synchronized(this) {
+            if (completionLoaded) return
+            runBlocking(Dispatchers.IO) {
+                if (TargetProcesses.isInMain) {
+                    // `run()` refreshes the set before features start; empty means it failed.
+                    completed = emptySet()
+                    completionLoaded = true
+                    return@runBlocking
+                }
+                val missing = incomplete().toSet()
+                completed = sources.mapNotNull { it.id.takeIf { id -> id !in missing } }.toSet()
+                // Main may still be migrating when this process starts; keep retrying until it is done.
+                completionLoaded = missing.isEmpty()
+            }
+        }
     }
 
     /** Startup calls this in MAIN before enabling features; their caches remain lazily loaded. */
@@ -73,6 +102,7 @@ object JsonDataMigration {
                 WeLogger.e("JsonDataMigration", "${source.id}: ${error.javaClass.simpleName}; original data retained")
             }
         }
+        completionLoaded = true
     }
 
     private suspend fun migrate(db: XiaoFengDatabase, source: Source) {

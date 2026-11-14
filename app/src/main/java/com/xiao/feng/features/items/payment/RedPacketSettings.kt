@@ -56,6 +56,7 @@ import com.xiao.feng.ui.content.m3.RadioButtonWidget
 import com.xiao.feng.ui.content.m3.SegmentedColumn
 import com.xiao.feng.ui.content.m3.SwitchWidget
 import com.xiao.feng.ui.utils.showComposeDialog
+import com.xiao.feng.utils.TargetProcesses
 import com.xiao.feng.utils.WeLogger
 import com.xiao.feng.utils.android.showToast
 import com.xiao.feng.utils.serialization.DefaultJson
@@ -215,6 +216,12 @@ object RedPacketSettings {
     @Volatile
     private var cachedConfig: StoredConfig? = null
 
+    /** 写配置的进程会递增该值; 其他进程 (如 :push) 据此丢弃过期缓存。 */
+    private var configRevision by prefOption("red_packet_config_revision", 0L)
+
+    @Volatile
+    private var cachedConfigRevision = -1L
+
     private var legacyDelayReset by prefOption("red_packet_legacy_delay_reset", false)
 
     /** 新进群保护: 开启后, 之后新出现的群默认不抢红包, 仍可在群设置里单独打开。 */
@@ -261,6 +268,8 @@ object RedPacketSettings {
     /** 首次运行时把现有群聊记为已知, 避免把老群误判成新进群。 */
     fun ensureGroupBaseline() {
         if (groupBaselineDone) return
+        // 宿主数据库只在主进程可用; 其他进程不能替主进程写这份基线。
+        if (!TargetProcesses.isInMain) return
         runBlocking(Dispatchers.IO) {
             try {
                 knownGroups = WeDatabaseApi.getGroups()
@@ -297,6 +306,8 @@ object RedPacketSettings {
      * immediately, so an untouched global delay is reset once; custom values are left alone.
      */
     private fun resetUntouchedLegacyDelay() {
+        // 一次性迁移只归主进程负责, 避免 push 进程与主进程同时改写配置。
+        if (!TargetProcesses.isInMain) return
         if (legacyDelayReset) return
         val config = loadConfig()
         val delay = config.global.delay
@@ -316,6 +327,7 @@ object RedPacketSettings {
                 WeLogger.w(TAG, "failed to reset legacy red packet delay", error)
             } finally {
                 cachedConfig = null
+                configRevision += 1
             }
         }
     }
@@ -1237,10 +1249,14 @@ object RedPacketSettings {
 
     private fun loadConfig(): StoredConfig {
         JsonDataMigration.requireCompleted("json", "RedPacketSettings")
-        cachedConfig?.let { return it }
+        val revision = configRevision
+        cachedConfig?.let { if (cachedConfigRevision == revision) return it }
         return runBlocking(Dispatchers.IO) {
             XiaoFengDatabase.instance.automationDao().getRedPacketConfig()
-                .also { cachedConfig = it }
+                .also {
+                    cachedConfig = it
+                    cachedConfigRevision = revision
+                }
         }
     }
 
@@ -1252,6 +1268,7 @@ object RedPacketSettings {
             } finally {
                 // Also clear on cancellation: the SQL transaction may already have committed.
                 cachedConfig = null
+                configRevision += 1
             }
         }
     }

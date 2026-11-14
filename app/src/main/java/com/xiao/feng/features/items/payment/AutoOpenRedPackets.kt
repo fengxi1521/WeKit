@@ -13,6 +13,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.core.net.toUri
 import dev.ujhhgtg.reflekt.utils.createInstance
 import com.xiao.feng.R
+import com.xiao.feng.data.KvStore
 import com.xiao.feng.featurepoints.abc.IResolveDex
 import com.xiao.feng.featurepoints.dsl.dexClass
 import com.xiao.feng.featurepoints.dsl.dexMethod
@@ -30,6 +31,8 @@ import com.xiao.feng.ui.content.AlertDialogContent
 import com.xiao.feng.ui.content.Button
 import com.xiao.feng.ui.content.TextButton
 import com.xiao.feng.ui.utils.showComposeDialog
+import com.xiao.feng.utils.TargetProcess
+import com.xiao.feng.utils.TargetProcesses
 import com.xiao.feng.utils.WeLogger
 import com.xiao.feng.utils.android.getTopMostActivity
 import com.xiao.feng.utils.android.showToast
@@ -52,6 +55,15 @@ object AutoOpenRedPackets : ClickableFeature(), WeDatabaseListenerApi.IInsertLis
     override val nameRes = R.string.feature_auto_open_red_packets_name
     override val categoryIds = listOf(FeatureCategoryIds.PAYMENT)
     override val descriptionRes = R.string.feature_auto_open_red_packets_description
+
+    /**
+     * 宿主在后台时, 新消息由 :push 进程接收并写入数据库; 只在主进程挂钩会完全漏掉后台红包。
+     * 该进程没有设置入口, 所以启动时就装好钩子, 是否真正抢红包由持久化开关决定。
+     */
+    override val targetProcesses = setOf(TargetProcess.MAIN, TargetProcess.PUSH)
+
+    override val shouldEnableOnStartup: Boolean
+        get() = isEnabled || alwaysEnabled || TargetProcesses.currentType == TargetProcess.PUSH
 
     private const val TAG = "AutoOpenRedPackets"
 
@@ -86,6 +98,9 @@ object AutoOpenRedPackets : ClickableFeature(), WeDatabaseListenerApi.IInsertLis
 
     private var scope = newScope()
 
+    /** 开关的持久化值 (KvStore 自带 1 秒缓存), :push 进程也能感知主进程里的开关变化。 */
+    private fun grabbingEnabled(): Boolean = KvStore.getBoolOrDef(technicalId, defaultEnabled)
+
     private data class RedPacketInfo(
         val sendId: String,
         val nativeUrl: String,
@@ -108,8 +123,14 @@ object AutoOpenRedPackets : ClickableFeature(), WeDatabaseListenerApi.IInsertLis
     }
 
     override fun onEnable() {
-        RedPacketSettings.requireReady()
-        RedPacketSettings.ensureGroupBaseline()
+        // push 进程即使开关未开也会先装好钩子; 昂贵的初始化延迟到真正启用时再做。
+        // 初始化失败不能连带摘掉钩子: 宿主升级后 :push 可能先于主进程启动, 等首个红包再重试。
+        if (grabbingEnabled()) {
+            runCatching {
+                RedPacketSettings.requireReady()
+                RedPacketSettings.ensureGroupBaseline()
+            }.onFailure { WeLogger.w(TAG, "red packet settings not ready; will retry on first packet", it) }
+        }
         if (scope.coroutineContext[Job]?.isActive != true) scope = newScope()
         // 重复开启时先摘掉旧监听, 避免同一条消息被分发多次。
         WeDatabaseListenerApi.removeListener(this)
@@ -118,6 +139,7 @@ object AutoOpenRedPackets : ClickableFeature(), WeDatabaseListenerApi.IInsertLis
         // 最早的检测点: 宿主把消息写进数据库之前就入队领取请求, 既比 insert hook 更早,
         // 也不受其它 insert 监听器耗时的影响。数据库监听保留为兜底。
         WeMessageApi.methodMsgInfoStorageInsertMessage.hookBefore {
+            if (!grabbingEnabled()) return@hookBefore
             val msgInfo = MessageInfo(args[0]!!)
             if (msgInfo.type?.isRedPacket == true) {
                 handleRedPacket(msgInfo)
@@ -159,6 +181,7 @@ object AutoOpenRedPackets : ClickableFeature(), WeDatabaseListenerApi.IInsertLis
     }
 
     override fun onInsert(table: String, values: ContentValues) {
+        if (!grabbingEnabled()) return
         if (table == "rcontact") {
             handleNewContact(values)
             return
@@ -220,6 +243,7 @@ object AutoOpenRedPackets : ClickableFeature(), WeDatabaseListenerApi.IInsertLis
     }
 
     private fun handleRedPacket(msgInfo: MessageInfo) {
+        if (!grabbingEnabled()) return
         if (System.currentTimeMillis() < pausedUntil) {
             WeLogger.i(TAG, "skipping red packet: grabbing paused by keyword")
             return
