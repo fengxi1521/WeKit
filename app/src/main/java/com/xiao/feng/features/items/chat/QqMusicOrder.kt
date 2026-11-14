@@ -4,6 +4,7 @@ import android.content.ContentValues
 import androidx.activity.ComponentActivity
 import com.tencent.mm.pluginsdk.ui.chat.ChatFooter
 import com.xiao.feng.R
+import com.xiao.feng.data.KvStore
 import com.xiao.feng.data.KvStore.prefOption
 import com.xiao.feng.features.api.core.WeApi
 import com.xiao.feng.features.api.core.WeDatabaseApi
@@ -17,6 +18,8 @@ import com.xiao.feng.features.core.FeatureCategoryIds
 import com.xiao.feng.i18n.HostLocalizedStrings
 import com.xiao.feng.utils.AudioUtils
 import com.xiao.feng.utils.HostInfo
+import com.xiao.feng.utils.TargetProcess
+import com.xiao.feng.utils.TargetProcesses
 import com.xiao.feng.utils.WeLogger
 import com.xiao.feng.utils.strings.isGroupChatWxId
 import com.xiao.feng.utils.strings.stripWxId
@@ -41,6 +44,14 @@ object QqMusicOrder : ClickableFeature(), WeDatabaseListenerApi.IInsertListener 
     override val nameRes = R.string.feature_qq_music_order_name
     override val categoryIds = listOf(FeatureCategoryIds.CHAT)
     override val descriptionRes = R.string.feature_qq_music_order_description
+
+    /**
+     * 宿主在后台时, 新消息由 :push 进程接收并写入消息库; 只在主进程挂钩会完全漏掉后台点歌。
+     */
+    override val targetProcesses = setOf(TargetProcess.MAIN, TargetProcess.PUSH)
+
+    override val shouldEnableOnStartup: Boolean
+        get() = isEnabled || alwaysEnabled || TargetProcesses.currentType == TargetProcess.PUSH
 
     private const val TAG = "QqMusicOrder"
     private const val TEXT_MESSAGE_TYPE = 1
@@ -104,6 +115,9 @@ object QqMusicOrder : ClickableFeature(), WeDatabaseListenerApi.IInsertListener 
         WeDatabaseListenerApi.removeListener(this)
         WeDatabaseListenerApi.addListener(this)
 
+        // 输入栏开关指令只属于有 UI 的主进程。
+        if (!TargetProcesses.isInMain) return
+
         // 聊天内开关指令: 在发送前拦下 "开启点歌"/"关闭点歌", 只更新本会话的允许名单,
         // 不把指令本身发进聊天 (清空输入框, 原生发送键会因此直接返回)。
         WeChatInputBarMenuApi.methodSendMessage.hookBefore {
@@ -145,8 +159,14 @@ object QqMusicOrder : ClickableFeature(), WeDatabaseListenerApi.IInsertListener 
         processed.clear()
     }
 
+    /**
+     * 开关的持久化值。:push 进程常驻, 每次消息都重新读取 (KvStore 自带 1 秒缓存),
+     * 以便感知主进程里的开关变化。
+     */
+    private fun orderEnabled(): Boolean = KvStore.getBoolOrDef(technicalId, defaultEnabled)
+
     override fun onInsert(table: String, values: ContentValues) {
-        if (table != "message" || !isEnabled) return
+        if (table != "message" || !orderEnabled()) return
         if ((values.getAsInteger("type") ?: return) != TEXT_MESSAGE_TYPE) return
 
         val talker = values.getAsString("talker") ?: return

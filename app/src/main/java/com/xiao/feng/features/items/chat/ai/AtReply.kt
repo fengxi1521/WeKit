@@ -3,11 +3,14 @@ package com.xiao.feng.features.items.chat.ai
 import android.content.ContentValues
 import androidx.activity.ComponentActivity
 import com.xiao.feng.R
+import com.xiao.feng.data.KvStore
 import com.xiao.feng.data.KvStore.prefOption
 import com.xiao.feng.features.api.core.WeApi
 import com.xiao.feng.features.api.core.WeDatabaseListenerApi
 import com.xiao.feng.features.core.ClickableFeature
 import com.xiao.feng.features.core.FeatureCategoryIds
+import com.xiao.feng.utils.TargetProcess
+import com.xiao.feng.utils.TargetProcesses
 import com.xiao.feng.utils.WeLogger
 import com.xiao.feng.utils.strings.isGroupChatWxId
 import com.xiao.feng.utils.strings.stripWxId
@@ -31,6 +34,14 @@ object AtReply : ClickableFeature(), WeDatabaseListenerApi.IInsertListener {
     override val nameRes = R.string.feature_at_reply_name
     override val categoryIds = listOf(FeatureCategoryIds.CHAT)
     override val descriptionRes = R.string.feature_at_reply_description
+
+    /**
+     * 宿主在后台时, 新消息由 :push 进程接收并写入消息库; 只在主进程挂钩会完全漏掉后台的 @。
+     */
+    override val targetProcesses = setOf(TargetProcess.MAIN, TargetProcess.PUSH)
+
+    override val shouldEnableOnStartup: Boolean
+        get() = isEnabled || alwaysEnabled || TargetProcesses.currentType == TargetProcess.PUSH
 
     private const val TAG = "AtReply"
 
@@ -59,7 +70,13 @@ object AtReply : ClickableFeature(), WeDatabaseListenerApi.IInsertListener {
 
     /** 该会话是否由「艾特回复」接管; AI 聊天据此避让, 避免一条消息回两遍。 */
     fun isActiveFor(talker: String): Boolean =
-        isEnabled && AiChat.isConfigured() && (targets.isEmpty() || talker in targets)
+        replyEnabled() && AiChat.isConfigured() && (targets.isEmpty() || talker in targets)
+
+    /**
+     * 开关的持久化值。:push 进程常驻, 每次消息都重新读取 (KvStore 自带 1 秒缓存),
+     * 以便感知主进程里的开关变化。
+     */
+    private fun replyEnabled(): Boolean = KvStore.getBoolOrDef(technicalId, defaultEnabled)
 
     override fun onEnable() {
         WeDatabaseListenerApi.addListener(this)
@@ -73,7 +90,7 @@ object AtReply : ClickableFeature(), WeDatabaseListenerApi.IInsertListener {
     }
 
     override fun onInsert(table: String, values: ContentValues) {
-        if (table != "message") return
+        if (table != "message" || !replyEnabled()) return
         if ((values.getAsInteger("isSend") ?: 0) != 0) return
         if ((values.getAsInteger("type") ?: return) != TEXT_MESSAGE_TYPE) return
 

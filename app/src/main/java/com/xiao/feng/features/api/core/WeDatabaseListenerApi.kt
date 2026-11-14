@@ -11,6 +11,7 @@ import com.xiao.feng.constants.WeChatVersions
 import com.xiao.feng.features.core.ApiFeature
 import com.xiao.feng.features.core.FeatureCategoryIds
 import com.xiao.feng.utils.HostInfo
+import com.xiao.feng.utils.TargetProcess
 import com.xiao.feng.utils.WeLogger
 import java.util.concurrent.CopyOnWriteArrayList
 
@@ -21,6 +22,12 @@ object WeDatabaseListenerApi : ApiFeature() {
     override val nameRes = R.string.feature_we_database_listener_api_name
     override val categoryIds = listOf(FeatureCategoryIds.API)
     override val descriptionRes = R.string.feature_we_database_listener_api_description
+
+    /**
+     * 宿主在后台时, 新消息由 :push 进程接收并写入消息库; 只在主进程挂钩会完全漏掉后台消息。
+     * 监听器本身在各功能里按持久化开关门控, 因此这里可以常驻两个进程。
+     */
+    override val targetProcesses = setOf(TargetProcess.MAIN, TargetProcess.PUSH)
 
     fun interface IInsertListener {
         fun onInsert(table: String, values: ContentValues)

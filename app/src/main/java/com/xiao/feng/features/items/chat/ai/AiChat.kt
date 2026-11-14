@@ -24,6 +24,8 @@ import com.xiao.feng.features.core.ClickableFeature
 import com.xiao.feng.features.core.FeatureCategoryIds
 import com.xiao.feng.features.items.chat.localizedChatString
 import com.xiao.feng.features.items.chat.LocalStickerFiles
+import com.xiao.feng.utils.TargetProcess
+import com.xiao.feng.utils.TargetProcesses
 import com.xiao.feng.utils.WeLogger
 import com.xiao.feng.utils.android.showToast
 import com.xiao.feng.utils.strings.isGroupChatWxId
@@ -58,6 +60,11 @@ object AiChat : ClickableFeature(), WeDatabaseListenerApi.IInsertListener {
 
     override val alwaysEnabled = true
     override val noSwitchWidget = true
+
+    /**
+     * 宿主在后台时, 新消息由 :push 进程接收并写入消息库; 只在主进程挂钩会完全漏掉后台消息。
+     */
+    override val targetProcesses = setOf(TargetProcess.MAIN, TargetProcess.PUSH)
 
     private const val TAG = "AiChat"
 
@@ -159,8 +166,11 @@ object AiChat : ClickableFeature(), WeDatabaseListenerApi.IInsertListener {
     override fun onEnable() {
         if (!scope.isActive) scope = newScope()
         WeDatabaseListenerApi.addListener(this)
-        WeChatInputBarMenuApi.addProvider(menuProvider)
-        restartAutomation()
+        // 输入栏菜单和主动冒泡只属于有 UI 的主进程; :push 里只需要消息入库监听。
+        if (TargetProcesses.isInMain) {
+            WeChatInputBarMenuApi.addProvider(menuProvider)
+            restartAutomation()
+        }
     }
 
     override fun onDisable() {

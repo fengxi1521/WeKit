@@ -8,6 +8,7 @@ import com.xiao.feng.features.api.core.WeDatabaseListenerApi
 import com.xiao.feng.features.api.core.WeMessageApi
 import com.xiao.feng.features.core.ClickableFeature
 import com.xiao.feng.features.core.FeatureCategoryIds
+import com.xiao.feng.utils.TargetProcess
 import com.xiao.feng.utils.WeLogger
 import com.xiao.feng.utils.serialization.DefaultJson
 import com.xiao.feng.utils.strings.isGroupChatWxId
@@ -50,6 +51,12 @@ object KeywordAutoReply : ClickableFeature(), WeDatabaseListenerApi.IInsertListe
 
     override val alwaysEnabled = true
     override val noSwitchWidget = true
+
+    /**
+     * 宿主在后台时, 新消息由 :push 进程接收并写入消息库; 只在主进程挂钩会完全漏掉后台消息。
+     * 是否真的回复由 [featureEnabled] 在每次消息时判断。
+     */
+    override val targetProcesses = setOf(TargetProcess.MAIN, TargetProcess.PUSH)
 
     private const val TAG = "KeywordAutoReply"
     private const val KEY_ENABLED = "keyword_auto_reply_enabled"

@@ -25,11 +25,13 @@ object WeLauncher {
 
         if (TargetProcesses.isInMain) {
             ActivityProxy.init(appContext)
-
-            val prefs =
-                context.getSharedPreferences("${PackageNames.WECHAT}_preferences", Context.MODE_PRIVATE)
-            RuntimeConfig.mmPrefs = prefs
         }
+
+        // :push 等后台进程里的功能 (如艾特回复、QQ 点歌) 需要读取自己的 wxid, 因此这里也初始化。
+        RuntimeConfig.mmPrefs = context.getSharedPreferences(
+            "${PackageNames.WECHAT}_preferences",
+            Context.MODE_PRIVATE,
+        )
 
         runCatching {
             FeaturesLoader.loadFeatures()
