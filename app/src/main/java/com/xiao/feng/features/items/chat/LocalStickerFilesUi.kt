@@ -46,68 +46,72 @@ fun LocalStickerFilesContent(
     paths: Set<String>,
     onPathsChange: (Set<String>) -> Unit,
 ) {
-    TextButton(
-        onClick = {
-            pickPanelFile(context, arrayOf("image/*")) { name, uri, activity ->
-                CoroutineScope(Dispatchers.IO).launch {
-                    val path = LocalStickerFiles.importFile(activity, uri, name)
-                    withContext(Dispatchers.Main) {
-                        activity.finish()
-                        if (path == null) {
-                            showToast(
-                                activity,
-                                context.getString(R.string.emoji_files_import_failed),
-                            )
-                        } else {
-                            onPathsChange(paths + path)
+    Column(modifier = Modifier.fillMaxWidth()) {
+        TextButton(
+            onClick = {
+                pickPanelFile(context, arrayOf("image/*")) { name, uri, activity ->
+                    CoroutineScope(Dispatchers.IO).launch {
+                        val path = LocalStickerFiles.importFile(activity, uri, name)
+                        withContext(Dispatchers.Main) {
+                            activity.finish()
+                            if (path == null) {
+                                showToast(
+                                    activity,
+                                    context.getString(R.string.emoji_files_import_failed),
+                                )
+                            } else {
+                                onPathsChange(paths + path)
+                            }
                         }
                     }
                 }
             }
+        ) {
+            Icon(MaterialSymbols.Outlined.Add, contentDescription = null)
+            Text(stringResource(R.string.emoji_files_add))
         }
-    ) {
-        Icon(MaterialSymbols.Outlined.Add, contentDescription = null)
-        Text(stringResource(R.string.emoji_files_add))
-    }
 
-    if (paths.isEmpty()) {
-        Text(
-            text = stringResource(R.string.emoji_files_empty),
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.padding(vertical = 12.dp),
-        )
-        return
-    }
-
-    LazyColumn(modifier = Modifier.heightIn(max = 360.dp)) {
-        itemsIndexed(paths.toList(), key = { _, path -> path }) { index, path ->
-            BaseItemContainer {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Box(modifier = Modifier.size(44.dp), contentAlignment = Alignment.Center) {
-                        AsyncImage(
-                            model = File(path),
-                            contentDescription = null,
-                            modifier = Modifier.size(44.dp),
-                        )
-                    }
-                    Column(modifier = Modifier.weight(1f).padding(horizontal = 12.dp)) {
-                        Text(stringResource(R.string.emoji_files_item, index + 1))
-                        Text(
-                            text = File(path).name,
-                            style = MaterialTheme.typography.bodySmall,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                        )
-                    }
-                    IconButton(onClick = { onPathsChange(paths - path) }) {
-                        Icon(
-                            MaterialSymbols.Outlined.Delete,
-                            contentDescription = stringResource(R.string.emoji_files_delete),
-                            tint = MaterialTheme.colorScheme.error,
-                        )
+        if (paths.isEmpty()) {
+            Text(
+                text = stringResource(R.string.emoji_files_empty),
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(vertical = 12.dp),
+            )
+        } else {
+            LazyColumn(modifier = Modifier.heightIn(max = 360.dp)) {
+                itemsIndexed(paths.toList(), key = { _, path -> path }) { index, path ->
+                    BaseItemContainer {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Box(
+                                modifier = Modifier.size(44.dp),
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                AsyncImage(
+                                    model = File(path),
+                                    contentDescription = null,
+                                    modifier = Modifier.size(44.dp),
+                                )
+                            }
+                            Column(modifier = Modifier.weight(1f).padding(horizontal = 12.dp)) {
+                                Text(stringResource(R.string.emoji_files_item, index + 1))
+                                Text(
+                                    text = File(path).name,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                )
+                            }
+                            IconButton(onClick = { onPathsChange(paths - path) }) {
+                                Icon(
+                                    MaterialSymbols.Outlined.Delete,
+                                    contentDescription = stringResource(R.string.emoji_files_delete),
+                                    tint = MaterialTheme.colorScheme.error,
+                                )
+                            }
+                        }
                     }
                 }
             }
