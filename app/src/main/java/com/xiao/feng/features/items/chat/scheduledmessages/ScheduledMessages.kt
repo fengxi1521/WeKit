@@ -31,6 +31,7 @@ import kotlinx.coroutines.launch
 import kotlinx.serialization.Serializable
 import java.io.File
 import java.util.Calendar
+import java.util.LinkedHashMap
 import kotlin.random.Random
 
 private const val TAG = "ScheduledMessages"
@@ -181,6 +182,24 @@ object ScheduledMessageSchedule {
     private const val ACTION_FIRE = "com.xiao.feng.action.SCHEDULED_MESSAGE"
     private const val EXTRA_ID = "schedule_id"
     private const val EXTRA_MINUTE = "schedule_minute"
+    private const val EXTRA_AT = "schedule_at"
+
+    /** 允许闹钟比设定时间早到一点(系统派发抖动)。分钟级精度下早到半分钟仍算本次触发。 */
+    private const val EARLY_FIRE_TOLERANCE_MS = 60_000L
+
+    /** 记录已经投递过的 `闹钟@触发时间`, 用来吞掉重复派发, 上限避免无限增长。 */
+    private const val MAX_DELIVERED_SLOTS = 128
+
+    private val deliveredSlots = LinkedHashMap<String, Boolean>()
+
+    /** 返回 true 表示这是该槽位的第一次投递; 重复/并发的相同槽位返回 false。 */
+    private fun markDelivered(slotKey: String): Boolean {
+        val first = deliveredSlots.put(slotKey, true) == null
+        if (deliveredSlots.size > MAX_DELIVERED_SLOTS) {
+            deliveredSlots.keys.firstOrNull()?.let { deliveredSlots.remove(it) }
+        }
+        return first
+    }
 
     /** Alarm key suffix used by one-shot entries, which have no minute-of-day. */
     private const val NO_MINUTE = -1
@@ -379,7 +398,7 @@ object ScheduledMessageSchedule {
         if (keys.isEmpty()) return
         val alarmManager = HostInfo.application.getSystemService<AlarmManager>()
         for (key in keys.toList()) {
-            val pendingIntent = pendingIntentFor(key)
+            val pendingIntent = pendingIntentFor(key, armedTimes[key] ?: 0L)
             runCatching { alarmManager.cancel(pendingIntent) }
                 .onFailure { WeLogger.w(TAG, "failed to cancel alarm for $key", it) }
             pendingIntent.cancel()
@@ -391,7 +410,7 @@ object ScheduledMessageSchedule {
 
     private fun arm(key: String, atEpochMillis: Long) {
         val alarmManager = HostInfo.application.getSystemService<AlarmManager>()
-        val pendingIntent = pendingIntentFor(key)
+        val pendingIntent = pendingIntentFor(key, atEpochMillis)
 
         val canBeExact = Build.VERSION.SDK_INT < Build.VERSION_CODES.S ||
                 runCatching { alarmManager.canScheduleExactAlarms() }.getOrDefault(false)
@@ -413,7 +432,7 @@ object ScheduledMessageSchedule {
         armedTimes[key] = atEpochMillis
     }
 
-    private fun pendingIntentFor(key: String): PendingIntent {
+    private fun pendingIntentFor(key: String, atEpochMillis: Long): PendingIntent {
         val (id, minuteText) = key.split('#', limit = 2).let { it[0] to it[1] }
         val minute = minuteText.toInt()
         val intent = Intent(ACTION_FIRE).apply {
@@ -421,6 +440,7 @@ object ScheduledMessageSchedule {
             data = "$URI_SCHEME://$URI_AUTHORITY/schedule/$id/$minute".toUri()
             putExtra(EXTRA_ID, id)
             putExtra(EXTRA_MINUTE, minute)
+            putExtra(EXTRA_AT, atEpochMillis)
         }
         return PendingIntent.getBroadcast(
             HostInfo.application,
@@ -435,23 +455,55 @@ object ScheduledMessageSchedule {
             if (intent?.action != ACTION_FIRE) return
             val id = intent.getStringExtra(EXTRA_ID) ?: return
             val minute = intent.getIntExtra(EXTRA_MINUTE, NO_MINUTE)
-            onFired(id, minute)
+            val at = intent.getLongExtra(EXTRA_AT, 0L)
+            onFired(id, minute, at)
         }
     }
 
     @Synchronized
-    private fun onFired(id: String, minute: Int) {
-        val message = messages.firstOrNull { it.id == id && it.enabled } ?: return
+    private fun onFired(id: String, minute: Int, fireAt: Long) {
+        val key = alarmKey(id, minute)
+        val message = messages.firstOrNull { it.id == id && it.enabled }
 
-        deliver(message)
+        // 消息已被删除, 或这条闹钟对应的时间点已被用户移除: 丢掉这个过期闹钟, 不再发送。
+        if (message == null ||
+            (message.kind == ScheduledMessageKind.REPEATING && minute !in message.minutesOfDay)
+        ) {
+            armedTimes -= key
+            return
+        }
+
+        // 本次闹钟"原本应该"触发的时间。用闹钟自身携带的时间而不是当前时间,
+        // 这样同一槽位的重复/提前派发可以识别出来。
+        val slot = when (message.kind) {
+            ScheduledMessageKind.ONCE -> message.atEpochMillis
+            ScheduledMessageKind.REPEATING -> fireAt.takeIf { it > 0L } ?: armedTimes[key] ?: 0L
+        }
+        val now = System.currentTimeMillis()
+
+        // 个别 ROM 会提前派发闹钟。提前醒来只重新挂起, 不能先发一次再等真正的时间,
+        // 否则每次提前派发都会发一条, 表现就是"到点了就一直在发"。
+        if (slot > now + EARLY_FIRE_TOLERANCE_MS) {
+            arm(key, slot)
+            return
+        }
+
+        // 同一个槽位只投递一次: 重复广播、多进程同时收到、提前派发后的补发都会被这里吞掉。
+        if (slot > 0L && !markDelivered("$key@$slot")) {
+            WeLogger.d(TAG, "ignoring duplicate fire for $key@$slot")
+            return
+        }
 
         if (message.kind == ScheduledMessageKind.ONCE) {
+            // 先删除再发送: 即使发送过程中进程被杀, 也不会在下次启动时被 catchUp 再发一遍。
             removeStored(setOf(id))
+            deliver(message)
             resync()
             return
         }
 
-        val key = alarmKey(id, minute)
+        deliver(message)
+
         val next = nextFireAfter(message, minute, System.currentTimeMillis())
         if (next != null) arm(key, next) else armedTimes -= key
     }
@@ -597,8 +649,13 @@ object ScheduledMessageSchedule {
         val (late, dropped) = elapsed.partition {
             it.enabled && it.sendOnTimeout && now - it.atEpochMillis <= SEND_TIMEOUT_GRACE_MS
         }
-        late.forEach(::deliver)
+        // 先把已过期的一次性任务删掉, 再发送: 发送中途进程被杀也不会在下次启动时重复补发。
         removeStored(elapsed.mapTo(mutableSetOf()) { it.id })
+        late.forEach { message ->
+            // 多个进程可能同时补发同一条过期任务, 这里按槽位去重, 只发一次。
+            val slot = "${alarmKey(message.id, NO_MINUTE)}@${message.atEpochMillis}"
+            if (markDelivered(slot)) deliver(message)
+        }
         if (late.isNotEmpty()) {
             WeLogger.i(TAG, "late-sending ${late.size} one-shot message(s)")
         }
