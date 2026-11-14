@@ -1112,6 +1112,25 @@
     <string name="feature_nerf_background_process_checker_description">微信会在后台每隔一段时间检测微信主进程状态, 并在特定条件下故意抛出异常结束主进程\n虽然我不知道这玩意有啥用和是否应该关掉, 但「崩溃拦截」会把这玩意算进去, 有点烦, 所以如果你想关的话这里可以关</string>
     <string name="feature_power_saver_name">省电模式</string>
     <string name="feature_power_saver_description">通过一些措施, 减少微信耗电量</string>
+    <string name="feature_wechat_keep_alive_name">微信强保活</string>
+    <string name="feature_wechat_keep_alive_description">通过前台服务、WakeLock 和 Root 白名单提高微信后台存活率, 让自动抢红包、被艾特回复、定时消息等功能在息屏后仍能工作</string>
+    <string name="wechat_keep_alive_settings_title">微信强保活</string>
+    <string name="wechat_keep_alive_foreground_service">前台服务保活</string>
+    <string name="wechat_keep_alive_foreground_service_description">通过低优先级常驻通知提高后台存活率 (需已安装模块应用)</string>
+    <string name="wechat_keep_alive_wake_lock">WakeLock 保活</string>
+    <string name="wechat_keep_alive_wake_lock_description">息屏后保持 CPU 运行, 会增加耗电</string>
+    <string name="wechat_keep_alive_watchdog">看门狗拉起微信</string>
+    <string name="wechat_keep_alive_watchdog_description">前台服务存活时定期尝试拉起微信</string>
+    <string name="wechat_keep_alive_network_heartbeat">网络心跳保活</string>
+    <string name="wechat_keep_alive_network_heartbeat_description">定时发起轻量网络请求保持链路活跃</string>
+    <string name="wechat_keep_alive_root_doze">Root Doze 白名单</string>
+    <string name="wechat_keep_alive_root_doze_description">有 Root 时把微信加入 deviceidle 白名单</string>
+    <string name="wechat_keep_alive_root_app_ops">Root 后台限制放行</string>
+    <string name="wechat_keep_alive_root_app_ops_description">有 Root 时放行微信后台运行相关 AppOps</string>
+    <string name="wechat_keep_alive_open_battery_settings">打开系统电池优化设置</string>
+    <string name="wechat_keep_alive_service_channel">微信保活</string>
+    <string name="wechat_keep_alive_service_title">微信强保活运行中</string>
+    <string name="wechat_keep_alive_service_text">正在尝试保持微信息屏运行</string>
     <string name="feature_predictive_back_gestures_name">预见性返回动画</string>
     <string name="feature_predictive_back_gestures_description">为微信的活动强制启用预见性返回动画\n需系统 Android SDK &gt;= 33</string>
     <string name="feature_prevent_module_data_deletion_name">阻止微信清理模块数据</string>

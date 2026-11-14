@@ -1148,6 +1148,25 @@
     <string name="feature_nerf_background_process_checker_description">WeChat will detect the status of the WeChat main process in the background at regular intervals, and deliberately throw an exception under certain conditions to end the main process.\nAlthough I don’t know what the use of this thing is and whether it should be turned off, but the "crash interception" will include this thing, which is a bit annoying, so if you want to turn it off, you can turn it off here</string>
     <string name="feature_power_saver_name">Power saver</string>
     <string name="feature_power_saver_description">Take some measures to reduce WeChat’s power consumption</string>
+    <string name="feature_wechat_keep_alive_name">WeChat keep-alive</string>
+    <string name="feature_wechat_keep_alive_description">Raise WeChat’s odds of surviving in the background through a foreground service, a wake lock and root whitelists, so red-packet grabbing, mention replies and scheduled messages keep working with the screen off</string>
+    <string name="wechat_keep_alive_settings_title">WeChat keep-alive</string>
+    <string name="wechat_keep_alive_foreground_service">Foreground service</string>
+    <string name="wechat_keep_alive_foreground_service_description">Keep a low-priority ongoing notification to raise background survival (requires the module app to be installed)</string>
+    <string name="wechat_keep_alive_wake_lock">Wake lock</string>
+    <string name="wechat_keep_alive_wake_lock_description">Keep the CPU running while the screen is off; increases battery use</string>
+    <string name="wechat_keep_alive_watchdog">Watchdog relaunch</string>
+    <string name="wechat_keep_alive_watchdog_description">Periodically relaunch WeChat while the foreground service is alive</string>
+    <string name="wechat_keep_alive_network_heartbeat">Network heartbeat</string>
+    <string name="wechat_keep_alive_network_heartbeat_description">Send a lightweight request periodically to keep the connection active</string>
+    <string name="wechat_keep_alive_root_doze">Root Doze whitelist</string>
+    <string name="wechat_keep_alive_root_doze_description">Add WeChat to the deviceidle whitelist with root</string>
+    <string name="wechat_keep_alive_root_app_ops">Root background AppOps</string>
+    <string name="wechat_keep_alive_root_app_ops_description">Allow WeChat’s background-related AppOps with root</string>
+    <string name="wechat_keep_alive_open_battery_settings">Open system battery optimization settings</string>
+    <string name="wechat_keep_alive_service_channel">WeChat keep-alive</string>
+    <string name="wechat_keep_alive_service_title">WeChat keep-alive is running</string>
+    <string name="wechat_keep_alive_service_text">Trying to keep WeChat alive with the screen off</string>
     <string name="feature_predictive_back_gestures_name">Predictive back animations</string>
     <string name="feature_predictive_back_gestures_description">Forcibly enable predictive return animation for WeChat activities\nRequires system Android SDK &gt;= 33</string>
     <string name="feature_prevent_module_data_deletion_name">Prevent WeChat from cleaning module data</string>
