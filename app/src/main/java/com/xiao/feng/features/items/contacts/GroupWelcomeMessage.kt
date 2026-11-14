@@ -1,17 +1,20 @@
 package com.xiao.feng.features.items.contacts
 
-import android.content.ContentValues
 import android.app.Activity
+import android.content.ContentValues
+import androidx.activity.ComponentActivity
 import com.tencent.mm.chatroom.ui.ChatroomInfoUI
 import com.xiao.feng.R
 import com.xiao.feng.data.KvStore
+import com.xiao.feng.data.KvStore.prefOption
 import com.xiao.feng.features.api.core.WeApi
 import com.xiao.feng.features.api.core.WeDatabaseApi
 import com.xiao.feng.features.api.core.WeDatabaseListenerApi
 import com.xiao.feng.features.api.core.WeMessageApi
 import com.xiao.feng.features.api.ui.WeContactPrefsScreenApi
+import com.xiao.feng.features.core.ClickableFeature
 import com.xiao.feng.features.core.FeatureCategoryIds
-import com.xiao.feng.features.core.SwitchFeature
+import com.xiao.feng.features.items.chat.LocalStickerFiles
 import com.xiao.feng.utils.WeLogger
 import com.xiao.feng.utils.android.currentWxId
 import com.xiao.feng.utils.strings.isGroupChatWxId
@@ -25,12 +28,12 @@ import kotlinx.coroutines.launch
 import java.util.LinkedHashMap
 
 /**
- * Per-group join welcome. The feature switch controls whether the entry is offered in group
- * settings; every group keeps its own enabled state and template.
+ * 群聊进群欢迎语。和「定时消息」一样集中配置生效群聊、欢迎文案与表情包。
  *
- * Template placeholders: `{member}` for the joined names, `{group}` for the group display name.
+ * 文案占位符: `{member}` 为进群成员, `{group}` 为群名。表情包会额外随机发一个。
+ * 群聊设置里的入口保留为快捷方式, 打开的是同一份全局配置。
  */
-object GroupWelcomeMessage : SwitchFeature(),
+object GroupWelcomeMessage : ClickableFeature(),
     WeContactPrefsScreenApi.IContactInfoProvider,
     WeDatabaseListenerApi.IUpdateListener {
 
@@ -43,6 +46,10 @@ object GroupWelcomeMessage : SwitchFeature(),
 
     private const val TAG = "GroupWelcomeMessage"
 
+    private const val KEY_TARGETS = "group_welcome_targets"
+    private const val KEY_TEMPLATE = "group_welcome_template"
+    private const val KEY_EMOJIS = "group_welcome_emojis"
+
     private const val KEY_ENABLED_PREFIX = "group_welcome_enabled_"
     private const val KEY_TEMPLATE_PREFIX = "group_welcome_template_"
 
@@ -51,19 +58,29 @@ object GroupWelcomeMessage : SwitchFeature(),
     private const val SEND_DELAY_MILLIS = 1500L
     private const val MAX_DEDUP_KEYS = 256
 
-    fun isEnabledForGroup(groupId: String): Boolean =
-        KvStore.getBoolOrDef(KEY_ENABLED_PREFIX + groupId, true)
+    /** 生效群聊; 空集合表示全部群聊。 */
+    var targets: Set<String> by prefOption(KEY_TARGETS, emptySet<String>())
+
+    /** 全局欢迎文案; 留空时回退到旧版的分群文案。 */
+    var template: String by prefOption(KEY_TEMPLATE, "")
+
+    /** 欢迎时额外随机发送一个本地表情文件。 */
+    var emojiPaths: Set<String> by prefOption(KEY_EMOJIS, emptySet<String>())
+
+    fun isEnabledForGroup(groupId: String): Boolean {
+        if (!KvStore.getBoolOrDef(KEY_ENABLED_PREFIX + groupId, true)) return false
+        return targets.isEmpty() || groupId in targets
+    }
 
     fun templateForGroup(groupId: String): String =
-        KvStore.getStringOrDef(KEY_TEMPLATE_PREFIX + groupId, "")
-
-    fun saveGroupConfig(groupId: String, enabled: Boolean, template: String) {
-        KvStore.putBool(KEY_ENABLED_PREFIX + groupId, enabled)
-        KvStore.putString(KEY_TEMPLATE_PREFIX + groupId, template)
-    }
+        template.ifBlank { KvStore.getStringOrDef(KEY_TEMPLATE_PREFIX + groupId, "") }
 
     private var scope = newScope()
     private val dedupKeys = LinkedHashMap<String, Unit>(MAX_DEDUP_KEYS, 0.75f, true)
+
+    override fun onClick(context: ComponentActivity) {
+        showGroupWelcomeMessageDialog(context)
+    }
 
     override fun onEnable() {
         if (!scope.coroutineContext[Job]!!.isActive) scope = newScope()
@@ -83,10 +100,10 @@ object GroupWelcomeMessage : SwitchFeature(),
         val groupId = activity.currentWxId ?: return emptyList()
         if (!groupId.isGroupChatWxId) return emptyList()
 
-        val template = templateForGroup(groupId)
+        val hasContent = templateForGroup(groupId).isNotBlank() || emojiPaths.isNotEmpty()
         val summaryRes = when {
             !isEnabledForGroup(groupId) -> R.string.group_welcome_entry_disabled
-            template.isBlank() -> R.string.group_welcome_entry_unset
+            !hasContent -> R.string.group_welcome_entry_unset
             else -> R.string.group_welcome_entry_enabled
         }
         return listOf(
@@ -94,8 +111,8 @@ object GroupWelcomeMessage : SwitchFeature(),
                 title = activity.localizedContactsString(R.string.feature_group_welcome_message_name),
                 summary = activity.localizedContactsString(summaryRes),
                 position = 1,
-                onClick = onClick@{ itemActivity ->
-                    showGroupWelcomeMessageDialog(itemActivity, groupId)
+                onClick = { itemActivity ->
+                    showGroupWelcomeMessageDialog(itemActivity)
                 },
             )
         )
@@ -114,7 +131,7 @@ object GroupWelcomeMessage : SwitchFeature(),
         if (!group.isGroupChatWxId) return
         if (!isEnabledForGroup(group)) return
         val template = templateForGroup(group).trim()
-        if (template.isBlank()) return
+        if (template.isBlank() && emojiPaths.isEmpty()) return
 
         val newRawMembers = values.getAsString("memberlist") ?: return
         val newMemberCount = values.getAsInteger("memberCount") ?: return
@@ -161,10 +178,15 @@ object GroupWelcomeMessage : SwitchFeature(),
         val text = template
             .replace("{member}", memberNames)
             .replace("{group}", groupName)
-        if (text.isBlank()) return
 
-        val sent = runCatching { WeMessageApi.sendText(group, text) }.getOrDefault(false)
-        WeLogger.i(TAG, "welcome sent=$sent group=$group members=${members.size}")
+        if (text.isNotBlank()) {
+            val sent = runCatching { WeMessageApi.sendText(group, text) }.getOrDefault(false)
+            WeLogger.i(TAG, "welcome sent=$sent group=$group members=${members.size}")
+        }
+
+        val sticker = emojiPaths.randomOrNull() ?: return
+        val stickerSent = runCatching { LocalStickerFiles.send(group, sticker) }.getOrDefault(false)
+        WeLogger.i(TAG, "welcome sticker sent=$stickerSent group=$group")
     }
 
     private fun markDedup(key: String): Boolean = synchronized(dedupKeys) {

@@ -4295,4 +4295,30 @@
     <string name="qq_music_channel_required">Enable the music card or the voice message first</string>
     <string name="qq_music_toggle_enabled">Song requests enabled for this chat; other members can request songs now</string>
     <string name="qq_music_toggle_disabled">Song requests disabled for this chat; only you can request songs now</string>
+
+    <string name="emoji_files_add">Add sticker</string>
+    <string name="emoji_files_empty">No stickers yet. Tap the button above to pick images from your gallery.</string>
+    <string name="emoji_files_none">None selected</string>
+    <string name="emoji_files_delete">Remove</string>
+    <string name="emoji_files_import_failed">Failed to import the sticker</string>
+    <string name="emoji_files_item">Sticker %1$d</string>
+    <string name="emoji_files_dialog_title">Choose stickers</string>
+
+    <string name="feature_at_reply_name">Mention reply</string>
+    <string name="feature_at_reply_description">When someone mentions me in a group, reply with AI based on what they said</string>
+    <string name="at_reply_switch_title">Enable mention reply</string>
+    <string name="at_reply_switch_description">Reply automatically when mentioned; turn off to stop responding entirely</string>
+    <string name="at_reply_targets_title">Groups</string>
+    <string name="at_reply_targets_all">All group chats</string>
+    <string name="at_reply_targets_count">%1$d group chats</string>
+    <string name="at_reply_select_title">Select groups</string>
+    <string name="at_reply_delay_title">Reply delay</string>
+    <string name="at_reply_delay_description">How long to wait after being mentioned before replying, which feels more human</string>
+
+    <string name="group_welcome_targets_title">Groups</string>
+    <string name="group_welcome_targets_all">All group chats</string>
+    <string name="group_welcome_targets_count">%1$d group chats</string>
+    <string name="group_welcome_select_title">Select groups</string>
+    <string name="group_welcome_emojis_title">Welcome stickers</string>
+    <string name="group_welcome_emojis_count">%1$d stickers</string>
 </resources>

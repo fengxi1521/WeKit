@@ -23,6 +23,7 @@ import com.xiao.feng.features.api.ui.WeCurrentConversationApi
 import com.xiao.feng.features.core.ClickableFeature
 import com.xiao.feng.features.core.FeatureCategoryIds
 import com.xiao.feng.features.items.chat.localizedChatString
+import com.xiao.feng.features.items.chat.LocalStickerFiles
 import com.xiao.feng.utils.WeLogger
 import com.xiao.feng.utils.android.showToast
 import com.xiao.feng.utils.strings.isGroupChatWxId
@@ -95,7 +96,7 @@ object AiChat : ClickableFeature(), WeDatabaseListenerApi.IInsertListener {
     private const val KEY_QUOTE_REPLY = "ai_chat_quote_reply"
     private const val KEY_STICKER_ENABLED = "ai_chat_sticker_enabled"
     private const val KEY_STICKER_PERCENT = "ai_chat_sticker_percent"
-    private const val KEY_STICKER_MD5S = "ai_chat_sticker_md5s"
+    private const val KEY_STICKER_PATHS = "ai_chat_sticker_paths"
     private const val KEY_BUBBLE_ENABLED = "ai_chat_bubble_enabled"
     private const val KEY_BUBBLE_START = "ai_chat_bubble_start_minute"
     private const val KEY_BUBBLE_END = "ai_chat_bubble_end_minute"
@@ -115,7 +116,7 @@ object AiChat : ClickableFeature(), WeDatabaseListenerApi.IInsertListener {
     var quoteReply: Boolean by prefOption(KEY_QUOTE_REPLY, true)
     var stickerEnabled: Boolean by prefOption(KEY_STICKER_ENABLED, true)
     var stickerPercent: Int by prefOption(KEY_STICKER_PERCENT, 35)
-    var stickerMd5s: Set<String> by prefOption(KEY_STICKER_MD5S, emptySet<String>())
+    var stickerPaths: Set<String> by prefOption(KEY_STICKER_PATHS, emptySet<String>())
     var bubbleEnabled: Boolean by prefOption(KEY_BUBBLE_ENABLED, false)
     var bubbleStartMinute: Int by prefOption(KEY_BUBBLE_START, 9 * 60)
     var bubbleEndMinute: Int by prefOption(KEY_BUBBLE_END, 23 * 60)
@@ -239,8 +240,8 @@ object AiChat : ClickableFeature(), WeDatabaseListenerApi.IInsertListener {
         }
     }
 
-    /** 群聊里 @ 我 (群昵称或微信昵称)。 */
-    private fun isMentioningMe(talker: String, strippedContent: String): Boolean {
+    /** 群聊里 @ 我 (群昵称或微信昵称)。「艾特回复」也复用这套判断。 */
+    fun isMentioningMe(talker: String, strippedContent: String): Boolean {
         if (!talker.isGroupChatWxId || '@' !in strippedContent) return false
         val self = WeApi.selfWxId
         if (self.isBlank()) return false
@@ -318,14 +319,58 @@ object AiChat : ClickableFeature(), WeDatabaseListenerApi.IInsertListener {
         if (sent) maybeSendSticker(talker, config)
     }
 
-    /** 按设置的概率跟发一个用户挑过的微信表情包。 */
+    /** 按设置的概率跟发一个用户挑过的本地表情文件（与「定时消息」的 EMOJI 内容一致）。 */
     private fun maybeSendSticker(talker: String, config: Config) {
-        if (!config.stickerEnabled || config.stickerMd5s.isEmpty()) return
+        if (!config.stickerEnabled || config.stickerPaths.isEmpty()) return
         val percent = config.stickerPercent.coerceIn(0, 100)
         if (percent <= 0 || Random.nextInt(100) >= percent) return
-        val md5 = config.stickerMd5s.random()
-        runCatching { AiChatStickers.send(talker, md5) }
-            .onFailure { WeLogger.w(TAG, "failed to send sticker $md5 to $talker", it) }
+        val path = config.stickerPaths.random()
+        runCatching { LocalStickerFiles.send(talker, path) }
+            .onFailure { WeLogger.w(TAG, "failed to send sticker $path to $talker", it) }
+    }
+
+    /** 是否已经配置好可用的模型凭据; 「艾特回复」在触发前先看这个。 */
+    fun isConfigured(): Boolean = apiKey.isNotBlank()
+
+    /** 供「艾特回复」复用同一套模型、人格与上下文配置, 生成一条回复。 */
+    suspend fun requestReplyFor(
+        talker: String,
+        sender: String,
+        triggerMsgId: Long,
+        triggerText: String,
+    ): String? {
+        val config = snapshot()
+        if (config.apiKey.isBlank()) return null
+        val messages = buildMessages(
+            talker = talker,
+            config = config,
+            triggerMsgId = triggerMsgId.takeIf { it > 0L },
+            triggerSender = sender,
+            triggerText = triggerText,
+            bubble = false,
+        )
+        return ask(config, messages)
+    }
+
+    /** 供「艾特回复」发送: 优先引用原消息, 不行再 @ 对方, 最后退回普通文本。 */
+    fun sendQuotedOrMentioned(
+        talker: String,
+        sender: String,
+        triggerMsgId: Long,
+        triggerCreateTime: Long,
+        answer: String,
+    ): Boolean {
+        val quotedMsgId =
+            if (triggerMsgId > 0L) triggerMsgId else resolveMsgId(talker, triggerCreateTime)
+        val quoted = quotedMsgId > 0L &&
+                runCatching { WeMessageApi.sendQuoteTextByMsgId(talker, quotedMsgId, answer) }
+                    .getOrDefault(false)
+        if (quoted) return true
+        return if (talker.isGroupChatWxId && sender.isNotBlank() && sender != WeApi.selfWxId) {
+            WeMessageApi.sendTextWithMsgSource(talker, answer, atMsgSource(sender))
+        } else {
+            WeMessageApi.sendText(talker, answer)
+        }
     }
 
     private suspend fun bubble(talker: String) {
@@ -502,7 +547,7 @@ object AiChat : ClickableFeature(), WeDatabaseListenerApi.IInsertListener {
         return cleaned.take(MAX_REPLY_CHARS).takeIf { it.isNotBlank() }
     }
 
-    private fun groupSenderOf(content: String): String =
+    fun groupSenderOf(content: String): String =
         GROUP_SENDER_REGEX.find(content)?.groupValues?.get(1).orEmpty()
 
     /** 只保留最近 [MAX_DEDUP_KEYS] 条去重键, 防止宿主重复插入同一行。 */
@@ -546,7 +591,7 @@ object AiChat : ClickableFeature(), WeDatabaseListenerApi.IInsertListener {
         quoteReply = quoteReply,
         stickerEnabled = stickerEnabled,
         stickerPercent = stickerPercent,
-        stickerMd5s = stickerMd5s,
+        stickerPaths = stickerPaths,
     )
 
     private fun newScope() = CoroutineScope(SupervisorJob() + Dispatchers.IO)
@@ -562,7 +607,7 @@ object AiChat : ClickableFeature(), WeDatabaseListenerApi.IInsertListener {
         val quoteReply: Boolean,
         val stickerEnabled: Boolean,
         val stickerPercent: Int,
-        val stickerMd5s: Set<String>,
+        val stickerPaths: Set<String>,
     )
 
     override fun onClick(context: ComponentActivity) = showAiChatDialog(context)

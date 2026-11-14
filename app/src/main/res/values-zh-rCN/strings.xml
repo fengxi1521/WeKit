@@ -4327,4 +4327,30 @@
     <string name="qq_music_channel_required">请至少开启音乐卡片或歌曲语音发送</string>
     <string name="qq_music_toggle_enabled">该聊天点歌已开启，其他人可以点歌了</string>
     <string name="qq_music_toggle_disabled">该聊天点歌已关闭，只有你能点歌了</string>
+
+    <string name="emoji_files_add">添加表情</string>
+    <string name="emoji_files_empty">还没有添加表情，点击上方按钮从相册选择图片</string>
+    <string name="emoji_files_none">未选择</string>
+    <string name="emoji_files_delete">删除</string>
+    <string name="emoji_files_import_failed">导入表情失败</string>
+    <string name="emoji_files_item">表情 %1$d</string>
+    <string name="emoji_files_dialog_title">选择表情包</string>
+
+    <string name="feature_at_reply_name">艾特回复</string>
+    <string name="feature_at_reply_description">群聊里有人 @ 我 时，用 AI 按对方说的话回复一条</string>
+    <string name="at_reply_switch_title">启用艾特回复</string>
+    <string name="at_reply_switch_description">被 @ 时自动回复；关掉则完全不响应</string>
+    <string name="at_reply_targets_title">生效群聊</string>
+    <string name="at_reply_targets_all">全部群聊</string>
+    <string name="at_reply_targets_count">%1$d 个群聊</string>
+    <string name="at_reply_select_title">选择生效群聊</string>
+    <string name="at_reply_delay_title">回复延迟</string>
+    <string name="at_reply_delay_description">被 @ 后等待多久再回复，更像真人</string>
+
+    <string name="group_welcome_targets_title">生效群聊</string>
+    <string name="group_welcome_targets_all">全部群聊</string>
+    <string name="group_welcome_targets_count">%1$d 个群聊</string>
+    <string name="group_welcome_select_title">选择生效群聊</string>
+    <string name="group_welcome_emojis_title">欢迎表情包</string>
+    <string name="group_welcome_emojis_count">%1$d 个表情</string>
 </resources>

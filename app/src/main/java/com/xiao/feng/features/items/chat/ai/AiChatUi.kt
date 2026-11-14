@@ -31,6 +31,7 @@ import com.xiao.feng.R
 import com.xiao.feng.features.api.core.WeDatabaseApi
 import com.xiao.feng.features.api.core.WeMessageApi
 import com.xiao.feng.features.api.core.models.IWeContact
+import com.xiao.feng.features.items.chat.LocalStickerFilesContent
 import com.xiao.feng.ui.content.AlertDialogContent
 import com.xiao.feng.ui.content.Button
 import com.xiao.feng.ui.content.ContactsSelector
@@ -60,7 +61,7 @@ fun showAiChatDialog(context: ComponentActivity) {
         var quoteInput by remember { mutableStateOf(AiChat.quoteReply) }
         var stickerInput by remember { mutableStateOf(AiChat.stickerEnabled) }
         var stickerPercentInput by remember { mutableIntStateOf(AiChat.stickerPercent) }
-        var stickerMd5sInput by remember { mutableStateOf(AiChat.stickerMd5s) }
+        var stickerMd5sInput by remember { mutableStateOf(AiChat.stickerPaths) }
         var bubbleInput by remember { mutableStateOf(AiChat.bubbleEnabled) }
         var bubbleStartInput by remember { mutableIntStateOf(AiChat.bubbleStartMinute) }
         var bubbleEndInput by remember { mutableIntStateOf(AiChat.bubbleEndMinute) }
@@ -289,7 +290,7 @@ fun showAiChatDialog(context: ComponentActivity) {
                                     BaseWidget(
                                         title = stringResource(R.string.ai_chat_sticker_select_title),
                                         description = if (stickerMd5sInput.isEmpty()) {
-                                            stringResource(R.string.ai_chat_sticker_select_empty)
+                                            stringResource(R.string.emoji_files_none)
                                         } else {
                                             stringResource(
                                                 R.string.ai_chat_sticker_select_count,
@@ -297,9 +298,9 @@ fun showAiChatDialog(context: ComponentActivity) {
                                             )
                                         },
                                         onClick = {
-                                            showStickerPickerDialog(context, stickerMd5sInput) { selected ->
+                                            showAiChatStickerDialog(context, stickerMd5sInput) { selected ->
                                                 stickerMd5sInput = selected
-                                                AiChat.stickerMd5s = selected
+                                                AiChat.stickerPaths = selected
                                             }
                                         },
                                     )
@@ -411,42 +412,22 @@ fun showAiChatDialog(context: ComponentActivity) {
     }
 }
 
-/** 让用户从自己的微信自定义表情里挑出 AI 允许发送的那些。 */
-private fun showStickerPickerDialog(
+/** 让用户添加/删除 AI 可以跟发的本地表情图片（与「定时消息」的 EMOJI 内容一致）。 */
+private fun showAiChatStickerDialog(
     context: ComponentActivity,
     initial: Set<String>,
     onUpdated: (Set<String>) -> Unit,
 ) {
     showComposeDialog(context) {
-        var allStickers by remember { mutableStateOf<List<String>?>(null) }
-        var selected by remember { mutableStateOf(initial) }
-
-        LaunchedEffect(Unit) {
-            allStickers = withContext(Dispatchers.IO) { AiChatStickers.listMd5s() }
-        }
+        var paths by remember { mutableStateOf(initial) }
 
         AlertDialogContent(
-            title = { Text(stringResource(R.string.ai_chat_sticker_dialog_title)) },
+            modifier = Modifier.fillMaxWidth(),
+            title = { Text(stringResource(R.string.emoji_files_dialog_title)) },
             text = {
-                when (val stickers = allStickers) {
-                    null -> Text(stringResource(R.string.ai_chat_sticker_loading))
-                    else -> if (stickers.isEmpty()) {
-                        Text(stringResource(R.string.ai_chat_sticker_empty))
-                    } else {
-                        LazyColumn {
-                            itemsIndexed(stickers, key = { _, md5 -> md5 }) { index, md5 ->
-                                StickerSelectRow(
-                                    md5 = md5,
-                                    index = index,
-                                    checked = md5 in selected,
-                                    onCheckedChange = { checked ->
-                                        selected = if (checked) selected + md5 else selected - md5
-                                        onUpdated(selected)
-                                    },
-                                )
-                            }
-                        }
-                    }
+                LocalStickerFilesContent(context, paths) { selected ->
+                    paths = selected
+                    onUpdated(selected)
                 }
             },
             confirmButton = {
@@ -455,42 +436,5 @@ private fun showStickerPickerDialog(
                 }
             },
         )
-    }
-}
-
-@Composable
-private fun StickerSelectRow(
-    md5: String,
-    index: Int,
-    checked: Boolean,
-    onCheckedChange: (Boolean) -> Unit,
-) {
-    var preview by remember(md5) { mutableStateOf<java.io.File?>(null) }
-
-    LaunchedEffect(md5) {
-        preview = withContext(Dispatchers.IO) {
-            val destination = AiChatStickers.stickerFile(md5)
-            val cached = destination.toFile()
-            if (cached.isFile) cached
-            else WeMessageApi.decodeStickerToFile(md5, destination)?.toFile()
-        }
-    }
-
-    BaseItemContainer {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Box(modifier = Modifier.size(44.dp), contentAlignment = Alignment.Center) {
-                preview?.let {
-                    AsyncImage(model = it, contentDescription = null, modifier = Modifier.size(44.dp))
-                }
-            }
-            Column(modifier = Modifier.weight(1f).padding(horizontal = 12.dp)) {
-                Text(stringResource(R.string.ai_chat_sticker_item, index + 1))
-                Text(md5.take(8), style = MaterialTheme.typography.bodySmall)
-            }
-            Switch(checked = checked, onCheckedChange = onCheckedChange)
-        }
     }
 }
