@@ -53,6 +53,10 @@ object AtReply : ClickableFeature(), WeDatabaseListenerApi.IInsertListener {
         showAtReplyDialog(context)
     }
 
+    /** 该会话是否由「艾特回复」接管; AI 聊天据此避让, 避免一条消息回两遍。 */
+    fun isActiveFor(talker: String): Boolean =
+        isEnabled && AiChat.isConfigured() && (targets.isEmpty() || talker in targets)
+
     override fun onEnable() {
         WeDatabaseListenerApi.addListener(this)
     }

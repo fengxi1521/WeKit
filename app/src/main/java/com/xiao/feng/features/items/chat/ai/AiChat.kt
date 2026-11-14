@@ -226,6 +226,8 @@ object AiChat : ClickableFeature(), WeDatabaseListenerApi.IInsertListener {
 
         // 被 @ 的消息必须回复, 不能因为后面又来了别的消息就被代次检查取消。
         val mentioned = isMentioningMe(talker, text)
+        // 已经开启「艾特回复」的群聊交给它按被 @ 的消息单独回复, 避免同一条消息回两遍。
+        if (mentioned && AtReply.isActiveFor(talker)) return
 
         val generation = nextGeneration(talker)
         scope.launch {
