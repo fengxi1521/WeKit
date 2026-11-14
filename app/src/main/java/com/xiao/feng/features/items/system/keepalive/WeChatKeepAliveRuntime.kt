@@ -64,7 +64,9 @@ object WeChatKeepAliveRuntime {
             WeChatKeepAliveService.start(module, watchdog, heartbeat)
         }
         if (direct.isSuccess) return
-        WeLogger.w(TAG, "direct foreground-service start was rejected; retrying through root", direct.exceptionOrNull())
+        direct.onFailure {
+            WeLogger.w(TAG, "direct foreground-service start was rejected; retrying through root", it)
+        }
         Thread {
             runRootCommand(
                 "am start-foreground-service -n ${PackageNames.MODULE}/.features.items.system.keepalive.WeChatKeepAliveService" +

@@ -33,101 +33,105 @@ private fun openBatteryOptimizationSettings(context: Context) {
 }
 
 @Composable
-fun showWeChatKeepAliveDialog(context: ComponentActivity) {
-    showComposeDialog(context) {
-        var foregroundService by remember { mutableStateOf(WeChatKeepAlive.foregroundService) }
-        var wakeLock by remember { mutableStateOf(WeChatKeepAlive.wakeLock) }
-        var watchdog by remember { mutableStateOf(WeChatKeepAlive.watchdog) }
-        var networkHeartbeat by remember { mutableStateOf(WeChatKeepAlive.networkHeartbeat) }
-        var rootDozeWhitelist by remember { mutableStateOf(WeChatKeepAlive.rootDozeWhitelist) }
-        var rootAppOps by remember { mutableStateOf(WeChatKeepAlive.rootAppOps) }
+private fun WeChatKeepAliveDialogContent(context: ComponentActivity, onDismiss: () -> Unit) {
+    var foregroundService by remember { mutableStateOf(WeChatKeepAlive.foregroundService) }
+    var wakeLock by remember { mutableStateOf(WeChatKeepAlive.wakeLock) }
+    var watchdog by remember { mutableStateOf(WeChatKeepAlive.watchdog) }
+    var networkHeartbeat by remember { mutableStateOf(WeChatKeepAlive.networkHeartbeat) }
+    var rootDozeWhitelist by remember { mutableStateOf(WeChatKeepAlive.rootDozeWhitelist) }
+    var rootAppOps by remember { mutableStateOf(WeChatKeepAlive.rootAppOps) }
 
-        AlertDialogContent(
-            title = { Text(stringResource(R.string.wechat_keep_alive_settings_title)) },
-            text = {
-                Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
-                    SegmentedColumn {
-                        item {
-                            SwitchWidget(
-                                title = stringResource(R.string.wechat_keep_alive_foreground_service),
-                                description = stringResource(R.string.wechat_keep_alive_foreground_service_description),
-                                checked = foregroundService,
-                                onCheckedChange = {
-                                    foregroundService = it
-                                    WeChatKeepAlive.foregroundService = it
-                                    applyIfEnabled()
-                                },
-                            )
-                        }
-                        item {
-                            SwitchWidget(
-                                title = stringResource(R.string.wechat_keep_alive_wake_lock),
-                                description = stringResource(R.string.wechat_keep_alive_wake_lock_description),
-                                checked = wakeLock,
-                                onCheckedChange = {
-                                    wakeLock = it
-                                    WeChatKeepAlive.wakeLock = it
-                                    applyIfEnabled()
-                                },
-                            )
-                        }
-                        item {
-                            SwitchWidget(
-                                title = stringResource(R.string.wechat_keep_alive_watchdog),
-                                description = stringResource(R.string.wechat_keep_alive_watchdog_description),
-                                checked = watchdog,
-                                onCheckedChange = {
-                                    watchdog = it
-                                    WeChatKeepAlive.watchdog = it
-                                    applyIfEnabled()
-                                },
-                            )
-                        }
-                        item {
-                            SwitchWidget(
-                                title = stringResource(R.string.wechat_keep_alive_network_heartbeat),
-                                description = stringResource(R.string.wechat_keep_alive_network_heartbeat_description),
-                                checked = networkHeartbeat,
-                                onCheckedChange = {
-                                    networkHeartbeat = it
-                                    WeChatKeepAlive.networkHeartbeat = it
-                                    applyIfEnabled()
-                                },
-                            )
-                        }
-                        item {
-                            SwitchWidget(
-                                title = stringResource(R.string.wechat_keep_alive_root_doze),
-                                description = stringResource(R.string.wechat_keep_alive_root_doze_description),
-                                checked = rootDozeWhitelist,
-                                onCheckedChange = {
-                                    rootDozeWhitelist = it
-                                    WeChatKeepAlive.rootDozeWhitelist = it
-                                    applyIfEnabled()
-                                },
-                            )
-                        }
-                        item {
-                            SwitchWidget(
-                                title = stringResource(R.string.wechat_keep_alive_root_app_ops),
-                                description = stringResource(R.string.wechat_keep_alive_root_app_ops_description),
-                                checked = rootAppOps,
-                                onCheckedChange = {
-                                    rootAppOps = it
-                                    WeChatKeepAlive.rootAppOps = it
-                                    applyIfEnabled()
-                                },
-                            )
-                        }
+    AlertDialogContent(
+        title = { Text(stringResource(R.string.wechat_keep_alive_settings_title)) },
+        text = {
+            Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
+                SegmentedColumn {
+                    item {
+                        SwitchWidget(
+                            title = stringResource(R.string.wechat_keep_alive_foreground_service),
+                            description = stringResource(R.string.wechat_keep_alive_foreground_service_description),
+                            checked = foregroundService,
+                            onCheckedChange = {
+                                foregroundService = it
+                                WeChatKeepAlive.foregroundService = it
+                                applyIfEnabled()
+                            },
+                        )
                     }
-                    TextButton(onClick = { openBatteryOptimizationSettings(context) }) {
-                        Text(stringResource(R.string.wechat_keep_alive_open_battery_settings))
+                    item {
+                        SwitchWidget(
+                            title = stringResource(R.string.wechat_keep_alive_wake_lock),
+                            description = stringResource(R.string.wechat_keep_alive_wake_lock_description),
+                            checked = wakeLock,
+                            onCheckedChange = {
+                                wakeLock = it
+                                WeChatKeepAlive.wakeLock = it
+                                applyIfEnabled()
+                            },
+                        )
+                    }
+                    item {
+                        SwitchWidget(
+                            title = stringResource(R.string.wechat_keep_alive_watchdog),
+                            description = stringResource(R.string.wechat_keep_alive_watchdog_description),
+                            checked = watchdog,
+                            onCheckedChange = {
+                                watchdog = it
+                                WeChatKeepAlive.watchdog = it
+                                applyIfEnabled()
+                            },
+                        )
+                    }
+                    item {
+                        SwitchWidget(
+                            title = stringResource(R.string.wechat_keep_alive_network_heartbeat),
+                            description = stringResource(R.string.wechat_keep_alive_network_heartbeat_description),
+                            checked = networkHeartbeat,
+                            onCheckedChange = {
+                                networkHeartbeat = it
+                                WeChatKeepAlive.networkHeartbeat = it
+                                applyIfEnabled()
+                            },
+                        )
+                    }
+                    item {
+                        SwitchWidget(
+                            title = stringResource(R.string.wechat_keep_alive_root_doze),
+                            description = stringResource(R.string.wechat_keep_alive_root_doze_description),
+                            checked = rootDozeWhitelist,
+                            onCheckedChange = {
+                                rootDozeWhitelist = it
+                                WeChatKeepAlive.rootDozeWhitelist = it
+                                applyIfEnabled()
+                            },
+                        )
+                    }
+                    item {
+                        SwitchWidget(
+                            title = stringResource(R.string.wechat_keep_alive_root_app_ops),
+                            description = stringResource(R.string.wechat_keep_alive_root_app_ops_description),
+                            checked = rootAppOps,
+                            onCheckedChange = {
+                                rootAppOps = it
+                                WeChatKeepAlive.rootAppOps = it
+                                applyIfEnabled()
+                            },
+                        )
                     }
                 }
-            },
-            dismissButton = {
-                TextButton(onClick = onDismiss) { Text(stringResource(R.string.dialog_close)) }
-            },
-        )
+                TextButton(onClick = { openBatteryOptimizationSettings(context) }) {
+                    Text(stringResource(R.string.wechat_keep_alive_open_battery_settings))
+                }
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.dialog_close)) }
+        },
+    )
+}
+
+fun showWeChatKeepAliveDialog(context: ComponentActivity) {
+    showComposeDialog(context) {
+        WeChatKeepAliveDialogContent(context, onDismiss)
     }
 }
