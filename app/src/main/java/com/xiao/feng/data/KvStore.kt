@@ -2,7 +2,6 @@ package com.xiao.feng.data
 
 import android.database.Cursor
 import com.xiao.feng.data.entity.PreferenceEntryEntity
-import com.xiao.feng.utils.fs.LegacyPaths
 import com.xiao.feng.utils.HostInfo
 import com.xiao.feng.utils.WeLogger
 import kotlin.properties.ReadWriteProperty
@@ -518,8 +517,6 @@ object KvStore {
      * exists. Unknown or undecodable entries are preserved as raw blobs for later inspection.
      */
     private fun migrateLegacyIfNeeded() {
-        // A full restore must not import this installation's pre-restore MMKV over the backup.
-        if (!LegacyPaths.localSourcesAllowed) return
         val root = HostInfo.application.filesDir.resolve("mmkv")
         val file = root.resolve(NAMESPACE)
         val crcFile = root.resolve("$NAMESPACE.crc")

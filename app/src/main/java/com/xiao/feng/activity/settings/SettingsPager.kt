@@ -53,7 +53,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -141,8 +140,6 @@ import android.graphics.Color as AndroidColor
 @Composable
 fun SettingsPager(onOpenLicense: () -> Unit) {
     val context = LocalComponentActivity.current
-    val platformContext = LocalContext.current
-    val currentLocalizedContext = rememberUpdatedState(LocalXiaoFengLocalizedContext.current)
 
     var showClearConfirm by remember { mutableStateOf(false) }
     var showAnnouncements by remember { mutableStateOf(false) }
@@ -199,30 +196,6 @@ fun SettingsPager(onOpenLicense: () -> Unit) {
         // 配置
         item {
             SegmentedColumn(title = stringResource(R.string.settings_section_configuration)) {
-                item {
-                    PrefArrow(
-                        title = stringResource(R.string.settings_export_config_title),
-                        summary = stringResource(R.string.settings_export_config_summary),
-                        icon = MaterialSymbols.Outlined.Upload,
-                        onClick = {
-                            SettingsConfigActions.export(platformContext) {
-                                currentLocalizedContext.value
-                            }
-                        },
-                    )
-                }
-                item {
-                    PrefArrow(
-                        title = stringResource(R.string.settings_import_config_title),
-                        summary = stringResource(R.string.settings_import_config_summary),
-                        icon = MaterialSymbols.Outlined.Download,
-                        onClick = {
-                            SettingsConfigActions.importFromDocument(platformContext) {
-                                currentLocalizedContext.value
-                            }
-                        },
-                    )
-                }
                 item {
                     PrefArrow(
                         title = stringResource(R.string.settings_clear_config_title),

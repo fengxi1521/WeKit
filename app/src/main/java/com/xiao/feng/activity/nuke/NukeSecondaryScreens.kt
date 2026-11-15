@@ -96,12 +96,10 @@ import com.xiao.feng.ui.utils.TelegramIcon
 import com.xiao.feng.utils.AppUpdater
 import com.xiao.feng.utils.UpdateResult
 import com.xiao.feng.utils.WeLogger
-import com.xiao.feng.utils.android.showToastSuspend
 import com.xiao.feng.utils.formatEpoch
 import com.xiao.feng.utils.openInSystem
 import com.xiao.feng.utils.restartHost
 import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import java.text.Collator
 import java.util.Locale
@@ -250,11 +248,7 @@ private fun NukeFeatureStatusDialog(feature: BaseFeature, onDismiss: () -> Unit)
 
 @Composable
 private fun NukeGeneralSettingsPage(onBack: (Offset) -> Unit) {
-    val context = LocalContext.current
-    val activity = LocalComponentActivity.current
-    val localizedContext by rememberUpdatedState(LocalXiaoFengLocalizedContext.current)
     var showClearConfirmation by remember { mutableStateOf(false) }
-    var showLegacyCleanupConfirmation by remember { mutableStateOf(false) }
 
     NukePageScaffold(title = stringResource(R.string.settings_general_title), onBack = onBack) {
         item(key = "language") {
@@ -315,26 +309,6 @@ private fun NukeGeneralSettingsPage(onBack: (Offset) -> Unit) {
         item(key = "configuration") {
             NukeSettingGroup(title = stringResource(R.string.settings_section_configuration)) {
                 NukePreferenceRow(
-                    title = stringResource(R.string.settings_export_config_title),
-                    description = stringResource(R.string.settings_export_config_summary),
-                    leading = { NukeVectorCategoryIcon(MaterialSymbols.Outlined.Upload) },
-                    trailing = { NukeCountAndChevron(text = null) },
-                    onClick = {
-                        SettingsConfigActions.export(context) { localizedContext }
-                    },
-                )
-                NukeDivider()
-                NukePreferenceRow(
-                    title = stringResource(R.string.settings_import_config_title),
-                    description = stringResource(R.string.settings_import_config_summary),
-                    leading = { NukeVectorCategoryIcon(MaterialSymbols.Outlined.Download) },
-                    trailing = { NukeCountAndChevron(text = null) },
-                    onClick = {
-                        SettingsConfigActions.importFromDocument(context) { localizedContext }
-                    },
-                )
-                NukeDivider()
-                NukePreferenceRow(
                     title = stringResource(R.string.settings_clear_config_title),
                     description = stringResource(R.string.settings_clear_config_summary),
                     leading = {
@@ -345,14 +319,6 @@ private fun NukeGeneralSettingsPage(onBack: (Offset) -> Unit) {
                     },
                     trailing = { NukeCountAndChevron(text = null, error = true) },
                     onClick = { showClearConfirmation = true },
-                )
-                NukeDivider()
-                NukePreferenceRow(
-                    title = stringResource(R.string.settings_cleanup_legacy_title),
-                    description = stringResource(R.string.settings_cleanup_legacy_summary),
-                    leading = { NukeVectorCategoryIcon(MaterialSymbols.Outlined.Delete_sweep) },
-                    trailing = { NukeCountAndChevron(text = null) },
-                    onClick = { showLegacyCleanupConfirmation = true },
                 )
             }
         }
@@ -366,21 +332,6 @@ private fun NukeGeneralSettingsPage(onBack: (Offset) -> Unit) {
             onConfirm = {
                 SettingsConfigActions.clearAndRestart()
                 showClearConfirmation = false
-            },
-        )
-    }
-    if (showLegacyCleanupConfirmation) {
-        NukeConfirmDialog(
-            title = stringResource(R.string.cleanup_legacy_dialog_title),
-            message = stringResource(R.string.cleanup_legacy_dialog_message),
-            confirmText = stringResource(R.string.action_clear),
-            onDismiss = { showLegacyCleanupConfirmation = false },
-            onConfirm = {
-                showLegacyCleanupConfirmation = false
-                activity.lifecycleScope.launch(Dispatchers.IO) {
-                    SettingsConfigActions.clearLegacyData()
-                    showToastSuspend(localizedContext, localizedContext.getString(R.string.cleanup_legacy_success))
-                }
             },
         )
     }

@@ -74,11 +74,8 @@ import com.xiao.feng.agent.data.entity.SystemPromptEntity
 import com.xiao.feng.agent.data.entity.ToolCallEntity
 import com.xiao.feng.agent.data.entity.TriggerEntity
 import com.xiao.feng.agent.data.WeAgentConverters
-import com.xiao.feng.activity.settings.BackupCoordinator
 import com.xiao.feng.utils.HostInfo
-import com.xiao.feng.utils.WeLogger
 import com.xiao.feng.utils.fs.KnownPaths
-import com.xiao.feng.utils.fs.LegacyPaths
 import java.io.File
 
 @Database(
@@ -158,18 +155,11 @@ abstract class XiaoFengDatabase : RoomDatabase() {
     abstract fun automationDao(): AutomationDao
 
     companion object {
-        private const val TAG = "XiaoFengDatabase"
-
         const val FILE_NAME = "xfeng.db"
-        const val SCHEMA_VERSION = 22
 
         /** Location of the unified database after the path migration has completed. */
         val file: File
             get() = KnownPaths.moduleRoot.resolve(FILE_NAME).toFile()
-
-        init {
-            BackupCoordinator.beforeDatabaseReplace = { close() }
-        }
 
         @Volatile
         private var INSTANCE: XiaoFengDatabase? = null
@@ -387,84 +377,8 @@ abstract class XiaoFengDatabase : RoomDatabase() {
             "CREATE INDEX IF NOT EXISTS `index_managed_data_entries_contentHash` ON `managed_data_entries` (`contentHash`)",
         )
 
-        private fun build(): XiaoFengDatabase {
-            val external = LegacyPaths.externalModuleRoot.resolve("agent/weagent.db").toFile()
-            val oldUnified = KnownPaths.moduleRoot.resolve("xfeng.db").toFile()
-            val oldPrivate = LegacyPaths.privateWeAgentDatabase.toFile()
-            val movedPrivate = KnownPaths.moduleRoot.resolve("agent/weagent.db").toFile()
-            val source = when {
-                oldUnified.isFile -> oldUnified
-                else -> listOf(external, oldPrivate, movedPrivate)
-                    .filter(File::isFile)
-                    .maxByOrNull(File::lastModified)
-            }
-            val destination = KnownPaths.moduleRoot.resolve("xfeng.db").toFile()
-            val sourceFile = source ?: external
-            val relocator = LegacyDatabaseRelocator(sourceFile, destination) { sourceFile ->
-                val sourceDb = android.database.sqlite.SQLiteDatabase.openDatabase(
-                    sourceFile.absolutePath,
-                    null,
-                    android.database.sqlite.SQLiteDatabase.OPEN_READWRITE,
-                )
-                sourceDb.use { sourceDb ->
-                    // A legacy database may still have committed pages in its WAL. Checkpoint it
-                    // before copying the main file so the destination is a complete snapshot. A
-                    // busy result means a reader still owns the WAL; abort relocation and keep
-                    // using the untouched source instead of silently losing those pages.
-                    sourceDb.rawQuery("PRAGMA wal_checkpoint(TRUNCATE)", null).use { cursor ->
-                        check(cursor.moveToFirst()) { "wal_checkpoint returned no result" }
-                        val busy = cursor.getInt(0)
-                        val frames = cursor.getInt(1)
-                        val checkpointed = cursor.getInt(2)
-                        check(busy == 0 && frames == checkpointed) {
-                            "legacy database WAL checkpoint was incomplete (busy=$busy, frames=$frames, checkpointed=$checkpointed)"
-                        }
-                    }
-                }
-            }
-            // Keep the lock through Room's first open/migration. Without this, a second WeChat
-            // process can observe the freshly moved file while the first process is still opening
-            // it; if Room then fails and rolls back, the second process would hold a now-unlinked
-            // database handle and the next startup could lose the only migrated copy.
-            return relocator.withExclusiveLock {
-                val prepared = relocator.prepareLocked()
-                if (prepared.externalFallback) {
-                    val failure = prepared.failure
-                    if (failure == null) {
-                        WeLogger.e(TAG, "private storage migration failed; external database was not used")
-                    } else {
-                        WeLogger.e(TAG, "private storage migration failed; external database was not used", failure)
-                    }
-                    throw IllegalStateException("Unable to migrate the legacy WeAgent database into the unified database", failure)
-                }
-                val database = buildAt(prepared.file, JournalMode.WRITE_AHEAD_LOGGING)
-                return@withExclusiveLock try {
-                    database.openHelper.writableDatabase
-                    rewriteMovedEnvironmentPaths(database)
-                    relocator.commit(prepared)
-                    database
-                } catch (t: Throwable) {
-                    WeLogger.e(TAG, "migrated database failed to open; rolling back", t)
-                    runCatching { database.close() }
-                    relocator.rollbackLocked(prepared)
-                    throw IllegalStateException("Unable to open the unified XiaoFeng database", t)
-                }
-            }
-        }
-
-        private fun rewriteMovedEnvironmentPaths(database: XiaoFengDatabase) {
-            val oldPrefix = LegacyPaths.privateAgentRoot.toFile().absolutePath + "/"
-            val newPrefix = KnownPaths.moduleRoot.resolve("agent").toFile().absolutePath + "/"
-            val db = database.openHelper.writableDatabase
-            db.execSQL(
-                "UPDATE linux_environments SET rootfsPath = REPLACE(rootfsPath, ?, ?) WHERE rootfsPath LIKE ?",
-                arrayOf(oldPrefix, newPrefix, "$oldPrefix%"),
-            )
-            db.execSQL(
-                "UPDATE linux_environments SET bridgePath = REPLACE(bridgePath, ?, ?) WHERE bridgePath LIKE ?",
-                arrayOf(oldPrefix, newPrefix, "$oldPrefix%"),
-            )
-        }
+        private fun build(): XiaoFengDatabase =
+            buildAt(file, JournalMode.WRITE_AHEAD_LOGGING)
 
         private fun buildAt(
             dbFile: File,

@@ -224,10 +224,6 @@
     <string name="loader_zygisk_name">Zygisk 加载器</string>
     <string name="loader_frida_inject_name">Frida 注入加载器</string>
     <string name="common_not_provided">未提供</string>
-    <string name="config_export_failed">导出失败!</string>
-    <string name="config_export_success">导出成功</string>
-    <string name="config_import_failed">导入失败!</string>
-    <string name="config_import_success">导入成功</string>
     <string name="logs_share_chooser">分享日志</string>
     <string name="logs_save_failed">保存失败!</string>
     <string name="logs_save_success">保存成功</string>
@@ -256,14 +252,8 @@
     <string name="settings_generic_wxid_title">清理消息内容微信 ID 前缀时允许非标准 ID</string>
     <string name="settings_generic_wxid_summary">允许处理不带 wxid_ 前缀的微信 ID，可能导致误伤消息原始内容（实验性）</string>
     <string name="settings_section_configuration">配置</string>
-    <string name="settings_export_config_title">导出完整备份</string>
-    <string name="settings_export_config_summary">导出 Room 数据库、脚本文件和 Python 数据</string>
-    <string name="settings_import_config_title">导入完整备份</string>
-    <string name="settings_import_config_summary">校验备份后替换全部模块数据并重启微信</string>
     <string name="settings_clear_config_title">清除数据</string>
     <string name="settings_clear_config_summary">删除模块数据库、脚本、扩展包、缓存和临时文件</string>
-    <string name="settings_cleanup_legacy_title">清理旧数据</string>
-    <string name="settings_cleanup_legacy_summary">删除迁移后旧存储位置中保留的文件</string>
     <string name="settings_author_wechat_title">作者微信</string>
     <string name="settings_author_wechat_summary">扫码添加作者微信</string>
     <string name="author_wechat_qr_description">作者微信二维码</string>
@@ -350,9 +340,6 @@
     <string name="clear_config_dialog_message">确定删除 Room 数据库、脚本、扩展包、日志、崩溃记录、缓存和临时文件吗？此操作不可逆。</string>
     <string name="config_clearing">正在清除…</string>
     <string name="config_clear_success">清除成功!</string>
-    <string name="cleanup_legacy_dialog_title">清理旧数据</string>
-    <string name="cleanup_legacy_dialog_message">确定删除迁移后保留在旧位置的 XiaoFeng 文件吗？当前模块数据不会受到影响。</string>
-    <string name="cleanup_legacy_success">旧数据清理成功!</string>
     <string name="update_available_title">检测到新版本</string>
     <string name="update_available_message">当前版本: %1$s\n新版本: %2$s\n是否下载并安装?</string>
     <string name="update_download_failed">下载更新失败: %1$s</string>
