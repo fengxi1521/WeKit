@@ -148,7 +148,6 @@ object SettingsBackup {
     private fun exportDocuments(db: SupportSQLiteDatabase): JsonArray = buildJsonArray {
         db.query(
             "SELECT namespace, `key`, content, formatVersion FROM documents WHERE exportable = 1",
-            null,
         ).use { cursor ->
             while (cursor.moveToNext()) {
                 add(buildJsonObject {
@@ -164,7 +163,7 @@ object SettingsBackup {
     private fun exportTables(db: SupportSQLiteDatabase): JsonObject = buildJsonObject {
         for (name in configTables) {
             if (!tableExists(db, name)) continue
-            db.query("SELECT * FROM `$name`", null).use { cursor ->
+            db.query("SELECT * FROM `$name`").use { cursor ->
                 val columns = cursor.columnNames
                 val rows = buildJsonArray {
                     while (cursor.moveToNext()) {
@@ -233,7 +232,7 @@ object SettingsBackup {
             val obj = item.jsonObject
             db.execSQL(
                 "INSERT OR REPLACE INTO documents(namespace, `key`, content, formatVersion, updatedAt, exportable) VALUES (?, ?, ?, ?, ?, 1)",
-                arrayOf(
+                arrayOf<Any?>(
                     obj["namespace"]!!.jsonPrimitive.content,
                     obj["key"]!!.jsonPrimitive.content,
                     obj["content"]!!.jsonPrimitive.content,
@@ -278,7 +277,7 @@ object SettingsBackup {
         db.query("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?", arrayOf(name)).use { it.moveToFirst() }
 
     private fun tableColumns(db: SupportSQLiteDatabase, name: String): Set<String> =
-        db.query("PRAGMA table_info(`$name`)", null).use { cursor ->
+        db.query("PRAGMA table_info(`$name`)").use { cursor ->
             buildSet {
                 val index = cursor.getColumnIndex("name")
                 while (cursor.moveToNext()) add(cursor.getString(index))
