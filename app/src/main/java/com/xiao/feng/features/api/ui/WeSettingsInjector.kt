@@ -22,6 +22,7 @@ import dev.ujhhgtg.reflekt.utils.toClassOrNull
 import com.xiao.feng.BuildConfig
 import com.xiao.feng.R
 import com.xiao.feng.activity.settings.SettingsActivity
+import com.xiao.feng.activity.settings.SettingsConfigActions
 import com.xiao.feng.constants.PackageNames
 import com.xiao.feng.featurepoints.abc.IResolveDex
 import com.xiao.feng.featurepoints.dsl.dexClass
@@ -271,13 +272,13 @@ object WeSettingsInjector : ApiFeature(), IResolveDex, WeChatInputBarApi.IInputB
                 .hookBefore {
                     val activity = thisObject as Activity
                     val intent = activity.intent ?: return@hookBefore
-                    intent.getStringExtra(BuildConfig.TAG) ?: return@hookBefore
+                    val action = intent.getStringExtra(BuildConfig.TAG) ?: return@hookBefore
                     // 消费掉标记，否则 getIntent() 会一直带着它，
                     // 之后每次 onNewIntent 都会重新弹出设置界面
                     intent.removeExtra(BuildConfig.TAG)
                     // wait for resources & theme to init
                     Handler(Looper.getMainLooper()).postDelayed({
-                        openSettingsDialog(activity)
+                        handleLauncherAction(activity, action)
                     }, 500)
                 }
 
@@ -287,10 +288,24 @@ object WeSettingsInjector : ApiFeature(), IResolveDex, WeChatInputBarApi.IInputB
                     // LauncherUI 是 singleTop，新的 Intent 在 args[0] 里；
                     // 此时 getIntent() 还是旧的那一个
                     val intent = args.getOrNull(0) as? Intent ?: return@hookBefore
-                    intent.getStringExtra(BuildConfig.TAG) ?: return@hookBefore
+                    val action = intent.getStringExtra(BuildConfig.TAG) ?: return@hookBefore
                     intent.removeExtra(BuildConfig.TAG)
-                    openSettingsDialog(activity)
+                    handleLauncherAction(activity, action)
                 }
+        }
+    }
+
+    /**
+     * The module app's home screen cannot reach the configuration database, which lives in the
+     * host process, so its shortcuts ask WeChat to run the action instead.
+     */
+    private fun handleLauncherAction(activity: Activity, action: String) {
+        when (action) {
+            SettingsConfigActions.ACTION_EXPORT_SETTINGS ->
+                SettingsConfigActions.exportSettings(activity) { activity }
+            SettingsConfigActions.ACTION_IMPORT_SETTINGS ->
+                SettingsConfigActions.importSettings(activity) { activity }
+            else -> openSettingsDialog(activity)
         }
     }
 

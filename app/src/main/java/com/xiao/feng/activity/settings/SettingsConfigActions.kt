@@ -17,6 +17,13 @@ import java.util.UUID
 
 /** Shared configuration I/O used by both settings engines. */
 object SettingsConfigActions {
+    /**
+     * Values the module app puts into the [com.xiao.feng.BuildConfig.TAG] extra of the WeChat
+     * launcher intent; the host-side injector runs the matching action once WeChat is up.
+     */
+    const val ACTION_EXPORT_SETTINGS = "xfeng:export_settings"
+    const val ACTION_IMPORT_SETTINGS = "xfeng:import_settings"
+
     fun export(platformContext: Context, localizedContext: () -> Context) {
         TransparentActivity.launch(platformContext) {
             val exportLauncher = registerForActivityResult(

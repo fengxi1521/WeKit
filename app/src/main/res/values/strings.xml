@@ -49,7 +49,11 @@
     <string name="module_app_open_wechat_failed">Unable to open WeChat (package: %1$s)</string>
     <string name="module_app_open_settings_title">Open module settings</string>
     <string name="module_app_open_settings_summary">Open the module settings inside WeChat</string>
-    <string name="module_app_host_package_explanation">Controls the target WeChat package used by the three shortcuts on this screen. This is intended for installations cloned by changing the package name instead of using multiple users.</string>
+    <string name="module_app_export_settings_title">Export configuration</string>
+    <string name="module_app_export_settings_summary">Save feature switches and their options as JSON</string>
+    <string name="module_app_import_settings_title">Import configuration</string>
+    <string name="module_app_import_settings_summary">Restore feature switches and their options from JSON</string>
+    <string name="module_app_host_package_explanation">Controls the target WeChat package used by the shortcuts on this screen. This is intended for installations cloned by changing the package name instead of using multiple users.</string>
     <string name="module_app_host_package_label">Host package name (default: %1$s)</string>
     <!-- Destructive repair warning. %1$s is a newline-separated path list. -->
     <string name="module_app_repair_loading_message">This operation attempts to repair module loading broken by a WeChat hot update. Restart WeChat afterward.\nThe following paths will be cleared and recursively set to permission 000 to prevent WeChat from reading or writing them again. Verify them before continuing:\n%1$s</string>

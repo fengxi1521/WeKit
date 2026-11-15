@@ -38,7 +38,11 @@
     <string name="module_app_open_wechat_failed">无法打开微信 (包名: %1$s)</string>
     <string name="module_app_open_settings_title">打开模块设置</string>
     <string name="module_app_open_settings_summary">打开微信内的模块设置</string>
-    <string name="module_app_host_package_explanation">本选项控制模块应用首页三个快捷方式打开的目标微信包名, 适用于通过修改包名而非多用户实现多微信共存的用户</string>
+    <string name="module_app_export_settings_title">导出配置</string>
+    <string name="module_app_export_settings_summary">将功能开关与各项设置保存为 JSON 文件</string>
+    <string name="module_app_import_settings_title">导入配置</string>
+    <string name="module_app_import_settings_summary">从 JSON 文件恢复功能开关与各项设置</string>
+    <string name="module_app_host_package_explanation">本选项控制模块应用首页各快捷方式打开的目标微信包名, 适用于通过修改包名而非多用户实现多微信共存的用户</string>
     <string name="module_app_host_package_label">宿主包名 (默认为 %1$s)</string>
     <string name="module_app_repair_loading_message">本操作将尝试修复微信热更新导致的模块不加载, 执行后请重启微信\n将清空以下路径的内容, 并将其权限递归设置为 000 以阻止微信重读写, 请确认无误后再继续!\n%1$s</string>
     <string name="module_app_repair_loading_success">操作成功!</string>

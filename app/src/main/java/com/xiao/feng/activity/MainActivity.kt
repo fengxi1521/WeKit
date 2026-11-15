@@ -48,12 +48,15 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.core.content.edit
 import com.composables.icons.materialsymbols.MaterialSymbols
 import com.composables.icons.materialsymbols.outlined.Open_in_new
+import com.composables.icons.materialsymbols.outlined.Save
 import com.composables.icons.materialsymbols.outlined.Settings
+import com.composables.icons.materialsymbols.outlined.Sync
 import com.composables.icons.materialsymbols.outlinedfilled.Check_circle
 import com.composables.icons.materialsymbols.outlinedfilled.Info
 import com.composables.icons.materialsymbols.outlinedfilled.More_vert
@@ -61,6 +64,7 @@ import com.composables.icons.materialsymbols.outlinedfilled.Warning
 import com.topjohnwu.superuser.Shell
 import com.xiao.feng.BuildConfig
 import com.xiao.feng.R
+import com.xiao.feng.activity.settings.SettingsConfigActions
 import com.xiao.feng.constants.PackageNames
 import com.xiao.feng.i18n.LocaleResourceMode
 import com.xiao.feng.i18n.LocalXiaoFengLocalizedContext
@@ -616,6 +620,69 @@ class MainActivity : ComponentActivity() {
                     }
                 }
 
+                listOf(
+                    HomeShortcut(
+                        R.string.module_app_export_settings_title,
+                        R.string.module_app_export_settings_summary,
+                        MaterialSymbols.Outlined.Save,
+                        SettingsConfigActions.ACTION_EXPORT_SETTINGS,
+                    ),
+                    HomeShortcut(
+                        R.string.module_app_import_settings_title,
+                        R.string.module_app_import_settings_summary,
+                        MaterialSymbols.Outlined.Sync,
+                        SettingsConfigActions.ACTION_IMPORT_SETTINGS,
+                    ),
+                ).forEach { shortcut ->
+                    ElevatedCard(
+                        onClick = {
+                            val hostPkg =
+                                prefs.getString("host_pkg_name", PackageNames.WECHAT)!!
+                            try {
+                                startActivity(com.xiao.feng.utils.android.Intent {
+                                    setClassName(hostPkg, "${PackageNames.WECHAT}.ui.LauncherUI")
+                                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                    putExtra(BuildConfig.TAG, shortcut.action)
+                                })
+                                isLaunchingWeChat = true
+                            } catch (e: Exception) {
+                                shortcutError = e.message
+                                    ?: localizedContext.getString(
+                                        R.string.module_app_open_wechat_failed,
+                                        hostPkg,
+                                    )
+                            }
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(24.dp),
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(16.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                imageVector = shortcut.icon,
+                                contentDescription = null,
+                                modifier = Modifier.size(24.dp),
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                            Spacer(modifier = Modifier.width(16.dp))
+                            Column {
+                                Text(
+                                    text = stringResource(shortcut.titleRes),
+                                    style = MaterialTheme.typography.titleMedium,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                                Text(
+                                    text = stringResource(shortcut.summaryRes),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                    }
+                }
+
                 if (showModifyHostPkgNameDialog) {
                     var pkgName by remember {
                         mutableStateOf(
@@ -810,3 +877,11 @@ class MainActivity : ComponentActivity() {
         }
     }
 }
+
+/** A home-screen card that hands the work to WeChat, where the configuration database lives. */
+private class HomeShortcut(
+    val titleRes: Int,
+    val summaryRes: Int,
+    val icon: ImageVector,
+    val action: String,
+)
