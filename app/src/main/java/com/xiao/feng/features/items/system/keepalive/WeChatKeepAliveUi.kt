@@ -38,7 +38,7 @@ private fun openBatteryOptimizationSettings(context: Context) {
 }
 
 @Composable
-private fun rootStatusDescription(status: WeChatKeepAliveRuntime.RootStatus?): String {
+private fun rootStatusDescription(status: RootStatus?): String {
     if (status == null) return stringResource(R.string.wechat_keep_alive_root_status_checking)
     if (!status.rootAvailable) return stringResource(R.string.wechat_keep_alive_root_status_no_root)
     if (status.dozeWhitelisted && status.backgroundAllowed) {
@@ -64,7 +64,7 @@ private fun WeChatKeepAliveDialogContent(context: ComponentActivity, onDismiss: 
 
     // Root commands run through su, so the result is probed off the main thread every time the
     // dialog opens or the status row is tapped.
-    var rootStatus by remember { mutableStateOf<WeChatKeepAliveRuntime.RootStatus?>(null) }
+    var rootStatus by remember { mutableStateOf<RootStatus?>(null) }
     var rootStatusRevision by remember { mutableIntStateOf(0) }
     LaunchedEffect(rootStatusRevision) {
         rootStatus = null

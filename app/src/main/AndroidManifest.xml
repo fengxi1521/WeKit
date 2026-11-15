@@ -81,6 +81,11 @@
                 android:value="Keeps WeChat alive for automation features while the screen is off" />
         </service>
 
+        <!-- Root commands run with the module's UID; WeChat itself is not granted root. -->
+        <service
+            android:name=".features.items.system.keepalive.KeepAliveRootService"
+            android:exported="true" />
+
         <activity
             android:name=".activity.settings.SettingsActivity"
             android:exported="true"
