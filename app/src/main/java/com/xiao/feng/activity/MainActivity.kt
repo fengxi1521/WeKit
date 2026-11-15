@@ -701,10 +701,7 @@ class MainActivity : ComponentActivity() {
                         }
                         Switch(
                             checked = keepAliveEnabled,
-                            onCheckedChange = { next ->
-                                keepAliveEnabled = next
-                                applyKeepAlive(next)
-                            },
+                            onCheckedChange = null,
                         )
                     }
                 }
