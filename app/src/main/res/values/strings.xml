@@ -257,6 +257,10 @@
     <string name="config_export_success">Export successful</string>
     <string name="config_import_failed">Import failed!</string>
     <string name="config_import_success">Import successful</string>
+    <string name="settings_export_switches_title">Export feature settings</string>
+    <string name="settings_export_switches_summary">Feature switches and their saved options (including AI settings) as a small JSON file</string>
+    <string name="settings_import_switches_title">Import feature settings</string>
+    <string name="settings_import_switches_summary">Restore feature switches and options from a settings backup, then restart WeChat</string>
     <string name="logs_share_chooser">Share log</string>
     <string name="logs_save_failed">Save failed!</string>
     <string name="logs_save_success">Saved successfully</string>

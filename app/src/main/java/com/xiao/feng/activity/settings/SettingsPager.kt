@@ -82,6 +82,7 @@ import com.composables.icons.materialsymbols.outlined.Language
 import com.composables.icons.materialsymbols.outlined.License
 import com.composables.icons.materialsymbols.outlined.Notifications
 import com.composables.icons.materialsymbols.outlined.Rule_settings
+import com.composables.icons.materialsymbols.outlined.Save
 import com.composables.icons.materialsymbols.outlined.Shield
 import com.composables.icons.materialsymbols.outlined.Style
 import com.composables.icons.materialsymbols.outlined.Swipe
@@ -218,6 +219,30 @@ fun SettingsPager(onOpenLicense: () -> Unit) {
                         icon = MaterialSymbols.Outlined.Download,
                         onClick = {
                             SettingsConfigActions.importFromDocument(platformContext) {
+                                currentLocalizedContext.value
+                            }
+                        },
+                    )
+                }
+                item {
+                    PrefArrow(
+                        title = stringResource(R.string.settings_export_switches_title),
+                        summary = stringResource(R.string.settings_export_switches_summary),
+                        icon = MaterialSymbols.Outlined.Save,
+                        onClick = {
+                            SettingsConfigActions.exportSettings(platformContext) {
+                                currentLocalizedContext.value
+                            }
+                        },
+                    )
+                }
+                item {
+                    PrefArrow(
+                        title = stringResource(R.string.settings_import_switches_title),
+                        summary = stringResource(R.string.settings_import_switches_summary),
+                        icon = MaterialSymbols.Outlined.Sync,
+                        onClick = {
+                            SettingsConfigActions.importSettings(platformContext) {
                                 currentLocalizedContext.value
                             }
                         },

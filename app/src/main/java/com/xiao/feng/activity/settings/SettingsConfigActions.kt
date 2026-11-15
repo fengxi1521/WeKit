@@ -84,6 +84,73 @@ object SettingsConfigActions {
         }
     }
 
+    /** Exports only feature switches and their saved options as a small JSON document. */
+    fun exportSettings(platformContext: Context, localizedContext: () -> Context) {
+        TransparentActivity.launch(platformContext) {
+            val exportLauncher = registerForActivityResult(
+                ActivityResultContracts.CreateDocument("application/json"),
+            ) { uri ->
+                if (uri == null) {
+                    finish()
+                    return@registerForActivityResult
+                }
+                lifecycleScope.launch(Dispatchers.IO) {
+                    val temporary = File(platformContext.cacheDir, ".xfeng-settings-${UUID.randomUUID()}.json")
+                    val result = runCatching {
+                        SettingsBackup.export(temporary)
+                        platformContext.contentResolver.openOutputStream(uri, "w")!!.use { output ->
+                            temporary.inputStream().use { it.copyTo(output) }
+                        }
+                    }
+                    result.exceptionOrNull()?.let {
+                        showToastSuspend(localizedContext().getString(R.string.config_export_failed))
+                        WeLogger.e("SettingsBackup", "failed to export settings", it)
+                    }
+                    if (result.isSuccess) {
+                        showToastSuspend(localizedContext().getString(R.string.config_export_success))
+                    }
+                    temporary.delete()
+                    withContext(Dispatchers.Main) { finish() }
+                }
+            }
+            exportLauncher.launch("xfeng_settings.json")
+        }
+    }
+
+    /** Restores feature switches and their saved options, then restarts the host to apply them. */
+    fun importSettings(platformContext: Context, localizedContext: () -> Context) {
+        TransparentActivity.launch(platformContext) {
+            val importLauncher = registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+                if (uri == null) {
+                    finish()
+                    return@registerForActivityResult
+                }
+                lifecycleScope.launch(Dispatchers.IO) {
+                    val temporary = File(platformContext.cacheDir, ".xfeng-settings-${UUID.randomUUID()}.json")
+                    val result = runCatching {
+                        platformContext.contentResolver.openInputStream(uri)!!.use { input ->
+                            temporary.outputStream().use { output -> input.copyTo(output) }
+                        }
+                        SettingsBackup.import(temporary)
+                    }
+                    result.exceptionOrNull()?.let {
+                        showToastSuspend(localizedContext().getString(R.string.config_import_failed))
+                        WeLogger.e("SettingsBackup", "failed to import settings", it)
+                    }
+                    if (result.isSuccess) {
+                        showToastSuspend(localizedContext().getString(R.string.config_import_success))
+                    }
+                    temporary.delete()
+                    withContext(Dispatchers.Main) {
+                        finish()
+                        if (result.isSuccess) BackupCoordinator.restartAfterImport()
+                    }
+                }
+            }
+            importLauncher.launch(arrayOf("application/json", "text/plain", "application/octet-stream"))
+        }
+    }
+
     fun clear() {
         BackupCoordinator.clearAll(HostInfo.application)
     }

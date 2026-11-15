@@ -53,6 +53,8 @@ import com.composables.icons.materialsymbols.outlined.Label
 import com.composables.icons.materialsymbols.outlined.License
 import com.composables.icons.materialsymbols.outlined.Notifications
 import com.composables.icons.materialsymbols.outlined.Rule_settings
+import com.composables.icons.materialsymbols.outlined.Save
+import com.composables.icons.materialsymbols.outlined.Sync
 import com.composables.icons.materialsymbols.outlined.Update
 import com.composables.icons.materialsymbols.outlined.Upload
 import com.mikepenz.aboutlibraries.Libs
@@ -331,6 +333,26 @@ private fun NukeGeneralSettingsPage(onBack: (Offset) -> Unit) {
                     trailing = { NukeCountAndChevron(text = null) },
                     onClick = {
                         SettingsConfigActions.importFromDocument(context) { localizedContext }
+                    },
+                )
+                NukeDivider()
+                NukePreferenceRow(
+                    title = stringResource(R.string.settings_export_switches_title),
+                    description = stringResource(R.string.settings_export_switches_summary),
+                    leading = { NukeVectorCategoryIcon(MaterialSymbols.Outlined.Save) },
+                    trailing = { NukeCountAndChevron(text = null) },
+                    onClick = {
+                        SettingsConfigActions.exportSettings(context) { localizedContext }
+                    },
+                )
+                NukeDivider()
+                NukePreferenceRow(
+                    title = stringResource(R.string.settings_import_switches_title),
+                    description = stringResource(R.string.settings_import_switches_summary),
+                    leading = { NukeVectorCategoryIcon(MaterialSymbols.Outlined.Sync) },
+                    trailing = { NukeCountAndChevron(text = null) },
+                    onClick = {
+                        SettingsConfigActions.importSettings(context) { localizedContext }
                     },
                 )
                 NukeDivider()

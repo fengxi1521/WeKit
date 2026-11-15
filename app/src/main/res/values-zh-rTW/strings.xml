@@ -228,6 +228,10 @@
     <string name="config_export_success">導出成功</string>
     <string name="config_import_failed">導入失敗!</string>
     <string name="config_import_success">導入成功</string>
+    <string name="settings_export_switches_title">導出功能開關與配置</string>
+    <string name="settings_export_switches_summary">把全部功能開關及其保存的配置（含 AI 配置）導出為一個小型 JSON 檔案</string>
+    <string name="settings_import_switches_title">導入功能開關與配置</string>
+    <string name="settings_import_switches_summary">從開關配置備份恢復全部功能開關與配置，隨後重啟微信</string>
     <string name="logs_share_chooser">分享日誌</string>
     <string name="logs_save_failed">保存失敗!</string>
     <string name="logs_save_success">保存成功</string>
