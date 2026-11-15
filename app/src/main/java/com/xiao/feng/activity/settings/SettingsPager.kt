@@ -202,30 +202,6 @@ fun SettingsPager(onOpenLicense: () -> Unit) {
             SegmentedColumn(title = stringResource(R.string.settings_section_configuration)) {
                 item {
                     PrefArrow(
-                        title = stringResource(R.string.settings_export_config_title),
-                        summary = stringResource(R.string.settings_export_config_summary),
-                        icon = MaterialSymbols.Outlined.Upload,
-                        onClick = {
-                            SettingsConfigActions.export(platformContext) {
-                                currentLocalizedContext.value
-                            }
-                        },
-                    )
-                }
-                item {
-                    PrefArrow(
-                        title = stringResource(R.string.settings_import_config_title),
-                        summary = stringResource(R.string.settings_import_config_summary),
-                        icon = MaterialSymbols.Outlined.Download,
-                        onClick = {
-                            SettingsConfigActions.importFromDocument(platformContext) {
-                                currentLocalizedContext.value
-                            }
-                        },
-                    )
-                }
-                item {
-                    PrefArrow(
                         title = stringResource(R.string.settings_export_switches_title),
                         summary = stringResource(R.string.settings_export_switches_summary),
                         icon = MaterialSymbols.Outlined.Save,

@@ -14,7 +14,6 @@ import com.xiao.feng.features.items.payment.TransferSettings
 import com.xiao.feng.utils.TargetProcesses
 import com.xiao.feng.utils.WeLogger
 import com.xiao.feng.utils.fs.KnownPaths
-import com.xiao.feng.utils.fs.LegacyPaths
 import com.xiao.feng.utils.serialization.DefaultJson
 import java.nio.file.Files
 import java.nio.file.NoSuchFileException
@@ -179,22 +178,19 @@ object JsonDataMigration {
     private suspend fun read(db: XiaoFengDatabase, source: Source): String? {
         var document = db.documentDao().get(source.namespace, source.key)
         if (document == null) {
-            val roots = if (LegacyPaths.localSourcesAllowed) listOf(KnownPaths.moduleRoot, LegacyPaths.externalModuleRoot)
-                else listOf(KnownPaths.moduleRoot)
-            for (root in roots) {
-                val file = root.resolve(source.file)
-                val attributes = try {
-                    withContext(Dispatchers.IO) {
-                        Files.readAttributes(file, BasicFileAttributes::class.java)
-                    }
-                } catch (_: NoSuchFileException) {
-                    continue
+            val file = KnownPaths.moduleRoot.resolve(source.file)
+            val attributes = try {
+                withContext(Dispatchers.IO) {
+                    Files.readAttributes(file, BasicFileAttributes::class.java)
                 }
+            } catch (_: NoSuchFileException) {
+                null
+            }
+            if (attributes != null) {
                 check(attributes.isRegularFile) { "Legacy JSON is not a regular file" }
                 document = DocumentEntity(source.namespace, source.key, file.toFile().readText(Charsets.UTF_8),
                     updatedAt = attributes.lastModifiedTime().toMillis())
                 db.documentDao().upsert(document)
-                break
             }
         }
         // All supported business writers used exportable=true. Preserve unexpected sources instead

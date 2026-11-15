@@ -17,7 +17,6 @@ import com.xiao.feng.utils.HostInfo
 import com.xiao.feng.utils.TargetProcess
 import com.xiao.feng.utils.TargetProcesses
 import com.xiao.feng.utils.WeLogger
-import com.xiao.feng.utils.fs.LegacyStorageMigration
 import org.lsposed.hiddenapibypass.HiddenApiBypass
 import java.io.File
 import java.lang.reflect.Field
@@ -63,11 +62,10 @@ object StartupAgent {
 
         HostInfo.init(application)
         NativeLoader.init()
-        // Legacy storage and document migrations are one-shot writers.  Only the main WeChat
-        // process owns that responsibility; push/worker processes may still open Room later,
-        // but must not race the migration or initialize it from an isolated process.
+        // Legacy document migrations are one-shot writers.  Only the main WeChat process owns that
+        // responsibility; push/worker processes may still open Room later, but must not race the
+        // migration or initialize it from an isolated process.
         if (TargetProcesses.isInMain) {
-            LegacyStorageMigration.run(application)
             LegacyDocumentMigration.run(application)
             JsonDataMigration.run()
         }
@@ -76,7 +74,7 @@ object StartupAgent {
         }
         // Isolated processes have no module features and must never touch the shared Room file.
         // In particular, FeaturesLoader would otherwise initialize Room while the main
-        // process is still relocating the legacy database.
+        // process is still running the one-shot legacy document migration.
         if (TargetProcesses.currentType != TargetProcess.ISOLATED) {
             WeLauncher.init(application)
         }

@@ -30,8 +30,7 @@ import kotlinx.serialization.json.put
 /**
  * Portable backup of every feature switch and saved option.
  *
- * Unlike [BackupCoordinator] (a full database/file snapshot that requires a matching schema), this
- * only carries settings: the preference store, exportable documents and the structured config
+ * It only carries settings: the preference store, exportable documents and the structured config
  * tables (automation rules, aggregation folders, AI providers/models/prompts, ...). It is small,
  * readable JSON so it can be moved between devices and module versions.
  */

@@ -4,7 +4,6 @@ import android.annotation.SuppressLint
 import android.app.Activity
 import android.content.Context
 import android.content.Intent
-import android.content.res.AssetManager
 import android.content.res.ColorStateList
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
@@ -80,7 +79,6 @@ import com.xiao.feng.featurepoints.dsl.dexMethod
 import com.xiao.feng.features.api.core.WeMessageApi
 import com.xiao.feng.features.api.ui.WeChatInputBarMenuApi
 import com.xiao.feng.features.api.ui.WeConversationListViewApi
-import com.xiao.feng.loader.startup.StartupInfo
 import com.xiao.feng.features.core.ClickableFeature
 import com.xiao.feng.features.core.FeatureCategoryIds
 import com.xiao.feng.features.items.beautify.Themes.THEMES_PATH
@@ -104,7 +102,6 @@ import org.json.JSONObject
 import java.io.File
 import java.lang.reflect.Method
 import java.util.concurrent.ConcurrentHashMap
-import java.util.zip.ZipFile
 import kotlin.io.path.div
 import kotlin.io.path.isDirectory
 import kotlin.math.roundToInt
@@ -141,10 +138,6 @@ object Themes : ClickableFeature(), IResolveDex {
     /** 「无」主题 id，与 cherrywechat ThemeManager 的默认主题 id 一致 */
     private const val DEFAULT_THEME_ID = "0"
 
-    /** 随 APK 打包的内置主题资源目录（assets/themes/<主题ID>/...） */
-    private const val BUNDLED_THEMES_ASSET_DIR = "themes"
-    private const val BUNDLED_THEMES_MARKER = ".bundled_version"
-
     private var currentThemeId by prefOption(KEY_CURRENT_THEME, DEFAULT_THEME_ID)
 
     // ------------------------------------------------------------------
@@ -178,16 +171,10 @@ object Themes : ClickableFeature(), IResolveDex {
     private fun getThemePath(themeId: String): File = (THEMES_PATH / themeId).toFile()
 
     /** 主题根目录；主题工坊直接在这里创建、编辑主题。 */
-    fun themesDirectory(): File {
-        ensureBundledThemes()
-        return THEMES_PATH.toFile()
-    }
+    fun themesDirectory(): File = THEMES_PATH.toFile()
 
     /** 主题工坊读取的主题列表（仅包含含 manifest.json 的目录）。 */
-    fun availableThemes(): List<ThemeInfo> {
-        ensureBundledThemes()
-        return scanThemes()
-    }
+    fun availableThemes(): List<ThemeInfo> = scanThemes()
 
     /** 当前选中的主题 id，「0」表示无主题。 */
     fun selectedThemeId(): String = currentThemeId
@@ -235,111 +222,6 @@ object Themes : ClickableFeature(), IResolveDex {
     /** 主题图片缓存，避免每次 hook 回调都重新解码 */
     private val drawableCache = object : LruCache<String, Bitmap>(24 * 1024 * 1024) {
         override fun sizeOf(key: String, value: Bitmap): Int = value.byteCount
-    }
-
-    /**
-     * 内置主题的安装入口。功能开关关闭时主题工坊仍可打开，因此这里不能只依赖 [onEnable]，
-     * 列表/目录访问时也会兜底安装一次。
-     */
-    private var bundledThemesChecked = false
-
-    private fun ensureBundledThemes() {
-        if (bundledThemesChecked) return
-        runCatching { installBundledThemes() }
-            .onSuccess { bundledThemesChecked = true }
-            .onFailure { WeLogger.e(TAG, "failed to install bundled themes", it) }
-    }
-
-    /**
-     * 内置主题：随 APK 打包在 `assets/themes/<主题ID>/`，首次启用时展开到 [THEMES_PATH]。
-     *
-     * 优先直接从模块 APK 里读取（不依赖宿主的 AssetManager 是否注入了模块资源），
-     * 失败时再退回 [HostInfo.application] 的 assets。
-     *
-     * 已安装版本与内置版本一致时跳过；用户自行导入或编辑过的同名主题不做覆盖，
-     * 只有此前由本逻辑安装（存在版本标记）的主题才会随版本升级刷新。
-     */
-    private fun installBundledThemes() {
-        val root = THEMES_PATH.toFile()
-        if (installThemesFromModuleApk(root)) return
-        val assets = HostInfo.application.assets
-        val ids = runCatching { assets.list(BUNDLED_THEMES_ASSET_DIR) }.getOrNull() ?: return
-        ids.forEach { id ->
-            val prefix = "$BUNDLED_THEMES_ASSET_DIR/$id"
-            val version = runCatching {
-                assets.open("$prefix/manifest.json").use { input ->
-                    JSONObject(input.readBytes().decodeToString()).optString("version", "1.0")
-                }
-            }.getOrNull() ?: return@forEach
-            if (shouldSkipThemeInstall(root, id, version)) return@forEach
-            copyAssetTree(assets, prefix, File(root, id))
-            File(File(root, id), BUNDLED_THEMES_MARKER).writeText(version)
-            WeLogger.i(TAG, "installed bundled theme $id from assets (version $version)")
-        }
-    }
-
-    private fun installThemesFromModuleApk(root: File): Boolean =
-        runCatching {
-            val apk = File(StartupInfo.modulePath)
-            if (!apk.isFile) return@runCatching false
-            ZipFile(apk).use { zip ->
-                val prefix = "$BUNDLED_THEMES_ASSET_DIR/"
-                val ids = zip.entries().asSequence()
-                    .filter { it.name.startsWith(prefix) && !it.isDirectory }
-                    .map { it.name.removePrefix(prefix).substringBefore('/') }
-                    .filter { it.isNotEmpty() }
-                    .distinct()
-                    .toList()
-                if (ids.isEmpty()) return@runCatching false
-                ids.forEach { id -> installThemeFromZip(zip, root, id) }
-                true
-            }
-        }.getOrElse {
-            WeLogger.e(TAG, "failed to read bundled themes from module apk", it)
-            false
-        }
-
-    private fun installThemeFromZip(zip: ZipFile, root: File, id: String) {
-        val base = "$BUNDLED_THEMES_ASSET_DIR/$id/"
-        val manifest = zip.getEntry("${base}manifest.json") ?: return
-        val version = zip.getInputStream(manifest).use { input ->
-            JSONObject(input.readBytes().decodeToString()).optString("version", "1.0")
-        }
-        if (shouldSkipThemeInstall(root, id, version)) return
-        val dir = File(root, id)
-        zip.entries().asSequence()
-            .filter { it.name.startsWith(base) && !it.isDirectory }
-            .forEach { entry ->
-                val dest = File(dir, entry.name.removePrefix(base))
-                dest.parentFile?.mkdirs()
-                zip.getInputStream(entry).use { input ->
-                    dest.outputStream().use { output -> input.copyTo(output) }
-                }
-            }
-        File(dir, BUNDLED_THEMES_MARKER).writeText(version)
-        WeLogger.i(TAG, "installed bundled theme $id from module apk (version $version)")
-    }
-
-    private fun shouldSkipThemeInstall(root: File, id: String, version: String): Boolean {
-        val dir = File(root, id)
-        val marker = File(dir, BUNDLED_THEMES_MARKER)
-        val installedVersion = marker.takeIf { it.isFile }?.readText()
-        // 用户自己导入/编辑过的同名主题不做覆盖。
-        if (dir.isDirectory && installedVersion == null) return true
-        return installedVersion == version
-    }
-
-    private fun copyAssetTree(assets: AssetManager, assetPath: String, dest: File) {
-        val children = runCatching { assets.list(assetPath) }.getOrNull()
-        if (children.isNullOrEmpty()) {
-            dest.parentFile?.mkdirs()
-            assets.open(assetPath).use { input ->
-                dest.outputStream().use { output -> input.copyTo(output) }
-            }
-            return
-        }
-        dest.mkdirs()
-        for (child in children) copyAssetTree(assets, "$assetPath/$child", File(dest, child))
     }
 
     /** 启动时加载当前主题配置 */
@@ -1531,7 +1413,6 @@ object Themes : ClickableFeature(), IResolveDex {
     // ------------------------------------------------------------------
 
     override fun onEnable() {
-        ensureBundledThemes()
         loadCurrentTheme()
         // With the "none" theme selected every hook below is a no-op visually, yet several of them
         // still walk and rewrite the whole chat/home view tree on each enter/exit (clearing

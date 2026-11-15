@@ -31,7 +31,6 @@ import kotlinx.serialization.json.put
 /**
  * Imports user-owned media and file indexes into the unified Room catalog. Feature JSON now
  * goes directly through [JsonDataMigration]; the existing completion key is retained for assets.
- * Source files remain until explicit old-data cleanup.
  */
 object LegacyDocumentMigration {
     private const val TAG = "LegacyDocumentMigration"
