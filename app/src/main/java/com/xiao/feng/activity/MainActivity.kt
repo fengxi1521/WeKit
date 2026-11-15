@@ -117,7 +117,8 @@ class MainActivity : ComponentActivity() {
      */
     private fun applyKeepAlive(enabled: Boolean) {
         WeChatKeepAliveService.prefs(this).edit()
-            .putBoolean(WeChatKeepAliveService.KEY_MODULE_OWNED, enabled)
+            .putBoolean(WeChatKeepAliveService.KEY_MODULE_OWNED, true)
+            .putBoolean(WeChatKeepAliveService.KEY_ENABLED, enabled)
             .putBoolean(WeChatKeepAliveService.KEY_WATCHDOG, true)
             .putBoolean(WeChatKeepAliveService.KEY_NETWORK_HEARTBEAT, true)
             .apply()
@@ -358,9 +359,10 @@ class MainActivity : ComponentActivity() {
         var showModifyHostPkgNameDialog by remember { mutableStateOf(false) }
         var shortcutError by remember { mutableStateOf<String?>(null) }
         var keepAliveEnabled by remember {
+            val prefs = WeChatKeepAliveService.prefs(this)
             mutableStateOf(
-                WeChatKeepAliveService.prefs(this)
-                    .getBoolean(WeChatKeepAliveService.KEY_MODULE_OWNED, false),
+                prefs.getBoolean(WeChatKeepAliveService.KEY_MODULE_OWNED, false) &&
+                    prefs.getBoolean(WeChatKeepAliveService.KEY_ENABLED, false),
             )
         }
 

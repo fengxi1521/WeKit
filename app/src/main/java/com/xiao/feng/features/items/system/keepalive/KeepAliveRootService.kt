@@ -66,7 +66,11 @@ class KeepAliveRootService : Service() {
         // 模块主页面上的开关优先: 用户在模块 App 里配置后, 微信进程同步上来的旧值不能把它覆盖掉。
         val modulePrefs = WeChatKeepAliveService.prefs(this)
         val moduleOwned = modulePrefs.getBoolean(WeChatKeepAliveService.KEY_MODULE_OWNED, false)
-        val foregroundService = moduleOwned || data.getBoolean(KEY_FOREGROUND_SERVICE)
+        val foregroundService = if (moduleOwned) {
+            modulePrefs.getBoolean(WeChatKeepAliveService.KEY_ENABLED, false)
+        } else {
+            data.getBoolean(KEY_FOREGROUND_SERVICE)
+        }
         val watchdog = if (moduleOwned) {
             modulePrefs.getBoolean(WeChatKeepAliveService.KEY_WATCHDOG, true)
         } else {

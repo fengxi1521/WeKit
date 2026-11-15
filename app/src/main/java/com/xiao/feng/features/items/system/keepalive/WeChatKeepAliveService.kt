@@ -78,6 +78,7 @@ class WeChatKeepAliveService : Service() {
         /** Module-app side switch: when the user controls keep-alive here, the host must not override it. */
         const val PREFS_NAME = "wechat_keep_alive"
         const val KEY_MODULE_OWNED = "module_owned"
+        const val KEY_ENABLED = "enabled"
         const val KEY_WATCHDOG = "watchdog"
         const val KEY_NETWORK_HEARTBEAT = "network_heartbeat"
 
