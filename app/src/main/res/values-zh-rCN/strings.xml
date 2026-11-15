@@ -744,6 +744,8 @@
     <string name="feature_chat_footer_hooks_description">集中提供聊天输入栏相关钩子</string>
     <string name="feature_chat_toolbar_name">聊天工具栏</string>
     <string name="feature_chat_toolbar_description">在输入框上方添加工具栏</string>
+    <string name="feature_background_message_refresh_name">后台刷新消息</string>
+    <string name="feature_background_message_refresh_description">微信在后台时也让消息推送交由主进程处理，新消息会正常写入并刷新会话与通知，而不是只弹一条轻量通知</string>
     <string name="feature_conversation_aggregation_name">对话归拢</string>
     <string name="feature_conversation_aggregation_description">将多个对话归拢在一个文件夹内\n设置对话头像需同时启用「自定义好友本地头像」</string>
     <string name="feature_conversation_grouping_name">对话分组</string>

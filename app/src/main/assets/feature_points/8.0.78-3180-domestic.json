@@ -1403,6 +1403,13 @@
                 "classGiftServiceImpl": "i20.k1",
                 "ctorGiftTask": "Li20/j1;-><init>(Li20/k1;Lcom/tencent/mm/storage/e9;)V"
             }
+        },
+        {
+            "technicalId": "后台刷新消息",
+            "descriptors": {
+                "methodShouldUseLightPush": "Lcom/tencent/mm/booter/m;->c()Z",
+                "methodShouldLaunchToMain": "Lvu1/q0;->bj(Lpc5/k4;Ljava/util/Map;Lcom/tencent/mm/pointers/PString;)Z"
+            }
         }
     ]
 }

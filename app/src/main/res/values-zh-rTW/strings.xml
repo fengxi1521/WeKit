@@ -720,6 +720,8 @@
     <string name="feature_chat_footer_hooks_description">集中提供聊天輸入欄相關鉤子</string>
     <string name="feature_chat_toolbar_name">聊天工具欄</string>
     <string name="feature_chat_toolbar_description">在輸入框上方添加工具欄</string>
+    <string name="feature_background_message_refresh_name">後台刷新訊息</string>
+    <string name="feature_background_message_refresh_description">微信在後台時也讓訊息推送交由主程序處理，新訊息會正常寫入並刷新會話與通知，而不是只彈一則輕量通知</string>
     <string name="feature_conversation_aggregation_name">對話歸攏</string>
     <string name="feature_conversation_aggregation_description">將多個對話歸攏在一個文件夾內\n設置對話頭像需同時啓用「自定義好友本地頭像」</string>
     <string name="feature_conversation_grouping_name">對話分組</string>
