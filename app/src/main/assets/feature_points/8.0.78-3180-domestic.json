@@ -1388,6 +1388,13 @@
             "descriptors": {
                 "methodSetChatBackground": "Lcom/tencent/mm/ui/chatting/component/v2;->y0()V"
             }
+        },
+        {
+            "technicalId": "后台刷新消息",
+            "descriptors": {
+                "methodShouldUseLightPush": "Lcom/tencent/mm/booter/m;->c()Z",
+                "methodShouldLaunchToMain": "Lvu1/q0;->bj(Lpc5/k4;Ljava/util/Map;Lcom/tencent/mm/pointers/PString;)Z"
+            }
         }
     ]
 }

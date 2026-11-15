@@ -3,6 +3,8 @@ package com.xiao.feng.utils
 import android.app.ActivityManager
 import android.os.Process
 import com.xiao.feng.utils.android.getSystemService
+import java.io.BufferedReader
+import java.io.FileReader
 
 enum class TargetProcess {
     MAIN,
@@ -40,20 +42,30 @@ object TargetProcesses {
     val isInMain get() = currentType == TargetProcess.MAIN
 
     val currentName by lazy {
-        var retry = 0
-        do {
-            runCatching {
-                val ctx = HostInfo.application
-                val am = ctx.getSystemService<ActivityManager>()
-                val myPid = Process.myPid()
+        // /proc/self/cmdline 在进程 fork 时就已确定, 不依赖 AMS 查询, 也不会在启动竞态下
+        // 退化成 "unknown" (退化成 unknown 会被当成主进程, 让 :push 里的功能全部判错)。
+        readCmdlineName() ?: run {
+            var retry = 0
+            do {
+                runCatching {
+                    val ctx = HostInfo.application
+                    val am = ctx.getSystemService<ActivityManager>()
+                    val myPid = Process.myPid()
 
-                val name = am.runningAppProcesses?.find { it?.pid == myPid }?.processName
-                if (name != null) return@lazy name
-            }.onFailure { WeLogger.e("TargetProcesses", "failed to get current process name", it) }
-            retry++
-        } while (retry < 3)
-        "unknown"
+                    val name = am.runningAppProcesses?.find { it?.pid == myPid }?.processName
+                    if (name != null) return@run name
+                }.onFailure { WeLogger.e("TargetProcesses", "failed to get current process name", it) }
+                retry++
+            } while (retry < 3)
+            "unknown"
+        }
     }
+
+    private fun readCmdlineName(): String? = runCatching {
+        BufferedReader(FileReader("/proc/self/cmdline")).use { reader ->
+            reader.readLine()?.trim { it <= ' ' }?.takeIf { it.isNotEmpty() }
+        }
+    }.getOrNull()
 
     val currentType by lazy {
         val name = currentName
