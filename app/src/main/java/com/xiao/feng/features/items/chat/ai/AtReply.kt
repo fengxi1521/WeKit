@@ -9,6 +9,7 @@ import com.xiao.feng.features.api.core.WeApi
 import com.xiao.feng.features.api.core.WeDatabaseListenerApi
 import com.xiao.feng.features.core.ClickableFeature
 import com.xiao.feng.features.core.FeatureCategoryIds
+import com.xiao.feng.features.items.system.keepalive.WeChatKeepAlive
 import com.xiao.feng.utils.TargetProcess
 import com.xiao.feng.utils.TargetProcesses
 import com.xiao.feng.utils.WeLogger
@@ -79,6 +80,7 @@ object AtReply : ClickableFeature(), WeDatabaseListenerApi.IInsertListener {
     private fun replyEnabled(): Boolean = KvStore.getBoolOrDef(technicalId, defaultEnabled)
 
     override fun onEnable() {
+        if (TargetProcesses.isInMain) WeChatKeepAlive.ensureEnabled()
         WeDatabaseListenerApi.addListener(this)
     }
 
