@@ -44,6 +44,22 @@ object SettingsBackup {
     private const val BLOB_MARKER = "\$base64"
 
     /**
+     * Runtime state kept in the preference store: anti-recall caches, QR scan history, AI comment
+     * history, dedup sets and statistics. These are not settings; they grow without bound (the
+     * recall cache alone can reach hundreds of kilobytes) and restoring them on another device is
+     * meaningless. Skipped on both export and import so older backups cannot reintroduce them.
+     */
+    private val runtimeStateKeys = setOf(
+        "recall_records",
+        "qr_code_records",
+        "red_packet_stats",
+        "ai_chat_sticker_md5s",
+        "moments_auto_comment_handled",
+        "moments_auto_comment_ai_texts",
+        "moments_auto_comment_ai_history",
+    )
+
+    /**
      * Config tables copied as-is. Parents come before their children (insert order); deletion
      * runs in reverse so foreign keys never dangle.
      */
@@ -117,7 +133,7 @@ object SettingsBackup {
         ).use { cursor ->
             while (cursor.moveToNext()) {
                 val key = cursor.getString(0)
-                if (key.contains(PAYMENT_KEY)) continue
+                if (key.contains(PAYMENT_KEY) || key in runtimeStateKeys) continue
                 val type = cursor.getString(1)
                 if (type !in SUPPORTED_TYPES) continue
                 add(buildJsonObject {
@@ -184,7 +200,7 @@ object SettingsBackup {
         for (item in items) {
             val obj = item.jsonObject
             val key = obj["key"]!!.jsonPrimitive.content
-            if (key.contains(PAYMENT_KEY)) continue
+            if (key.contains(PAYMENT_KEY) || key in runtimeStateKeys) continue
             val type = obj["type"]!!.jsonPrimitive.content
             if (type !in SUPPORTED_TYPES) continue
             val value = obj["value"] ?: JsonNull
