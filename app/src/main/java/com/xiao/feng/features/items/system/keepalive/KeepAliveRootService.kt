@@ -63,9 +63,20 @@ class KeepAliveRootService : Service() {
         val data = message.data
         val doze = data.getBoolean(KEY_DOZE)
         val appOps = data.getBoolean(KEY_APP_OPS)
-        val foregroundService = data.getBoolean(KEY_FOREGROUND_SERVICE)
-        val watchdog = data.getBoolean(KEY_WATCHDOG)
-        val heartbeat = data.getBoolean(KEY_HEARTBEAT)
+        // 模块主页面上的开关优先: 用户在模块 App 里配置后, 微信进程同步上来的旧值不能把它覆盖掉。
+        val modulePrefs = WeChatKeepAliveService.prefs(this)
+        val moduleOwned = modulePrefs.getBoolean(WeChatKeepAliveService.KEY_MODULE_OWNED, false)
+        val foregroundService = moduleOwned || data.getBoolean(KEY_FOREGROUND_SERVICE)
+        val watchdog = if (moduleOwned) {
+            modulePrefs.getBoolean(WeChatKeepAliveService.KEY_WATCHDOG, true)
+        } else {
+            data.getBoolean(KEY_WATCHDOG)
+        }
+        val heartbeat = if (moduleOwned) {
+            modulePrefs.getBoolean(WeChatKeepAliveService.KEY_NETWORK_HEARTBEAT, true)
+        } else {
+            data.getBoolean(KEY_HEARTBEAT)
+        }
         val reply = message.replyTo
         executor.execute {
             val status = KeepAliveRootCommands.applyAndProbe(doze, appOps)

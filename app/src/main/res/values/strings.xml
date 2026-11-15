@@ -49,6 +49,8 @@
     <string name="module_app_open_wechat_failed">Unable to open WeChat (package: %1$s)</string>
     <string name="module_app_open_settings_title">Open module settings</string>
     <string name="module_app_open_settings_summary">Open the module settings inside WeChat</string>
+    <string name="module_app_keep_alive_title">WeChat background keep-alive</string>
+    <string name="module_app_keep_alive_summary">Foreground service and wake lock; restarts WeChat with root after it is killed so background messages keep refreshing</string>
     <string name="module_app_export_settings_title">Export configuration</string>
     <string name="module_app_export_settings_summary">Save feature switches and their options as JSON</string>
     <string name="module_app_import_settings_title">Import configuration</string>

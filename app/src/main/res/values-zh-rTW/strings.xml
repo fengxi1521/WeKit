@@ -38,6 +38,8 @@
     <string name="module_app_open_wechat_failed">無法打開微信 (包名: %1$s)</string>
     <string name="module_app_open_settings_title">打開模塊設置</string>
     <string name="module_app_open_settings_summary">打開微信內的模塊設置</string>
+    <string name="module_app_keep_alive_title">微信後台保活</string>
+    <string name="module_app_keep_alive_summary">前台服務與喚醒鎖，微信被殺後用 root 拉起，讓後台訊息持續刷新</string>
     <string name="module_app_export_settings_title">導出配置</string>
     <string name="module_app_export_settings_summary">將功能開關與各項設置保存為 JSON 文件</string>
     <string name="module_app_import_settings_title">導入配置</string>

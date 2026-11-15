@@ -6,6 +6,7 @@ import android.os.PowerManager
 import com.xiao.feng.constants.PackageNames
 import com.xiao.feng.utils.HostInfo
 import com.xiao.feng.utils.WeLogger
+import com.xiao.feng.utils.android.androidUserId
 
 /**
  * Applies the 微信强保活 options from the WeChat process.
@@ -145,18 +146,50 @@ object WeChatKeepAliveRuntime {
     }
 
     private fun launchWeChatIfNeeded(context: Context) {
+        if (isWeChatProcessAlive()) return
+        // Android 10+ 禁止后台 App 启动界面, 模块 App 自己 startActivity 基本都会被拦;
+        // 有 root 时改由 root shell 拉起, 才能真的把主进程叫醒。
+        if (KeepAliveRootCommands.isRootAvailable()) {
+            val user = androidUserId
+            // 优先只拉起主进程的常驻服务, 避免每次保活都把微信界面弹到前台。
+            if (KeepAliveRootCommands.run(
+                    "am start-foreground-service --user $user -n " +
+                            "${PackageNames.WECHAT}/com.tencent.mm.booter.CoreService",
+                )
+            ) {
+                return
+            }
+            // 拉起界面会抢焦点, 只在息屏时兜底, 避免用户正在用别的 App 时突然跳出微信。
+            val interactive = runCatching {
+                (context.getSystemService(Context.POWER_SERVICE) as PowerManager).isInteractive
+            }.getOrDefault(true)
+            if (!interactive) {
+                KeepAliveRootCommands.run(
+                    "am start --user $user -n ${PackageNames.WECHAT}/${PackageNames.WECHAT}.ui.LauncherUI",
+                )
+            }
+            return
+        }
         runCatching {
-            if (isWeChatProcessAlive()) return
             val intent = context.packageManager.getLaunchIntentForPackage(PackageNames.WECHAT) ?: return
             intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             context.startActivity(intent)
         }.onFailure { WeLogger.e(TAG, "failed to relaunch WeChat", it) }
     }
 
-    private fun isWeChatProcessAlive(): Boolean = runCatching {
-        val process = ProcessBuilder("sh", "-c", "pidof ${PackageNames.WECHAT}")
-            .redirectErrorStream(true)
-            .start()
-        process.waitFor() == 0
-    }.getOrDefault(false)
+    /**
+     * The module app cannot see other UIDs' processes on Android 10+, so plain `pidof` always
+     * reports WeChat as dead. With root, ask the shell instead.
+     */
+    private fun isWeChatProcessAlive(): Boolean {
+        if (KeepAliveRootCommands.isRootAvailable()) {
+            return KeepAliveRootCommands.run("pidof ${PackageNames.WECHAT}")
+        }
+        return runCatching {
+            val process = ProcessBuilder("sh", "-c", "pidof ${PackageNames.WECHAT}")
+                .redirectErrorStream(true)
+                .start()
+            process.waitFor() == 0
+        }.getOrDefault(false)
+    }
 }

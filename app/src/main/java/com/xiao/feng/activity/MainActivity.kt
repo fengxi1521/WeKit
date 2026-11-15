@@ -1,13 +1,16 @@
 package com.xiao.feng.activity
 
+import android.Manifest
 import android.content.ComponentName
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.ActivityResultLauncher
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.StringRes
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -33,6 +36,7 @@ import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TopAppBarDefaults
@@ -66,6 +70,8 @@ import com.xiao.feng.BuildConfig
 import com.xiao.feng.R
 import com.xiao.feng.activity.settings.SettingsConfigActions
 import com.xiao.feng.constants.PackageNames
+import com.xiao.feng.features.items.system.keepalive.KeepAliveRootCommands
+import com.xiao.feng.features.items.system.keepalive.WeChatKeepAliveService
 import com.xiao.feng.i18n.LocaleResourceMode
 import com.xiao.feng.i18n.LocalXiaoFengLocalizedContext
 import com.xiao.feng.i18n.LocalizedContextFactory
@@ -101,6 +107,41 @@ class MainActivity : ComponentActivity() {
     }
 
     private val selectFileLauncher = registerBshSnapshotDecompileLaunchers()
+
+    private val notificationPermissionLauncher =
+        registerForActivityResult(ActivityResultContracts.RequestPermission()) {}
+
+    /**
+     * 由模块 App 自己持有微信保活开关: 只有模块 App 的 UID 能拿到 root, 微信进程调用 `su`
+     * 只会弹出「是否授予微信 root」. 因此 root 白名单、前台服务都从这里启动.
+     */
+    private fun applyKeepAlive(enabled: Boolean) {
+        WeChatKeepAliveService.prefs(this).edit()
+            .putBoolean(WeChatKeepAliveService.KEY_MODULE_OWNED, enabled)
+            .putBoolean(WeChatKeepAliveService.KEY_WATCHDOG, true)
+            .putBoolean(WeChatKeepAliveService.KEY_NETWORK_HEARTBEAT, true)
+            .apply()
+        if (enabled && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+            checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
+        ) {
+            notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+        }
+        Thread {
+            if (enabled) {
+                if (Shell.isAppGrantedRoot() == true) {
+                    KeepAliveRootCommands.applyDozeWhitelist()
+                    KeepAliveRootCommands.applyBackgroundAppOps()
+                }
+                runCatching { WeChatKeepAliveService.start(this, true, true) }
+                    .onFailure { WeLogger.e("MainActivity", "failed to start keep-alive service", it) }
+            } else {
+                runCatching { WeChatKeepAliveService.stop(this) }
+            }
+        }.apply {
+            name = "XiaoFeng-ModuleKeepAlive"
+            isDaemon = true
+        }.start()
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -316,6 +357,12 @@ class MainActivity : ComponentActivity() {
         var showNoRootDialog by remember { mutableStateOf(false) }
         var showModifyHostPkgNameDialog by remember { mutableStateOf(false) }
         var shortcutError by remember { mutableStateOf<String?>(null) }
+        var keepAliveEnabled by remember {
+            mutableStateOf(
+                WeChatKeepAliveService.prefs(this)
+                    .getBoolean(WeChatKeepAliveService.KEY_MODULE_OWNED, false),
+            )
+        }
 
         var isLauncherIconEnabled by remember {
             mutableStateOf(
@@ -617,6 +664,48 @@ class MainActivity : ComponentActivity() {
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
+                    }
+                }
+
+                ElevatedCard(
+                    onClick = {
+                        val next = !keepAliveEnabled
+                        keepAliveEnabled = next
+                        applyKeepAlive(next)
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(24.dp),
+                ) {
+                    Row(
+                        modifier = Modifier.padding(16.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = MaterialSymbols.Outlined.Sync,
+                            contentDescription = null,
+                            modifier = Modifier.size(24.dp),
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                        Spacer(modifier = Modifier.width(16.dp))
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = stringResource(R.string.module_app_keep_alive_title),
+                                style = MaterialTheme.typography.titleMedium,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                            Text(
+                                text = stringResource(R.string.module_app_keep_alive_summary),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        Switch(
+                            checked = keepAliveEnabled,
+                            onCheckedChange = { next ->
+                                keepAliveEnabled = next
+                                applyKeepAlive(next)
+                            },
+                        )
                     }
                 }
 

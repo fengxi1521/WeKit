@@ -75,6 +75,14 @@ class WeChatKeepAliveService : Service() {
         const val EXTRA_WATCHDOG = "com.xiao.feng.extra.KEEP_ALIVE_WATCHDOG"
         const val EXTRA_NETWORK_HEARTBEAT = "com.xiao.feng.extra.KEEP_ALIVE_NETWORK_HEARTBEAT"
 
+        /** Module-app side switch: when the user controls keep-alive here, the host must not override it. */
+        const val PREFS_NAME = "wechat_keep_alive"
+        const val KEY_MODULE_OWNED = "module_owned"
+        const val KEY_WATCHDOG = "watchdog"
+        const val KEY_NETWORK_HEARTBEAT = "network_heartbeat"
+
+        fun prefs(context: Context) = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+
         fun start(context: Context, watchdog: Boolean, networkHeartbeat: Boolean) {
             val intent = Intent(context, WeChatKeepAliveService::class.java).apply {
                 putExtra(EXTRA_WATCHDOG, watchdog)
