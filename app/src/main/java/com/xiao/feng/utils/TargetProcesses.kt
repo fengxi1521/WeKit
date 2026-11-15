@@ -3,6 +3,8 @@ package com.xiao.feng.utils
 import android.app.ActivityManager
 import android.os.Process
 import com.xiao.feng.utils.android.getSystemService
+import java.io.BufferedReader
+import java.io.FileReader
 
 enum class TargetProcess {
     MAIN,
@@ -40,9 +42,9 @@ object TargetProcesses {
     val isInMain get() = currentType == TargetProcess.MAIN
 
     val currentName by lazy {
-        // API 28+ 由系统在 fork 时保存进程名, 不依赖 AMS 查询, 也不会在启动竞态下退化成 "unknown"
-        // (退化成 unknown 会被当成主进程, 让 :push 里的功能全部判错)。
-        HostInfo.application.processName?.takeIf { it.isNotEmpty() } ?: run {
+        // /proc/self/cmdline 在进程 fork 时就已确定, 不依赖 AMS 查询, 也不会在启动竞态下
+        // 退化成 "unknown" (退化成 unknown 会被当成主进程, 让 :push 里的功能全部判错)。
+        readCmdlineName() ?: run {
             var retry = 0
             do {
                 runCatching {
@@ -99,4 +101,10 @@ object TargetProcesses {
             }
         }
     }
+
+    private fun readCmdlineName(): String? = runCatching {
+        BufferedReader(FileReader("/proc/self/cmdline")).use { reader ->
+            reader.readLine()?.trim { it <= ' ' }?.takeIf { it.isNotEmpty() }
+        }
+    }.getOrNull()
 }
