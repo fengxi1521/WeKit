@@ -9,7 +9,9 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -18,9 +20,12 @@ import androidx.compose.ui.res.stringResource
 import com.xiao.feng.R
 import com.xiao.feng.ui.content.AlertDialogContent
 import com.xiao.feng.ui.content.TextButton
+import com.xiao.feng.ui.content.m3.BaseWidget
 import com.xiao.feng.ui.content.m3.SegmentedColumn
 import com.xiao.feng.ui.content.m3.SwitchWidget
 import com.xiao.feng.ui.utils.showComposeDialog
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 private fun applyIfEnabled() {
     if (WeChatKeepAlive.isEnabled) WeChatKeepAliveRuntime.start()
@@ -33,6 +38,22 @@ private fun openBatteryOptimizationSettings(context: Context) {
 }
 
 @Composable
+private fun rootStatusDescription(status: WeChatKeepAliveRuntime.RootStatus?): String {
+    if (status == null) return stringResource(R.string.wechat_keep_alive_root_status_checking)
+    if (!status.rootAvailable) return stringResource(R.string.wechat_keep_alive_root_status_no_root)
+    if (status.dozeWhitelisted && status.backgroundAllowed) {
+        return stringResource(R.string.wechat_keep_alive_root_status_ok)
+    }
+    val active = stringResource(R.string.wechat_keep_alive_root_status_active)
+    val inactive = stringResource(R.string.wechat_keep_alive_root_status_inactive)
+    return stringResource(
+        R.string.wechat_keep_alive_root_status_partial,
+        if (status.dozeWhitelisted) active else inactive,
+        if (status.backgroundAllowed) active else inactive,
+    )
+}
+
+@Composable
 private fun WeChatKeepAliveDialogContent(context: ComponentActivity, onDismiss: () -> Unit) {
     var foregroundService by remember { mutableStateOf(WeChatKeepAlive.foregroundService) }
     var wakeLock by remember { mutableStateOf(WeChatKeepAlive.wakeLock) }
@@ -40,6 +61,15 @@ private fun WeChatKeepAliveDialogContent(context: ComponentActivity, onDismiss: 
     var networkHeartbeat by remember { mutableStateOf(WeChatKeepAlive.networkHeartbeat) }
     var rootDozeWhitelist by remember { mutableStateOf(WeChatKeepAlive.rootDozeWhitelist) }
     var rootAppOps by remember { mutableStateOf(WeChatKeepAlive.rootAppOps) }
+
+    // Root commands run through su, so the result is probed off the main thread every time the
+    // dialog opens or the status row is tapped.
+    var rootStatus by remember { mutableStateOf<WeChatKeepAliveRuntime.RootStatus?>(null) }
+    var rootStatusRevision by remember { mutableIntStateOf(0) }
+    LaunchedEffect(rootStatusRevision) {
+        rootStatus = null
+        rootStatus = withContext(Dispatchers.IO) { WeChatKeepAliveRuntime.reapplyAndVerifyRootOptions() }
+    }
 
     AlertDialogContent(
         title = { Text(stringResource(R.string.wechat_keep_alive_settings_title)) },
@@ -116,6 +146,13 @@ private fun WeChatKeepAliveDialogContent(context: ComponentActivity, onDismiss: 
                                 WeChatKeepAlive.rootAppOps = it
                                 applyIfEnabled()
                             },
+                        )
+                    }
+                    item {
+                        BaseWidget(
+                            title = stringResource(R.string.wechat_keep_alive_root_status_title),
+                            description = rootStatusDescription(rootStatus),
+                            onClick = { rootStatusRevision++ },
                         )
                     }
                 }

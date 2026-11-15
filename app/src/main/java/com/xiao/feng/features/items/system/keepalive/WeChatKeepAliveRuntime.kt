@@ -6,6 +6,7 @@ import android.os.PowerManager
 import com.xiao.feng.constants.PackageNames
 import com.xiao.feng.utils.HostInfo
 import com.xiao.feng.utils.WeLogger
+import java.util.concurrent.TimeUnit
 
 /**
  * Applies the 微信强保活 options from the WeChat process.
@@ -21,6 +22,23 @@ object WeChatKeepAliveRuntime {
     private const val WAKE_LOCK_TAG = "XiaoFeng:WeChatKeepAlive"
     private const val HEARTBEAT_URL = "https://connectivitycheck.gstatic.com/generate_204"
     private const val HEARTBEAT_TIMEOUT_MS = 3000
+
+    /** su prompts for permission on the first run; do not block the probe forever if unanswered. */
+    private const val ROOT_COMMAND_TIMEOUT_SECONDS = 10L
+
+    private val BACKGROUND_APP_OPS = listOf(
+        "RUN_ANY_IN_BACKGROUND",
+        "RUN_IN_BACKGROUND",
+        "WAKE_LOCK",
+        "START_FOREGROUND",
+    )
+
+    /** What the device actually reports after the root commands run, so the UI can show it. */
+    data class RootStatus(
+        val rootAvailable: Boolean,
+        val dozeWhitelisted: Boolean,
+        val backgroundAllowed: Boolean,
+    )
 
     private var wakeLock: PowerManager.WakeLock? = null
 
@@ -52,6 +70,26 @@ object WeChatKeepAliveRuntime {
     fun stop() {
         releaseWakeLock()
         moduleContext(HostInfo.application)?.let(::stopService)
+    }
+
+    /**
+     * Re-applies the enabled root whitelists and reads the result back from the system. The
+     * settings dialog calls this when it opens and when the status row is tapped, so "did root
+     * work" becomes something the UI shows instead of something the user has to guess.
+     */
+    fun reapplyAndVerifyRootOptions(): RootStatus {
+        if (!runRootCommand("id")) return RootStatus(false, false, false)
+        if (WeChatKeepAlive.rootDozeWhitelist) {
+            runRootCommand("cmd deviceidle whitelist +${PackageNames.WECHAT}")
+        }
+        if (WeChatKeepAlive.rootAppOps) {
+            BACKGROUND_APP_OPS.forEach { runRootCommand("cmd appops set ${PackageNames.WECHAT} $it allow") }
+        }
+        val doze = runRootCommandOutput("dumpsys deviceidle whitelist").contains(PackageNames.WECHAT)
+        val background =
+            runRootCommandOutput("cmd appops get ${PackageNames.WECHAT} RUN_ANY_IN_BACKGROUND")
+                .contains("allow", ignoreCase = true)
+        return RootStatus(true, doze, background)
     }
 
     /**
@@ -154,12 +192,7 @@ object WeChatKeepAliveRuntime {
         if (rootAppOpsApplied) return
         rootAppOpsApplied = true
         Thread {
-            val commands = listOf(
-                "cmd appops set ${PackageNames.WECHAT} RUN_ANY_IN_BACKGROUND allow",
-                "cmd appops set ${PackageNames.WECHAT} RUN_IN_BACKGROUND allow",
-                "cmd appops set ${PackageNames.WECHAT} WAKE_LOCK allow",
-                "cmd appops set ${PackageNames.WECHAT} START_FOREGROUND allow",
-            )
+            val commands = BACKGROUND_APP_OPS.map { "cmd appops set ${PackageNames.WECHAT} $it allow" }
             if (!commands.all(::runRootCommand)) {
                 WeLogger.e(TAG, "failed to allow WeChat background AppOps")
             }
@@ -173,8 +206,23 @@ object WeChatKeepAliveRuntime {
         val process = ProcessBuilder("su", "-c", command)
             .redirectErrorStream(true)
             .start()
-        process.waitFor() == 0
+        if (!process.waitFor(ROOT_COMMAND_TIMEOUT_SECONDS, TimeUnit.SECONDS)) {
+            process.destroy()
+            return@runCatching false
+        }
+        process.exitValue() == 0
     }.getOrDefault(false)
+
+    private fun runRootCommandOutput(command: String): String = runCatching {
+        val process = ProcessBuilder("su", "-c", command)
+            .redirectErrorStream(true)
+            .start()
+        if (!process.waitFor(ROOT_COMMAND_TIMEOUT_SECONDS, TimeUnit.SECONDS)) {
+            process.destroy()
+            return@runCatching ""
+        }
+        process.inputStream.bufferedReader().use { it.readText() }
+    }.getOrDefault("")
 
     private fun launchWeChatIfNeeded(context: Context) {
         runCatching {

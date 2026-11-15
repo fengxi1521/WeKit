@@ -1167,6 +1167,13 @@
     <string name="wechat_keep_alive_root_doze_description">Add WeChat to the deviceidle whitelist with root</string>
     <string name="wechat_keep_alive_root_app_ops">Root background AppOps</string>
     <string name="wechat_keep_alive_root_app_ops_description">Allow WeChat’s background-related AppOps with root</string>
+    <string name="wechat_keep_alive_root_status_title">Root status</string>
+    <string name="wechat_keep_alive_root_status_checking">Checking… (tap to check again)</string>
+    <string name="wechat_keep_alive_root_status_no_root">Root permission not granted; the Doze whitelist and background AppOps were not applied</string>
+    <string name="wechat_keep_alive_root_status_ok">Applied: WeChat is on the Doze whitelist and background AppOps are allowed</string>
+    <string name="wechat_keep_alive_root_status_partial">Partly applied: Doze whitelist %1$s, background AppOps %2$s</string>
+    <string name="wechat_keep_alive_root_status_active">applied</string>
+    <string name="wechat_keep_alive_root_status_inactive">not applied</string>
     <string name="wechat_keep_alive_open_battery_settings">Open system battery optimization settings</string>
     <string name="wechat_keep_alive_service_channel">WeChat keep-alive</string>
     <string name="wechat_keep_alive_service_title">WeChat keep-alive is running</string>

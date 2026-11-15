@@ -1131,6 +1131,13 @@
     <string name="wechat_keep_alive_root_doze_description">有 Root 时把微信加入 deviceidle 白名单</string>
     <string name="wechat_keep_alive_root_app_ops">Root 后台限制放行</string>
     <string name="wechat_keep_alive_root_app_ops_description">有 Root 时放行微信后台运行相关 AppOps</string>
+    <string name="wechat_keep_alive_root_status_title">Root 状态</string>
+    <string name="wechat_keep_alive_root_status_checking">正在检测… (点击重新检测)</string>
+    <string name="wechat_keep_alive_root_status_no_root">未获得 Root 权限, Doze 白名单和后台放行都未生效</string>
+    <string name="wechat_keep_alive_root_status_ok">已生效: 微信已加入 Doze 白名单, 后台运行限制已放行</string>
+    <string name="wechat_keep_alive_root_status_partial">部分生效: Doze 白名单%1$s, 后台放行%2$s</string>
+    <string name="wechat_keep_alive_root_status_active">已生效</string>
+    <string name="wechat_keep_alive_root_status_inactive">未生效</string>
     <string name="wechat_keep_alive_open_battery_settings">打开系统电池优化设置</string>
     <string name="wechat_keep_alive_service_channel">微信保活</string>
     <string name="wechat_keep_alive_service_title">微信强保活运行中</string>
