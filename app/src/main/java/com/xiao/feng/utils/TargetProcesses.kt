@@ -40,19 +40,23 @@ object TargetProcesses {
     val isInMain get() = currentType == TargetProcess.MAIN
 
     val currentName by lazy {
-        var retry = 0
-        do {
-            runCatching {
-                val ctx = HostInfo.application
-                val am = ctx.getSystemService<ActivityManager>()
-                val myPid = Process.myPid()
+        // API 28+ 由系统在 fork 时保存进程名, 不依赖 AMS 查询, 也不会在启动竞态下退化成 "unknown"
+        // (退化成 unknown 会被当成主进程, 让 :push 里的功能全部判错)。
+        HostInfo.application.processName?.takeIf { it.isNotEmpty() } ?: run {
+            var retry = 0
+            do {
+                runCatching {
+                    val ctx = HostInfo.application
+                    val am = ctx.getSystemService<ActivityManager>()
+                    val myPid = Process.myPid()
 
-                val name = am.runningAppProcesses?.find { it?.pid == myPid }?.processName
-                if (name != null) return@lazy name
-            }.onFailure { WeLogger.e("TargetProcesses", "failed to get current process name", it) }
-            retry++
-        } while (retry < 3)
-        "unknown"
+                    val name = am.runningAppProcesses?.find { it?.pid == myPid }?.processName
+                    if (name != null) return@run name
+                }.onFailure { WeLogger.e("TargetProcesses", "failed to get current process name", it) }
+                retry++
+            } while (retry < 3)
+            "unknown"
+        }
     }
 
     val currentType by lazy {

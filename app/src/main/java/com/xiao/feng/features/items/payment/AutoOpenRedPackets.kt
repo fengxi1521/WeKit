@@ -88,6 +88,18 @@ object AutoOpenRedPackets : ClickableFeature(), WeDatabaseListenerApi.IInsertLis
     private val methodReceiveUnionOnGYNetEnd by dexMethod()
     private val methodOpenUnionOnGYNetEnd by dexMethod()
 
+    /**
+     * `com.tencent.mm.booter.m.c()` — 微信是否只把本次推送交给 LightPush 处理 (只弹通知,
+     * 不写消息库, 也不拉起主进程)。返回 false 时宿主回落到 push-to-main。
+     */
+    private val methodShouldUseLightPush by dexMethod()
+
+    /**
+     * `...LightPushServiceImpl.bj(...)` — NetPushSync 逐条消息判断「是否拉起主进程」的策略。
+     * 返回 true 时宿主取消 LightPush 并调用 `CoreService.f` 拉起主进程。
+     */
+    private val methodShouldLaunchToMain by dexMethod()
+
     private val currentRedPacketMap = ConcurrentHashMap<String, RedPacketInfo>()
 
     /** 已经发出领取请求的 sendId, 用于合并 insertMessage 与数据库两条检测路径, 避免重复发包。 */
@@ -137,6 +149,20 @@ object AutoOpenRedPackets : ClickableFeature(), WeDatabaseListenerApi.IInsertLis
         // 重复开启时先摘掉旧监听, 避免同一条消息被分发多次。
         WeDatabaseListenerApi.removeListener(this)
         WeDatabaseListenerApi.addListener(this)
+
+        // 微信被从最近任务划掉后进入「通知模式」: :push 用 LightPush 直接弹通知, 消息不写库、
+        // 也不拉起主进程, 后台红包因此完全检测不到 (用户感知为「后台收不到消息」)。
+        // 开启抢红包时强制这类推送回落到 push-to-main, 让主进程正常收消息并写库。
+        if (TargetProcesses.currentType == TargetProcess.PUSH) {
+            methodShouldUseLightPush.hookBefore {
+                if (!grabbingEnabled()) return@hookBefore
+                result = false
+            }
+            methodShouldLaunchToMain.hookBefore {
+                if (!grabbingEnabled()) return@hookBefore
+                result = true
+            }
+        }
 
         // 最早的检测点: 宿主把消息写进数据库之前就入队领取请求, 既比 insert hook 更早,
         // 也不受其它 insert 监听器耗时的影响。数据库监听保留为兜底。

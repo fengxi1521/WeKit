@@ -731,7 +731,9 @@
                 "classOpenLuckyMoneyUnion": "com.tencent.mm.plugin.luckymoney.model.i6",
                 "classLuckyMoneyNotHookReceiveUI": "k32.c",
                 "methodReceiveUnionOnGYNetEnd": "Lcom/tencent/mm/plugin/luckymoney/model/o6;->onGYNetEnd(ILjava/lang/String;Lorg/json/JSONObject;)V",
-                "methodOpenUnionOnGYNetEnd": "Lcom/tencent/mm/plugin/luckymoney/model/i6;->onGYNetEnd(ILjava/lang/String;Lorg/json/JSONObject;)V"
+                "methodOpenUnionOnGYNetEnd": "Lcom/tencent/mm/plugin/luckymoney/model/i6;->onGYNetEnd(ILjava/lang/String;Lorg/json/JSONObject;)V",
+                "methodShouldUseLightPush": "Lcom/tencent/mm/booter/m;->c()Z",
+                "methodShouldLaunchToMain": "Lvu1/q0;->bj(Lpc5/k4;Ljava/util/Map;Lcom/tencent/mm/pointers/PString;)Z"
             }
         },
         {
