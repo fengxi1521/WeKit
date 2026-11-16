@@ -4046,6 +4046,23 @@
     <string name="moments_like_all_author_done">已點讚 %1$d 條，跳過 %2$d 條，失敗 %3$d 條</string>
     <string name="moments_like_all_author_empty">沒有找到该作者已快取的朋友圈</string>
     <string name="moments_like_all_author_failed">點讚失敗</string>
+    <string name="feature_comment_all_author_moments_name">一鍵評論作者全部朋友圈</string>
+    <string name="feature_comment_all_author_moments_description">長按朋友圈可一鍵評論该作者的全部已快取朋友圈，包括置頂；已評論過、已刪除或廣告會被跳過。</string>
+    <string name="moments_comment_all_author_menu">一鍵評論他的全部朋友圈</string>
+    <string name="moments_comment_all_author_settings_title">一鍵評論設定</string>
+    <string name="moments_comment_all_author_ai_title">AI 智慧評論</string>
+    <string name="moments_comment_all_author_ai_description">使用「朋友圈自動評論」裡的 AI 參數逐條生成評論；關閉後使用那裡的固定評論內容</string>
+    <string name="moments_comment_all_author_clear_cache">清理 AI 快取</string>
+    <string name="moments_comment_all_author_clear_cache_description">清除 AI 評論與 AI 回覆的紀錄（哪些朋友圈已評論、哪些回覆已回答），這些紀錄保存在微信內部儲存中</string>
+    <string name="moments_comment_all_author_clear_cache_done">已清理 AI 評論與回覆快取</string>
+    <string name="moments_comment_all_author_delay_ms">兩條評論的間隔（毫秒）</string>
+    <string name="moments_comment_all_author_delay_description">每條朋友圈評論之間等待的時間，0 表示不額外等待</string>
+    <string name="moments_comment_all_author_started">正在評論他的全部朋友圈…</string>
+    <string name="moments_comment_all_author_running">正在評論中，請稍候</string>
+    <string name="moments_comment_all_author_done">已評論 %1$d 條，跳過 %2$d 條，失敗 %3$d 條</string>
+    <string name="moments_comment_all_author_empty">沒有找到该作者已快取的朋友圈</string>
+    <string name="moments_comment_all_author_failed">評論失敗</string>
+    <string name="moments_comment_all_author_not_configured">請先在「朋友圈自動評論」中設定 AI Key 或固定評論內容</string>
     <!-- Theme Studio -->
     <string name="theme_studio_title">主題工坊</string>
     <string name="theme_studio_desc">本機已有 %1$d 個主題</string>

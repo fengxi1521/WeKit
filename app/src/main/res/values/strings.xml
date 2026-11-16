@@ -4101,6 +4101,23 @@
     <string name="moments_like_all_author_settings_title">Like all settings</string>
     <string name="moments_like_all_author_delay_ms">Delay between likes (ms)</string>
     <string name="moments_like_all_author_delay_description">How long to wait between liking each Moment; 0 means no wait</string>
+    <string name="feature_comment_all_author_moments_name">Comment on all their Moments</string>
+    <string name="feature_comment_all_author_moments_description">Long-press a Moments post to comment on every cached Moment by its author, including pinned posts. Posts already commented on, deleted, or advertised are skipped.</string>
+    <string name="moments_comment_all_author_menu">Comment on all their Moments</string>
+    <string name="moments_comment_all_author_settings_title">Comment all settings</string>
+    <string name="moments_comment_all_author_ai_title">AI comments</string>
+    <string name="moments_comment_all_author_ai_description">Generate each comment with the AI settings of “Moments auto comment”. When off, its fixed comment text is used</string>
+    <string name="moments_comment_all_author_clear_cache">Clear AI cache</string>
+    <string name="moments_comment_all_author_clear_cache_description">Forget which Moments the AI commented on and which replies it already answered. These markers are stored inside WeChat</string>
+    <string name="moments_comment_all_author_clear_cache_done">AI comment and reply caches cleared</string>
+    <string name="moments_comment_all_author_delay_ms">Delay between comments (ms)</string>
+    <string name="moments_comment_all_author_delay_description">How long to wait between commenting on each Moment; 0 means no extra wait</string>
+    <string name="moments_comment_all_author_started">Commenting on all their Moments…</string>
+    <string name="moments_comment_all_author_running">Already commenting, please wait</string>
+    <string name="moments_comment_all_author_done">Commented on %1$d Moments, skipped %2$d, failed %3$d</string>
+    <string name="moments_comment_all_author_empty">No cached Moments found for this author</string>
+    <string name="moments_comment_all_author_failed">Failed to comment on their Moments</string>
+    <string name="moments_comment_all_author_not_configured">Configure the AI key or fixed comment text in “Moments auto comment” first</string>
     <!-- Theme Studio -->
     <string name="theme_studio_title">Theme Studio</string>
     <string name="theme_studio_desc">%1$d theme(s) stored on this device</string>

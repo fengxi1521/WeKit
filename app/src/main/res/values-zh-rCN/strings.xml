@@ -4133,6 +4133,23 @@
     <string name="moments_like_all_author_settings_title">一键点赞设置</string>
     <string name="moments_like_all_author_delay_ms">两次点赞的间隔（毫秒）</string>
     <string name="moments_like_all_author_delay_description">每条朋友圈点赞之间等待的时间，0 表示不等待</string>
+    <string name="feature_comment_all_author_moments_name">一键评论作者全部朋友圈</string>
+    <string name="feature_comment_all_author_moments_description">长按朋友圈可一键评论该作者的全部已缓存朋友圈，包括置顶；已评论过、已删除或广告会被跳过。</string>
+    <string name="moments_comment_all_author_menu">一键评论他的全部朋友圈</string>
+    <string name="moments_comment_all_author_settings_title">一键评论设置</string>
+    <string name="moments_comment_all_author_ai_title">AI 智能评论</string>
+    <string name="moments_comment_all_author_ai_description">使用「朋友圈自动评论」里的 AI 参数逐条生成评论；关闭后使用那里的固定评论内容</string>
+    <string name="moments_comment_all_author_clear_cache">清理 AI 缓存</string>
+    <string name="moments_comment_all_author_clear_cache_description">清除 AI 评论与 AI 回复的记录（哪些朋友圈已评论、哪些回复已回答），这些记录保存在微信内部存储中</string>
+    <string name="moments_comment_all_author_clear_cache_done">已清理 AI 评论与回复缓存</string>
+    <string name="moments_comment_all_author_delay_ms">两条评论的间隔（毫秒）</string>
+    <string name="moments_comment_all_author_delay_description">每条朋友圈评论之间等待的时间，0 表示不额外等待</string>
+    <string name="moments_comment_all_author_started">正在评论他的全部朋友圈…</string>
+    <string name="moments_comment_all_author_running">正在评论中，请稍候</string>
+    <string name="moments_comment_all_author_done">已评论 %1$d 条，跳过 %2$d 条，失败 %3$d 条</string>
+    <string name="moments_comment_all_author_empty">没有找到该作者已缓存的朋友圈</string>
+    <string name="moments_comment_all_author_failed">评论失败</string>
+    <string name="moments_comment_all_author_not_configured">请先在「朋友圈自动评论」中配置 AI Key 或固定评论内容</string>
     <!-- Theme Studio -->
     <string name="theme_studio_title">主题工坊</string>
     <string name="theme_studio_desc">本机已有 %1$d 个主题</string>

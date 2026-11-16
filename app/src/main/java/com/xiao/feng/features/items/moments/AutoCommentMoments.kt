@@ -546,13 +546,44 @@ object AutoCommentMoments : AutoMomentsBase() {
         savedHandledIds = handledSnsIds.toSet()
     }
 
-    private fun aiConfig() = AutoCommentAi.Config(
+    fun aiConfig() = AutoCommentAi.Config(
         apiKey = aiApiKey,
         baseUrl = aiBaseUrl,
         model = aiModel,
         persona = aiPersona,
         maxImages = aiMaxImages,
     )
+
+    /** 固定评论内容, 供「一键评论」在关闭 AI 时使用。 */
+    fun fixedCommentText(): String = commentText
+
+    /** 记录别处(一键评论)发出的评论, 让 AI 回复仍能认出并继续回复。 */
+    fun rememberPostedComment(snsKey: String, text: String) = rememberAiComment(snsKey, text)
+
+    /** 记录已处理的朋友圈, 避免自动评论对同一条再发一次。 */
+    fun markCommentHandled(snsTableId: String) = rememberHandled(snsTableId)
+
+    /**
+     * 清空 AI 评论 / AI 回复的持久化缓存及内存镜像。
+     *
+     * 这些标记保存在 KvStore(即微信内部存储)中, 清理后模块会忘记评论过哪些朋友圈、
+     * 回复过哪些人, 相当于重新开始。
+     */
+    fun clearAiCaches() {
+        synchronized(aiReplyLock) {
+            aiCommentTexts.clear()
+            aiCommentHistory.clear()
+            aiCommentIds.clear()
+            answeredReplies.clear()
+            savedAiCommentIds = ""
+            savedAnsweredReplies = emptySet()
+            persistAiCommentState()
+        }
+        handledSnsIds.clear()
+        lastAttemptAt.clear()
+        savedHandledIds = emptySet()
+        WeLogger.i(TAG, "cleared AI comment and reply caches")
+    }
 
     // ==================== Replies to our own AI comment ====================
 
