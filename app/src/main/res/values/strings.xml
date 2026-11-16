@@ -4313,6 +4313,8 @@
 
     <string name="feature_at_reply_name">Mention reply</string>
     <string name="feature_at_reply_description">When someone mentions me in a group, reply with AI based on what they said</string>
+    <string name="at_reply_auto_add_title">Auto-add new groups</string>
+    <string name="at_reply_auto_add_description">When you join a new group, add it to the target list automatically. Has no effect while the list is empty (all groups).</string>
     <string name="at_reply_switch_title">Enable mention reply</string>
     <string name="at_reply_switch_description">Reply automatically when mentioned; turn off to stop responding entirely</string>
     <string name="at_reply_targets_title">Groups</string>

@@ -49,6 +49,7 @@ object AtReply : ClickableFeature(), WeDatabaseListenerApi.IInsertListener {
     private const val KEY_TARGETS = "at_reply_targets"
     private const val KEY_DELAY = "at_reply_delay_seconds"
     private const val KEY_PERSONA = "at_reply_persona"
+    private const val KEY_AUTO_ADD_NEW_GROUPS = "at_reply_auto_add_new_groups"
 
     private const val TEXT_MESSAGE_TYPE = 1
     private const val REPLY_DEBOUNCE_MILLIS = 1_500L
@@ -61,6 +62,9 @@ object AtReply : ClickableFeature(), WeDatabaseListenerApi.IInsertListener {
 
     /** 单独的人设提示词; 留空表示沿用「AI 聊天」里的人格设定。 */
     var persona: String by prefOption(KEY_PERSONA, "")
+
+    /** 加入新的群聊时, 自动把它加进生效群聊列表。列表为空(全部群)时不生效。 */
+    var autoAddNewGroups: Boolean by prefOption(KEY_AUTO_ADD_NEW_GROUPS, false)
 
     private var scope = newScope()
     private val dedupKeys = LinkedHashMap<String, Unit>(MAX_DEDUP_KEYS, 0.75f, true)
@@ -92,6 +96,10 @@ object AtReply : ClickableFeature(), WeDatabaseListenerApi.IInsertListener {
     }
 
     override fun onInsert(table: String, values: ContentValues) {
+        if (table == "rcontact") {
+            handleNewContact(values)
+            return
+        }
         if (table != "message" || !replyEnabled()) return
         if ((values.getAsInteger("isSend") ?: 0) != 0) return
         if ((values.getAsInteger("type") ?: return) != TEXT_MESSAGE_TYPE) return
@@ -127,6 +135,20 @@ object AtReply : ClickableFeature(), WeDatabaseListenerApi.IInsertListener {
             }.getOrDefault(false)
             WeLogger.i(TAG, "at reply talker=$talker sender=$sender sent=$sent")
         }
+    }
+
+    /**
+     * 新加入的群聊会以一条 rcontact 记录出现。只在已经选了生效群聊(非全部)时才追加,
+     * 否则空集合代表「全部群聊」, 追加一个反而把范围缩成一个群。
+     */
+    private fun handleNewContact(values: ContentValues) {
+        if (!replyEnabled() || !autoAddNewGroups) return
+        val username = values.getAsString("username") ?: return
+        if (!username.isGroupChatWxId) return
+        val current = targets
+        if (current.isEmpty() || username in current) return
+        targets = current + username
+        WeLogger.i(TAG, "auto added new group to at-reply targets: $username")
     }
 
     private fun markDedup(key: String): Boolean = synchronized(dedupKeys) {

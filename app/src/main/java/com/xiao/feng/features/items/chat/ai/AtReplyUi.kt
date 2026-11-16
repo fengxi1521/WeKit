@@ -38,6 +38,7 @@ fun showAtReplyDialog(context: ComponentActivity) {
     showComposeDialog(context) {
         var enabled by remember { mutableStateOf(AtReply.isEnabled) }
         var targets by remember { mutableStateOf(AtReply.targets) }
+        var autoAddNewGroups by remember { mutableStateOf(AtReply.autoAddNewGroups) }
         var delayInput by remember { mutableIntStateOf(AtReply.replyDelaySeconds) }
         var personaInput by remember { mutableStateOf(AtReply.persona) }
         var groups by remember { mutableStateOf<List<IWeContact>>(emptyList()) }
@@ -63,6 +64,17 @@ fun showAtReplyDialog(context: ComponentActivity) {
                                 onCheckedChange = {
                                     enabled = it
                                     AtReply.applyToggle(it)
+                                },
+                            )
+                        }
+                        item {
+                            SwitchWidget(
+                                title = stringResource(R.string.at_reply_auto_add_title),
+                                description = stringResource(R.string.at_reply_auto_add_description),
+                                checked = autoAddNewGroups,
+                                onCheckedChange = {
+                                    autoAddNewGroups = it
+                                    AtReply.autoAddNewGroups = it
                                 },
                             )
                         }
