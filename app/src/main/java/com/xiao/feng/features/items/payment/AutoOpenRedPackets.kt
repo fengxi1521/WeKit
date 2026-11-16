@@ -105,9 +105,8 @@ object AutoOpenRedPackets : ClickableFeature(), WeDatabaseListenerApi.IInsertLis
     /** 已经发出领取请求的 sendId, 用于合并 insertMessage 与数据库两条检测路径, 避免重复发包。 */
     private val dispatchedSendIds = ConcurrentHashMap.newKeySet<String>()
 
-    /** 命中暂停关键词后的恢复时间点 (毫秒时间戳), 0 表示未暂停。 */
-    @Volatile
-    private var pausedUntil = 0L
+    /** 各会话命中暂停关键词后的恢复时间点; 暂停按会话隔离, 不会波及别的群。 */
+    private val pausedUntilByTalker = ConcurrentHashMap<String, Long>()
 
     private var scope = newScope()
 
@@ -166,12 +165,13 @@ object AutoOpenRedPackets : ClickableFeature(), WeDatabaseListenerApi.IInsertLis
 
         // 最早的检测点: 宿主把消息写进数据库之前就入队领取请求, 既比 insert hook 更早,
         // 也不受其它 insert 监听器耗时的影响。数据库监听保留为兜底。
+        // 真实到达的消息可能走 handleApiInsertMessage(Bb), 只挂 storageInsertMessage(yb) 会漏掉一部分;
+        // 两条插入路径都挂上, 重复命中由 dispatchedSendIds 合并, 不会重复发包。
         WeMessageApi.methodMsgInfoStorageInsertMessage.hookBefore {
-            if (!grabbingEnabled()) return@hookBefore
-            val msgInfo = MessageInfo(args[0]!!)
-            if (msgInfo.type?.isRedPacket == true) {
-                handleRedPacket(msgInfo)
-            }
+            detectInsertedMessage(args[0])
+        }
+        WeMessageApi.methodMsgInfoHandleApiInsertMessage.hookBefore {
+            detectInsertedMessage(args[0])
         }
 
         WePaymentApi.methodReceiveLuckyMoneyOnGYNetEnd.hookAfter {
@@ -228,6 +228,15 @@ object AutoOpenRedPackets : ClickableFeature(), WeDatabaseListenerApi.IInsertLis
         }
     }
 
+    /** 两条消息插入路径与数据库监听共用的检测入口。 */
+    private fun detectInsertedMessage(message: Any?) {
+        if (!grabbingEnabled()) return
+        val msgInfo = MessageInfo(message!!)
+        if (msgInfo.type?.isRedPacket == true) {
+            handleRedPacket(msgInfo)
+        }
+    }
+
     /** 新进群保护: 第一次见到的群写入“不抢红包”的会话规则, 之后可在群设置里手动打开。 */
     private fun handleNewContact(values: ContentValues) {
         if (!RedPacketSettings.blockNewGroups) return
@@ -260,7 +269,7 @@ object AutoOpenRedPackets : ClickableFeature(), WeDatabaseListenerApi.IInsertLis
             if (duration <= 0L) return
             if (!settings.pause.activeKeywords.matches(msgInfo.content)) return
 
-            pausedUntil = System.currentTimeMillis() + duration
+            pausedUntilByTalker[msgInfo.talker] = System.currentTimeMillis() + duration
             WeLogger.i(
                 TAG,
                 "paused grabbing for ${duration}ms after keyword message in ${msgInfo.talker}",
@@ -272,12 +281,12 @@ object AutoOpenRedPackets : ClickableFeature(), WeDatabaseListenerApi.IInsertLis
 
     private fun handleRedPacket(msgInfo: MessageInfo) {
         if (!grabbingEnabled()) return
-        if (System.currentTimeMillis() < pausedUntil) {
-            WeLogger.i(TAG, "skipping red packet: grabbing paused by keyword")
+        val talker = msgInfo.talker
+        if (System.currentTimeMillis() < pausedUntilFor(talker)) {
+            WeLogger.i(TAG, "skipping red packet in $talker: grabbing paused by keyword")
             return
         }
         try {
-            val talker = msgInfo.talker
             val content = msgInfo.content
             val isGroupChat = msgInfo.isInGroupChat
             val sender = msgInfo.sender
@@ -563,7 +572,16 @@ object AutoOpenRedPackets : ClickableFeature(), WeDatabaseListenerApi.IInsertLis
         scope.cancel()
         currentRedPacketMap.clear()
         dispatchedSendIds.clear()
-        pausedUntil = 0L
+        pausedUntilByTalker.clear()
+    }
+
+    private fun pausedUntilFor(talker: String): Long {
+        val until = pausedUntilByTalker[talker] ?: return 0L
+        if (until <= System.currentTimeMillis()) {
+            pausedUntilByTalker.remove(talker, until)
+            return 0L
+        }
+        return until
     }
 
     private fun newScope() = CoroutineScope(Dispatchers.IO + SupervisorJob())
