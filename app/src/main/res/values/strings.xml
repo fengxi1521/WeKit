@@ -514,6 +514,10 @@
     <string name="bot_chat_menu_group_off">%1$s: off in this group</string>
     <string name="bot_chat_menu_group_on_toast">%1$s enabled for this group</string>
     <string name="bot_chat_menu_group_off_toast">%1$s disabled for this group</string>
+    <string name="bot_chat_menu_title">Bots</string>
+    <string name="feature_chat_automation_menu_name">Chat automation menu</string>
+    <string name="feature_chat_automation_menu_description">Open red packet (global / per-chat) and mention reply settings from the long-press + menu</string>
+    <string name="red_packet_menu_entry">Red packet settings</string>
     <string name="feature_category_batch_title">Batch actions</string>
     <string name="feature_category_home_screen_menu_title">Home screen menu</string>
     <string name="feature_category_contact_details_title">Contact details</string>

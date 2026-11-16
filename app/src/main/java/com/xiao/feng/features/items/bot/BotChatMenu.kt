@@ -1,5 +1,14 @@
 package com.xiao.feng.features.items.bot
 
+import android.content.Context
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.material3.Text
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.dp
 import com.composables.icons.materialsymbols.MaterialSymbols
 import com.composables.icons.materialsymbols.outlined.Extension
 import com.xiao.feng.R
@@ -9,6 +18,11 @@ import com.xiao.feng.features.core.ApiFeature
 import com.xiao.feng.features.core.FeatureCategoryIds
 import com.xiao.feng.features.core.SwitchFeature
 import com.xiao.feng.features.items.chat.localizedChatString
+import com.xiao.feng.ui.content.AlertDialogContent
+import com.xiao.feng.ui.content.Button
+import com.xiao.feng.ui.content.m3.SegmentedColumn
+import com.xiao.feng.ui.content.m3.SwitchWidget
+import com.xiao.feng.ui.utils.showComposeDialog
 import com.xiao.feng.utils.android.showToast
 import com.xiao.feng.utils.strings.isGroupChatWxId
 
@@ -91,29 +105,57 @@ object BotChatMenu : ApiFeature() {
     private val menuProvider = WeChatInputBarMenuApi.IActionItemsProvider {
         val talker = WeCurrentConversationApi.value
         if (talker.isBlank() || !talker.isGroupChatWxId) return@IActionItemsProvider emptyList()
-        entries.map { entry ->
-            val enabled = entry.feature.isEnabled && entry.isEnabled(talker)
-            val name = localizedChatString(entry.nameRes)
+        listOf(
             WeChatInputBarMenuApi.ActionItem(
-                id = "bot_toggle_${entry.scriptId}",
+                id = "bot_toggle_menu",
                 icon = MaterialSymbols.Outlined.Extension,
-                label = localizedChatString(
-                    if (enabled) R.string.bot_chat_menu_group_on else R.string.bot_chat_menu_group_off,
-                    name,
-                ),
-                onClick = { context, _ ->
-                    val next = !enabled
-                    if (next) entry.feature.applyToggle(true)
-                    entry.setEnabled(talker, next)
-                    showToast(
-                        context,
-                        localizedChatString(
-                            if (next) R.string.bot_chat_menu_group_on_toast
-                            else R.string.bot_chat_menu_group_off_toast,
-                            name,
-                        ),
-                    )
+                label = localizedChatString(R.string.bot_chat_menu_title),
+                onClick = { context, _ -> showBotToggleDialog(context, talker) },
+            )
+        )
+    }
+
+    /** 六个内置机器人的本群开关收进同一个二级弹窗, 点开「机器人」后才显示。 */
+    private fun showBotToggleDialog(context: Context, talker: String) {
+        showComposeDialog(context) {
+            var revision by remember { mutableIntStateOf(0) }
+            AlertDialogContent(
+                title = { Text(stringResource(R.string.bot_chat_menu_title)) },
+                text = {
+                    SegmentedColumn(contentPadding = PaddingValues(0.dp)) {
+                        entries.forEach { entry ->
+                            item(key = entry.scriptId) {
+                                val name = stringResource(entry.nameRes)
+                                val enabled = remember(revision) {
+                                    entry.feature.isEnabled && entry.isEnabled(talker)
+                                }
+                                SwitchWidget(
+                                    title = name,
+                                    description = stringResource(
+                                        if (enabled) R.string.bot_chat_menu_group_on
+                                        else R.string.bot_chat_menu_group_off,
+                                        name,
+                                    ),
+                                    checked = enabled,
+                                    onCheckedChange = { next ->
+                                        if (next) entry.feature.applyToggle(true)
+                                        entry.setEnabled(talker, next)
+                                        revision++
+                                        showToast(
+                                            context,
+                                            localizedChatString(
+                                                if (next) R.string.bot_chat_menu_group_on_toast
+                                                else R.string.bot_chat_menu_group_off_toast,
+                                                name,
+                                            ),
+                                        )
+                                    },
+                                )
+                            }
+                        }
+                    }
                 },
+                confirmButton = { Button(onDismiss) { Text(stringResource(R.string.dialog_close)) } },
             )
         }
     }

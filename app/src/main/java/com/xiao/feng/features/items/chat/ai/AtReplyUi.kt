@@ -1,6 +1,6 @@
 package com.xiao.feng.features.items.chat.ai
 
-import androidx.activity.ComponentActivity
+import android.content.Context
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -34,7 +34,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
 /** 「艾特回复」设置: 开关、生效群聊、回复延迟。所有修改立即生效。 */
-fun showAtReplyDialog(context: ComponentActivity) {
+fun showAtReplyDialog(context: Context) {
     showComposeDialog(context) {
         var enabled by remember { mutableStateOf(AtReply.isEnabled) }
         var targets by remember { mutableStateOf(AtReply.targets) }

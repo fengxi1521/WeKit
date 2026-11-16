@@ -479,6 +479,10 @@
     <string name="bot_chat_menu_group_off">%1$s：本群已关闭</string>
     <string name="bot_chat_menu_group_on_toast">已在本群开启 %1$s</string>
     <string name="bot_chat_menu_group_off_toast">已在本群关闭 %1$s</string>
+    <string name="bot_chat_menu_title">机器人</string>
+    <string name="feature_chat_automation_menu_name">聊天自动化设置菜单</string>
+    <string name="feature_chat_automation_menu_description">在长按输入栏「+」菜单里随时打开抢红包配置（全局 / 单独会话）和艾特回复设置</string>
+    <string name="red_packet_menu_entry">抢红包配置</string>
     <string name="feature_category_batch_title">批量操作</string>
     <string name="feature_category_home_screen_menu_title">首页右上角菜单</string>
     <string name="feature_category_contact_details_title">联系人详情页面</string>
