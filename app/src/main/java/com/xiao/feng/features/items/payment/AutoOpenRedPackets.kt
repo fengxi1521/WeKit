@@ -350,7 +350,8 @@ object AutoOpenRedPackets : ClickableFeature(), WeDatabaseListenerApi.IInsertLis
                 headImg = headImg,
                 nickName = nickName,
                 notificationEnabled = settings.notification.enabled,
-                autoReply = settings.autoReply.pickText().orEmpty(),
+                // 开关关掉时不能再取文案: 文案会保留在配置里, pickText() 本身不看 enabled。
+                autoReply = if (settings.autoReply.enabled) settings.autoReply.pickText().orEmpty() else "",
                 autoReplyDelayMs = settings.autoReply.delayMillis(),
             )
             currentRedPacketMap[sendId] = info
