@@ -1,0 +1,4 @@
+2026-11-17 10:25:19.222 D/XiaoFeng WeLauncher: loading in process name=com.tencent.mm:xweb_privileged_process_0, type=OTHERS
+2026-11-17 10:25:19.280 D/XiaoFeng ResourcesInjector: successfully injected module resources
+2026-11-17 10:25:19.566 I/XiaoFeng FeaturePointsTable: loaded 135 bundled feature entries
+2026-11-17 10:25:19.570 I/XiaoFeng FeaturesLoader: loading all features took 110.729us
