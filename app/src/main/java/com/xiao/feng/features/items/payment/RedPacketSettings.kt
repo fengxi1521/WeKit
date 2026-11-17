@@ -114,6 +114,13 @@ object RedPacketSettings {
         }
     }
 
+    /** 红包个数过滤: 只抢不少于指定人数的红包, 关闭时不过滤。 */
+    @Serializable
+    data class SharesRule(
+        val enabled: Boolean = false,
+        val minShares: String = "2"
+    )
+
     /** 群里有人发出指定文字时, 暂停自动抢红包一段时间后自动恢复。 */
     @Serializable
     data class PauseRule(
@@ -132,6 +139,7 @@ object RedPacketSettings {
     data class RuleSet(
         val grab: AutomationToggleRule = AutomationToggleRule(enabled = true),
         val grabSelf: AutomationToggleRule = AutomationToggleRule(),
+        val minShares: SharesRule = SharesRule(),
         val receiveMode: ReceiveMode = ReceiveMode.NETWORK,
         val timeRange: AutomationTimeRangeRule = AutomationTimeRangeRule(),
         val keyword: AutomationKeywordRule = AutomationKeywordRule(),
@@ -160,6 +168,7 @@ object RedPacketSettings {
     data class RuleOverrides(
         val grab: AutomationToggleRule? = null,
         val grabSelf: AutomationToggleRule? = null,
+        val minShares: SharesRule? = null,
         val receiveMode: ReceiveMode? = null,
         val timeRange: AutomationTimeRangeRule? = null,
         val keyword: AutomationKeywordRule? = null,
@@ -174,6 +183,7 @@ object RedPacketSettings {
         fun overriddenCount(): Int = listOf(
             grab,
             grabSelf,
+            minShares,
             receiveMode,
             timeRange,
             keyword,
@@ -203,6 +213,7 @@ object RedPacketSettings {
     private enum class RuleKey {
         GRAB,
         GRAB_SELF,
+        MIN_SHARES,
         RECEIVE_MODE,
         TIME_RANGE,
         KEYWORD,
@@ -742,6 +753,53 @@ object RedPacketSettings {
                     )
                 }
 
+                item(key = "min_shares") {
+                    PaymentRuleRow(
+                        title = stringResource(R.string.payment_red_packet_min_shares),
+                        summary = if (rules.minShares.enabled) {
+                            stringResource(
+                                R.string.payment_red_packet_min_shares_summary,
+                                rules.minShares.minShares.ifBlank { "2" },
+                            )
+                        } else {
+                            stringResource(R.string.payment_red_packet_min_shares_unrestricted)
+                        },
+                        checked = rules.minShares.enabled,
+                        overridden = overridden(RuleKey.MIN_SHARES),
+                        parentLabel = parentLabel,
+                        onActivate = { onActivate(RuleKey.MIN_SHARES) },
+                        onReset = { onReset(RuleKey.MIN_SHARES) },
+                        onCheckedChange = {
+                            onChange(RuleKey.MIN_SHARES, rules.copy(minShares = rules.minShares.copy(enabled = it)))
+                        },
+                    )
+                }
+                item(key = "min_shares_value", animatedVisibility = rules.minShares.enabled) {
+                    val minSharesTitle = stringResource(R.string.payment_red_packet_min_shares_value)
+                    PaymentValueRow(
+                        title = minSharesTitle,
+                        value = rules.minShares.minShares,
+                        enabled = editable(RuleKey.MIN_SHARES),
+                        valueHint = "2",
+                        onClick = {
+                            onEditText(
+                                PaymentTextEditMode(
+                                    title = minSharesTitle,
+                                    initial = rules.minShares.minShares,
+                                    keyboardType = KeyboardType.Number,
+                                    filter = { it.filter(Char::isDigit).take(3) },
+                                    onCommit = {
+                                        onChange(
+                                            RuleKey.MIN_SHARES,
+                                            rules.copy(minShares = rules.minShares.copy(minShares = it)),
+                                        )
+                                    },
+                                )
+                            )
+                        },
+                    )
+                }
+
                 item(key = "receive_mode") {
                     PaymentModeRuleRow(
                         title = stringResource(R.string.payment_red_packet_receive_mode),
@@ -1134,6 +1192,7 @@ object RedPacketSettings {
         return copy(
             grab = overrides.grab ?: grab,
             grabSelf = overrides.grabSelf ?: grabSelf,
+            minShares = overrides.minShares ?: minShares,
             receiveMode = overrides.receiveMode ?: receiveMode,
             timeRange = overrides.timeRange ?: timeRange,
             keyword = overrides.keyword ?: keyword,
@@ -1148,6 +1207,7 @@ object RedPacketSettings {
     private fun RuleOverrides.keys(): Set<RuleKey> = buildSet {
         if (grab != null) add(RuleKey.GRAB)
         if (grabSelf != null) add(RuleKey.GRAB_SELF)
+        if (minShares != null) add(RuleKey.MIN_SHARES)
         if (receiveMode != null) add(RuleKey.RECEIVE_MODE)
         if (timeRange != null) add(RuleKey.TIME_RANGE)
         if (keyword != null) add(RuleKey.KEYWORD)
@@ -1161,6 +1221,7 @@ object RedPacketSettings {
     private fun RuleOverrides.withRule(key: RuleKey, rules: RuleSet): RuleOverrides = when (key) {
         RuleKey.GRAB -> copy(grab = rules.grab)
         RuleKey.GRAB_SELF -> copy(grabSelf = rules.grabSelf)
+        RuleKey.MIN_SHARES -> copy(minShares = rules.minShares)
         RuleKey.RECEIVE_MODE -> copy(receiveMode = rules.receiveMode)
         RuleKey.TIME_RANGE -> copy(timeRange = rules.timeRange)
         RuleKey.KEYWORD -> copy(keyword = rules.keyword)
@@ -1174,6 +1235,7 @@ object RedPacketSettings {
     private fun RuleOverrides.withoutRule(key: RuleKey): RuleOverrides = when (key) {
         RuleKey.GRAB -> copy(grab = null)
         RuleKey.GRAB_SELF -> copy(grabSelf = null)
+        RuleKey.MIN_SHARES -> copy(minShares = null)
         RuleKey.RECEIVE_MODE -> copy(receiveMode = null)
         RuleKey.TIME_RANGE -> copy(timeRange = null)
         RuleKey.KEYWORD -> copy(keyword = null)
@@ -1187,6 +1249,12 @@ object RedPacketSettings {
     private fun validate(context: Context, rules: RuleSet, keys: Set<RuleKey>? = null): String? {
         fun validates(key: RuleKey) = keys == null || key in keys
 
+        if (validates(RuleKey.MIN_SHARES) && rules.minShares.enabled) {
+            val minShares = rules.minShares.minShares.toIntOrNull()
+            if (minShares == null || minShares <= 0) {
+                return context.getString(R.string.payment_red_packet_min_shares_invalid)
+            }
+        }
         if (validates(RuleKey.DELAY) && rules.delay.enabled) {
             if (rules.delay.baseMs.toLongOrNull() == null) {
                 return context.getString(R.string.automation_invalid_base_delay)

@@ -3648,6 +3648,11 @@
     <string name="payment_red_packet_grab_self">抢自己的红包</string>
     <string name="payment_red_packet_grab_self_enabled">允许抢自己发出的红包</string>
     <string name="payment_red_packet_grab_self_disabled">跳过自己发出的红包</string>
+    <string name="payment_red_packet_min_shares">红包个数过滤</string>
+    <string name="payment_red_packet_min_shares_summary">只抢不少于 %1$s 个的红包</string>
+    <string name="payment_red_packet_min_shares_unrestricted">不限红包个数</string>
+    <string name="payment_red_packet_min_shares_value">最少个数</string>
+    <string name="payment_red_packet_min_shares_invalid">红包个数必须大于 0</string>
     <string name="payment_red_packet_receive_mode">领取方式</string>
     <string name="payment_red_packet_network_default">网络直发 (默认)</string>
     <string name="payment_red_packet_network">网络直发</string>

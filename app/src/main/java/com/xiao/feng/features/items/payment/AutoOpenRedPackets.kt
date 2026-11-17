@@ -331,6 +331,16 @@ object AutoOpenRedPackets : ClickableFeature(), WeDatabaseListenerApi.IInsertLis
                 return
             }
 
+            // 红包个数过滤: 消息 XML 里的 total_num 是发包总人数。取不到时不拦截, 避免误杀。
+            val totalShares = extractXmlParam(xmlContent, "total_num").toIntOrNull()
+            if (settings.minShares.enabled && totalShares != null) {
+                val minShares = settings.minShares.minShares.toIntOrNull() ?: 0
+                if (minShares > 0 && totalShares < minShares) {
+                    WeLogger.i(TAG, "skipping packet in $talker: $totalShares shares < minimum $minShares")
+                    return
+                }
+            }
+
             WeLogger.i(TAG, "detected red packet (sendId=$sendId)")
 
             // 两条检测路径可能命中同一条消息, 只让第一个真正发包。

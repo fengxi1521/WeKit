@@ -3607,6 +3607,11 @@
     <string name="payment_red_packet_grab_self">Claim your own red packets</string>
     <string name="payment_red_packet_grab_self_enabled">Allow claiming red packets you sent</string>
     <string name="payment_red_packet_grab_self_disabled">Skip red packets you sent</string>
+    <string name="payment_red_packet_min_shares">Minimum packet shares</string>
+    <string name="payment_red_packet_min_shares_summary">Only grab packets with at least %1$s shares</string>
+    <string name="payment_red_packet_min_shares_unrestricted">Any number of shares</string>
+    <string name="payment_red_packet_min_shares_value">Minimum shares</string>
+    <string name="payment_red_packet_min_shares_invalid">Minimum shares must be greater than 0</string>
     <string name="payment_red_packet_receive_mode">Receive method</string>
     <string name="payment_red_packet_network_default">Direct network request (default)</string>
     <string name="payment_red_packet_network">Direct network request</string>
