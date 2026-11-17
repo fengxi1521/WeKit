@@ -4375,6 +4375,9 @@
     <string name="at_reply_auto_add_description">加入新的群聊后自动加入生效列表；生效群聊为空（全部群）时不生效</string>
     <string name="at_reply_switch_title">启用艾特回复</string>
     <string name="at_reply_switch_description">被 @ 时自动回复；关掉则完全不响应</string>
+    <string name="at_reply_group_settings_title">艾特回复 · 本群</string>
+    <string name="at_reply_group_switch_title">本群生效</string>
+    <string name="at_reply_group_switch_description">只影响本群；需保持上方总开关开启</string>
     <string name="at_reply_targets_title">生效群聊</string>
     <string name="at_reply_targets_all">全部群聊</string>
     <string name="at_reply_targets_count">%1$d 个群聊</string>

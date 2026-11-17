@@ -4343,6 +4343,9 @@
     <string name="at_reply_auto_add_description">When you join a new group, add it to the target list automatically. Has no effect while the list is empty (all groups).</string>
     <string name="at_reply_switch_title">Enable mention reply</string>
     <string name="at_reply_switch_description">Reply automatically when mentioned; turn off to stop responding entirely</string>
+    <string name="at_reply_group_settings_title">@-reply · this group</string>
+    <string name="at_reply_group_switch_title">Enabled in this group</string>
+    <string name="at_reply_group_switch_description">Only affects this group; the master switch above must stay on</string>
     <string name="at_reply_targets_title">Groups</string>
     <string name="at_reply_targets_all">All group chats</string>
     <string name="at_reply_targets_count">%1$d group chats</string>

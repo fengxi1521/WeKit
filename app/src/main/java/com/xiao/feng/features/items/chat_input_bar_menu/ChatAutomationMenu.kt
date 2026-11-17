@@ -5,9 +5,11 @@ import com.composables.icons.materialsymbols.outlined.Redeem
 import com.composables.icons.materialsymbols.outlined.Smart_toy
 import com.xiao.feng.R
 import com.xiao.feng.features.api.ui.WeChatInputBarMenuApi
+import com.xiao.feng.features.api.ui.WeCurrentConversationApi
 import com.xiao.feng.features.core.ApiFeature
 import com.xiao.feng.features.core.FeatureCategoryIds
 import com.xiao.feng.features.items.chat.ai.showAtReplyDialog
+import com.xiao.feng.features.items.chat.ai.showAtReplyGroupDialog
 import com.xiao.feng.features.items.payment.RedPacketSettings
 
 /**
@@ -28,12 +30,22 @@ object ChatAutomationMenu : ApiFeature(), WeChatInputBarMenuApi.IActionItemsProv
             icon = MaterialSymbols.Outlined.Redeem,
             label = localizedChatInputString(R.string.red_packet_menu_entry),
             onClick = { context, _ -> RedPacketSettings.showMainDialog(context) },
+            // 长按直接打开当前会话的规则, 不再走「单独会话设置 → 选择会话」两步。
+            onLongClick = { context, _ ->
+                val talker = WeCurrentConversationApi.value
+                if (talker.isNotBlank()) RedPacketSettings.showConversationDialog(context, talker)
+            },
         ),
         WeChatInputBarMenuApi.ActionItem(
             id = "at_reply_settings",
             icon = MaterialSymbols.Outlined.Smart_toy,
             label = localizedChatInputString(R.string.feature_at_reply_name),
             onClick = { context, _ -> showAtReplyDialog(context) },
+            // 长按只调当前群的开关, 不影响其他群。
+            onLongClick = { context, _ ->
+                val talker = WeCurrentConversationApi.value
+                if (talker.isNotBlank()) showAtReplyGroupDialog(context, talker)
+            },
         ),
     )
 

@@ -14,6 +14,9 @@ data class RedPacketRuleEntity(
     val memberId: String,
     val grabEnabled: Boolean? = null,
     val grabSelfEnabled: Boolean? = null,
+    /** 红包个数过滤: 只抢不少于 minSharesValue 人的红包。 */
+    val minSharesEnabled: Boolean? = null,
+    val minSharesValue: String? = null,
     val receiveMode: String? = null,
     val timeEnabled: Boolean? = null,
     val timeStartMinute: Int? = null,

@@ -50,6 +50,7 @@ object AtReply : ClickableFeature(), WeDatabaseListenerApi.IInsertListener {
     private const val KEY_DELAY = "at_reply_delay_seconds"
     private const val KEY_PERSONA = "at_reply_persona"
     private const val KEY_AUTO_ADD_NEW_GROUPS = "at_reply_auto_add_new_groups"
+    private const val KEY_EXCLUDED_TARGETS = "at_reply_excluded_targets"
 
     private const val TEXT_MESSAGE_TYPE = 1
     private const val REPLY_DEBOUNCE_MILLIS = 1_500L
@@ -57,6 +58,9 @@ object AtReply : ClickableFeature(), WeDatabaseListenerApi.IInsertListener {
 
     /** 生效群聊; 空集合表示全部群聊。 */
     var targets: Set<String> by prefOption(KEY_TARGETS, emptySet<String>())
+
+    /** 全部群聊模式下被单独关闭的群; 只在 [targets] 为空时生效。 */
+    var excludedTargets: Set<String> by prefOption(KEY_EXCLUDED_TARGETS, emptySet<String>())
 
     var replyDelaySeconds: Int by prefOption(KEY_DELAY, 2)
 
@@ -75,7 +79,21 @@ object AtReply : ClickableFeature(), WeDatabaseListenerApi.IInsertListener {
 
     /** 该会话是否由「艾特回复」接管; AI 聊天据此避让, 避免一条消息回两遍。 */
     fun isActiveFor(talker: String): Boolean =
-        replyEnabled() && AiChat.isConfigured() && (targets.isEmpty() || talker in targets)
+        replyEnabled() && AiChat.isConfigured() && isGroupEnabled(talker)
+
+    /** 本群当前是否生效; 聊天菜单里的单群开关用它显示状态。 */
+    fun isGroupEnabled(talker: String): Boolean =
+        if (targets.isEmpty()) talker !in excludedTargets else talker in targets
+
+    /** 聊天菜单长按: 只改本群的生效状态, 不影响其他群。 */
+    fun setGroupEnabled(talker: String, enabled: Boolean) {
+        if (!talker.isGroupChatWxId) return
+        if (targets.isEmpty()) {
+            excludedTargets = if (enabled) excludedTargets - talker else excludedTargets + talker
+        } else {
+            targets = if (enabled) targets + talker else targets - talker
+        }
+    }
 
     /**
      * 开关的持久化值。:push 进程常驻, 每次消息都重新读取 (KvStore 自带 1 秒缓存),
@@ -106,7 +124,7 @@ object AtReply : ClickableFeature(), WeDatabaseListenerApi.IInsertListener {
 
         val talker = values.getAsString("talker") ?: return
         if (!talker.isGroupChatWxId) return
-        if (targets.isNotEmpty() && talker !in targets) return
+        if (!isGroupEnabled(talker)) return
 
         val rawContent = values.getAsString("content") ?: return
         val sender = AiChat.groupSenderOf(rawContent)

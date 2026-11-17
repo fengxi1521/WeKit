@@ -77,6 +77,7 @@ fun validateMomentScope(featureKind: String, scopeType: String, ownerId: String)
 fun RedPacketSettings.RuleSet.asOverrides() = RedPacketSettings.RuleOverrides(
     grab = grab,
     grabSelf = grabSelf,
+    minShares = minShares,
     receiveMode = receiveMode,
     timeRange = timeRange,
     keyword = keyword,
@@ -95,6 +96,8 @@ fun RedPacketSettings.RuleOverrides.toEntity(scopeType: String, talkerId: String
         memberId = memberId,
         grabEnabled = grab?.enabled,
         grabSelfEnabled = grabSelf?.enabled,
+        minSharesEnabled = minShares?.enabled,
+        minSharesValue = minShares?.minShares,
         receiveMode = receiveMode?.name,
         timeEnabled = timeRange?.enabled,
         timeStartMinute = timeRange?.startMinute,
@@ -129,6 +132,9 @@ fun RedPacketRuleEntity.toOverrides(keywords: List<RedPacketKeywordEntity>): Red
     return RedPacketSettings.RuleOverrides(
         grab = grabEnabled?.let(::AutomationToggleRule),
         grabSelf = grabSelfEnabled?.let(::AutomationToggleRule),
+        minShares = ruleGroup(minSharesEnabled, minSharesValue) {
+            RedPacketSettings.SharesRule(it, minSharesValue!!)
+        },
         receiveMode = receiveMode?.let(RedPacketSettings.ReceiveMode::valueOf),
         timeRange = timeRule(timeEnabled, timeStartMinute, timeEndMinute),
         keyword = keywordRule(keywordEnabled, keywordMode, keywordRegex, keywordIgnoreCase, keywords.filter { it.ruleKind == "KEYWORD" }.sortedBy { it.position }.map { it.text }),
@@ -153,6 +159,9 @@ fun RedPacketRuleEntity.toOverrides(keywords: List<RedPacketKeywordEntity>): Red
 fun RedPacketSettings.RuleOverrides.asGlobalRules() = RedPacketSettings.RuleSet(
     grab = requireNotNull(grab) { "Global grab rule is missing" },
     grabSelf = requireNotNull(grabSelf) { "Global grabSelf rule is missing" },
+    // Rows written before the shares filter existed have NULL columns; missing means the feature
+    // was never configured, so the disabled default is the faithful decoding.
+    minShares = minShares ?: RedPacketSettings.SharesRule(),
     receiveMode = requireNotNull(receiveMode) { "Global receiveMode rule is missing" },
     timeRange = requireNotNull(timeRange) { "Global timeRange rule is missing" },
     keyword = requireNotNull(keyword) { "Global keyword rule is missing" },

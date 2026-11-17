@@ -512,6 +512,26 @@ object RedPacketSettings {
         }
     }
 
+    /** 聊天菜单长按入口: 直接打开当前会话的规则, 跳过全局/会话选择步骤。 */
+    fun showConversationDialog(context: Context, wxId: String) {
+        if (!JsonDataMigration.isCompleted("json", "RedPacketSettings")) {
+            showToast(context, context.localizedPaymentString(R.string.structured_storage_unavailable))
+            return
+        }
+        if (wxId.isGroupChatWxId) {
+            showGroupSettingsDialog(context, wxId) {}
+        } else {
+            showOverrideDialog(
+                context = context,
+                title = PaymentUiText.Raw(WeDatabaseApi.getDisplayName(wxId).ifBlank { wxId }),
+                parentLabelRes = R.string.automation_global_settings,
+                parent = globalRules(),
+                initial = contactOverrides(wxId),
+                onSave = { setContactOverrides(wxId, it) },
+            )
+        }
+    }
+
     private fun showGroupSettingsDialog(context: Context, groupId: String, onUpdated: () -> Unit) {
         showComposeDialog(context) {
             var revision by remember { mutableIntStateOf(0) }

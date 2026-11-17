@@ -30,6 +30,7 @@ import com.xiao.feng.ui.content.m3.IntNumberPickerWidget
 import com.xiao.feng.ui.content.m3.SegmentedColumn
 import com.xiao.feng.ui.content.m3.SwitchWidget
 import com.xiao.feng.ui.utils.showComposeDialog
+import com.xiao.feng.utils.strings.isGroupChatWxId
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -96,6 +97,8 @@ fun showAtReplyDialog(context: Context) {
                                             onConfirm = { selected ->
                                                 targets = selected
                                                 AtReply.targets = selected
+                                                // 清空选择表示「全部群聊」, 此时旧的单群排除不再适用。
+                                                if (selected.isEmpty()) AtReply.excludedTargets = emptySet()
                                                 this.onDismiss()
                                             },
                                         )
@@ -159,6 +162,52 @@ fun showAtReplyDialog(context: Context) {
                                 )
                             }
                         }
+                    }
+                }
+            },
+            confirmButton = {
+                Button(onClick = onDismiss) {
+                    Text(stringResource(R.string.action_done))
+                }
+            },
+        )
+    }
+}
+
+/** 聊天菜单长按入口: 只调整当前群的艾特回复, 不进完整设置页。 */
+fun showAtReplyGroupDialog(context: Context, talker: String) {
+    if (!talker.isGroupChatWxId) {
+        showAtReplyDialog(context)
+        return
+    }
+    showComposeDialog(context) {
+        var enabled by remember { mutableStateOf(AtReply.isEnabled) }
+        var groupEnabled by remember { mutableStateOf(AtReply.isGroupEnabled(talker)) }
+        AlertDialogContent(
+            title = { Text(stringResource(R.string.at_reply_group_settings_title)) },
+            text = {
+                SegmentedColumn(contentPadding = PaddingValues(0.dp)) {
+                    item {
+                        SwitchWidget(
+                            title = stringResource(R.string.at_reply_switch_title),
+                            description = stringResource(R.string.at_reply_switch_description),
+                            checked = enabled,
+                            onCheckedChange = {
+                                enabled = it
+                                AtReply.applyToggle(it)
+                            },
+                        )
+                    }
+                    item {
+                        SwitchWidget(
+                            title = stringResource(R.string.at_reply_group_switch_title),
+                            description = stringResource(R.string.at_reply_group_switch_description),
+                            checked = groupEnabled,
+                            onCheckedChange = {
+                                groupEnabled = it
+                                AtReply.setGroupEnabled(talker, it)
+                            },
+                        )
                     }
                 }
             },

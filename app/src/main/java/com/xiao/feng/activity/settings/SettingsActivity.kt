@@ -23,6 +23,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -343,6 +344,15 @@ fun FeatureRow(
     val localizedName = item.localizedName(localizedContext)
     val localizedDescription = item.localizedDescription(localizedContext)
     val icon = item.categoryIds.firstNotNullOfOrNull { FEATURE_ICON_BY_CATEGORY[it] }
+
+    // Features that show a warning dialog before enabling call `applyToggle` from the dialog
+    // instead of `toggle`, so the list needs this callback to refresh its cached switch state.
+    DisposableEffect(item) {
+        (item as? SwitchFeature)?.setToggleCompletionCallback {
+            FeatureCategoryState.notifyToggleChanged()
+        }
+        onDispose {}
+    }
 
     fun toggle(requested: Boolean) {
         item as SwitchFeature
