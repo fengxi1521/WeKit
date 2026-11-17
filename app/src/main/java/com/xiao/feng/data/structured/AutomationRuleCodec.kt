@@ -124,7 +124,8 @@ fun RedPacketSettings.RuleOverrides.toEntity(scopeType: String, talkerId: String
         replyMinDelaySeconds = autoReply?.minDelaySeconds,
         replyMaxDelaySeconds = autoReply?.maxDelaySeconds,
         replyProbability = autoReply?.probability,
-        replyStickerPath = autoReply?.stickerPath,
+        // 表情包已随每条回复写进 red_packet_keywords; 旧列只用于读取老配置。
+        replyStickerPath = null,
     )
 }
 
@@ -145,17 +146,28 @@ fun RedPacketRuleEntity.toOverrides(keywords: List<RedPacketKeywordEntity>): Red
         delay = ruleGroup(delayEnabled, delayBaseMs, delayRandomRangeMs) { RedPacketSettings.DelayRule(it, delayBaseMs!!, delayRandomRangeMs!!) },
         notification = notificationEnabled?.let(::AutomationToggleRule),
         autoReply = ruleGroup(replyEnabled, replyText) {
+            val replies = keywords.filter { keyword -> keyword.ruleKind == "REPLY" }
+                .sortedBy { keyword -> keyword.position }
+                .map { keyword ->
+                    RedPacketSettings.ReplyItem(
+                        text = keyword.text,
+                        stickerPath = keyword.stickerPath.orEmpty(),
+                        stickerProbability = keyword.stickerProbability ?: "100",
+                    )
+                }
             RedPacketSettings.ReplyRule(
                 enabled = it,
                 text = replyText!!,
-                texts = keywords.filter { keyword -> keyword.ruleKind == "REPLY" }
-                    .sortedBy { keyword -> keyword.position }
-                    .map { keyword -> keyword.text },
+                items = replies +
+                    // 27 版把表情包存在规则行里; 升级后作为一条纯表情回复保留下来。
+                    listOfNotNull(
+                        replyStickerPath?.takeIf { path -> path.isNotBlank() }
+                            ?.let { path -> RedPacketSettings.ReplyItem(stickerPath = path) },
+                    ),
                 minDelaySeconds = replyMinDelaySeconds ?: "0",
                 maxDelaySeconds = replyMaxDelaySeconds ?: "0",
-                // 概率与表情包是后来加的列, 旧行读取时为 NULL, 缺失即「从未配置」。
+                // 概率是后来加的列, 旧行读取时为 NULL, 缺失即「从未配置」。
                 probability = replyProbability ?: "100",
-                stickerPath = replyStickerPath.orEmpty(),
             )
         },
     )

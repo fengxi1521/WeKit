@@ -3646,6 +3646,13 @@
     <string name="payment_red_packet_reply_sticker_none">Not selected</string>
     <string name="payment_red_packet_reply_sticker_clear">Remove sticker</string>
     <string name="payment_red_packet_reply_placeholder_hint">Use $amount for the claimed amount, {member} for the sender</string>
+    <string name="payment_red_packet_reply_add_sticker">Add a sticker reply</string>
+    <string name="payment_red_packet_reply_long_press_hint">Long-press a reply to attach a sticker and set its probability</string>
+    <string name="payment_red_packet_reply_sticker_only">Sticker only</string>
+    <string name="payment_red_packet_reply_item_title">Reply details</string>
+    <string name="payment_red_packet_reply_item_delete">Delete</string>
+    <string name="payment_red_packet_reply_sticker_probability">Sticker probability</string>
+    <string name="payment_red_packet_reply_sticker_summary">Sticker %1$s%%</string>
 
     <string name="payment_transfer_global_summary">Configure the default acceptance conditions and post-acceptance actions</string>
     <string name="payment_transfer_default_accept">Accept transfers by default</string>

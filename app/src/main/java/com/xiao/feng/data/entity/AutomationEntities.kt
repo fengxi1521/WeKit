@@ -120,6 +120,10 @@ data class RedPacketKeywordEntity(
     val ruleKind: String,
     val position: Int,
     val text: String,
+    /** REPLY 专用: 这条回复附带的本地表情包; 为空表示只发文字。 */
+    val stickerPath: String? = null,
+    /** REPLY 专用: 附带表情包的概率 (0-100)。 */
+    val stickerProbability: String? = null,
 )
 
 @Entity(

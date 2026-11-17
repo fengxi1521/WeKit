@@ -140,8 +140,17 @@ abstract class AutomationDao {
             RedPacketKeywordEntity(scopeType, talkerId, memberId, "SKIP_KEYWORD", index, text)
         } + rules.pause?.keywords?.strings.orEmpty().mapIndexed { index, text ->
             RedPacketKeywordEntity(scopeType, talkerId, memberId, "PAUSE", index, text)
-        } + rules.autoReply?.texts.orEmpty().mapIndexed { index, text ->
-            RedPacketKeywordEntity(scopeType, talkerId, memberId, "REPLY", index, text)
+        } + rules.autoReply?.allReplies.orEmpty().mapIndexed { index, reply ->
+            RedPacketKeywordEntity(
+                scopeType = scopeType,
+                talkerId = talkerId,
+                memberId = memberId,
+                ruleKind = "REPLY",
+                position = index,
+                text = reply.text,
+                stickerPath = reply.stickerPath.takeIf { it.isNotBlank() },
+                stickerProbability = reply.stickerProbability,
+            )
         })
     }
 

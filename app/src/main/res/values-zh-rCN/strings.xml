@@ -3687,6 +3687,13 @@
     <string name="payment_red_packet_reply_sticker_none">未选择</string>
     <string name="payment_red_packet_reply_sticker_clear">移除表情包</string>
     <string name="payment_red_packet_reply_placeholder_hint">使用 $amount 表示抢到的金额，{member} 表示发送者</string>
+    <string name="payment_red_packet_reply_add_sticker">添加表情包回复</string>
+    <string name="payment_red_packet_reply_long_press_hint">长按一条回复可单独配置表情包和发送概率</string>
+    <string name="payment_red_packet_reply_sticker_only">仅表情包</string>
+    <string name="payment_red_packet_reply_item_title">回复详情</string>
+    <string name="payment_red_packet_reply_item_delete">删除</string>
+    <string name="payment_red_packet_reply_sticker_probability">表情包概率</string>
+    <string name="payment_red_packet_reply_sticker_summary">附带表情包 %1$s%%</string>
     <string name="payment_transfer_global_summary">配置默认接收条件与接收后的操作</string>
     <string name="payment_transfer_default_accept">默认接收转账</string>
     <string name="payment_transfer_default_all">默认接收所有联系人的转账, 分联系人设置可单独关闭</string>

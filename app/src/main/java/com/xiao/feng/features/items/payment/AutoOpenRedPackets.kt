@@ -355,8 +355,9 @@ object AutoOpenRedPackets : ClickableFeature(), WeDatabaseListenerApi.IInsertLis
                 return
             }
 
-            // 回复概率只在检测时掷一次, 发送阶段不再重复判定。
+            // 回复概率只在检测时掷一次, 发送阶段不再重复判定; 表情包概率同样在此掷。
             val replyEnabled = settings.autoReply.enabled && settings.autoReply.shouldReply()
+            val replyItem = if (replyEnabled) settings.autoReply.pickReply() else null
             val info = RedPacketInfo(
                 sendId = sendId,
                 nativeUrl = nativeUrl,
@@ -369,9 +370,9 @@ object AutoOpenRedPackets : ClickableFeature(), WeDatabaseListenerApi.IInsertLis
                 nickName = nickName,
                 notificationEnabled = settings.notification.enabled,
                 sender = sender,
-                // 开关关掉时不能再取文案: 文案会保留在配置里, pickText() 本身不看 enabled。
-                autoReply = if (replyEnabled) settings.autoReply.pickText().orEmpty() else "",
-                autoReplySticker = if (replyEnabled) settings.autoReply.stickerPath else "",
+                // 开关关掉时不能再取文案: 文案会保留在配置里, pickReply() 本身不看 enabled。
+                autoReply = replyItem?.text.orEmpty(),
+                autoReplySticker = if (replyItem?.shouldSendSticker() == true) replyItem.stickerPath else "",
                 autoReplyDelayMs = if (replyEnabled) settings.autoReply.delayMillis() else 0L,
             )
             currentRedPacketMap[sendId] = info

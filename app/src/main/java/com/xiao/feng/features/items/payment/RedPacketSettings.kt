@@ -3,6 +3,8 @@ package com.xiao.feng.features.items.payment
 import android.content.Context
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -13,6 +15,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -54,8 +57,10 @@ import com.xiao.feng.data.KvStore.prefOption
 import com.xiao.feng.ui.content.AlertDialogContent
 import com.xiao.feng.ui.content.Button
 import com.xiao.feng.ui.content.TextButton
+import com.xiao.feng.ui.content.m3.BaseItemContainer
 import com.xiao.feng.ui.content.m3.BaseSupportingWidget
 import com.xiao.feng.ui.content.m3.BaseWidget
+import com.xiao.feng.ui.content.m3.IntNumberPickerWidget
 import com.xiao.feng.ui.content.m3.RadioButtonWidget
 import com.xiao.feng.ui.content.m3.SegmentedColumn
 import com.xiao.feng.ui.content.m3.SwitchWidget
@@ -91,26 +96,54 @@ object RedPacketSettings {
         val randomRangeMs: String = "0"
     )
 
+    /** 一条随机回复: 文字 + 可选附带的表情包。 */
+    @Serializable
+    data class ReplyItem(
+        val text: String = "",
+        /** 本地表情包路径; 为空表示这条回复只发文字。 */
+        val stickerPath: String = "",
+        /** 发送这条回复时附带表情包的概率 (0-100), 100 表示每次都带。 */
+        val stickerProbability: String = "100",
+    ) {
+        val hasContent: Boolean
+            get() = text.isNotBlank() || stickerPath.isNotBlank()
+
+        fun shouldSendSticker(): Boolean {
+            if (stickerPath.isBlank()) return false
+            val percent = stickerProbability.toIntOrNull()?.coerceIn(0, 100) ?: 100
+            return percent > 0 && Random.nextInt(100) < percent
+        }
+    }
+
     @Serializable
     data class ReplyRule(
         val enabled: Boolean = false,
-        /** 旧版单条回复; 新配置使用 [texts]。 */
+        /** 旧版单条回复; 新配置使用 [items]。 */
         val text: String = "",
-        /** 多条回复, 抢到红包时随机抽一条发送。 */
+        /** 旧版多条纯文字回复; 新配置使用 [items]。 */
         val texts: List<String> = emptyList(),
+        /** 随机回复列表, 每条可单独附带表情包和概率。 */
+        val items: List<ReplyItem> = emptyList(),
         /** 收到红包后延迟回复的随机范围 (秒), 两个都是 0 表示立即回复。 */
         val minDelaySeconds: String = "0",
         val maxDelaySeconds: String = "0",
         /** 每次抢到后回复的概率 (0-100), 100 表示每次都回。 */
         val probability: String = "100",
-        /** 本地表情包文件路径; 设置后回复时会一并发出。 */
+        /** 旧版统一表情包; 升级后作为一条纯表情回复参与随机。 */
         val stickerPath: String = "",
     ) {
-        val allTexts: List<String>
-            get() = texts.map(String::trim).filter { it.isNotEmpty() }
-                .ifEmpty { listOfNotNull(text.trim().takeIf { it.isNotEmpty() }) }
+        /** 当前生效的回复列表; 新配置优先, 否则把旧字段转成条目。 */
+        val allReplies: List<ReplyItem>
+            get() {
+                val configured = items.filter { it.hasContent }
+                if (configured.isNotEmpty()) return configured
+                val legacy = texts.map(String::trim).filter { it.isNotEmpty() }
+                    .ifEmpty { listOfNotNull(text.trim().takeIf { it.isNotEmpty() }) }
+                    .map { ReplyItem(text = it) }
+                return if (stickerPath.isNotBlank()) legacy + ReplyItem(stickerPath = stickerPath) else legacy
+            }
 
-        fun pickText(): String? = allTexts.randomOrNull()
+        fun pickReply(): ReplyItem? = allReplies.randomOrNull()
 
         fun shouldReply(): Boolean {
             val percent = probability.toIntOrNull()?.coerceIn(0, 100) ?: 100
@@ -445,6 +478,7 @@ object RedPacketSettings {
                 text = {
                     AutomationSaveContent(saveState) {
                         RuleSetEditor(
+                            dialogContext = context,
                             rules = draft,
                             overriddenKeys = null,
                             parentLabel = "",
@@ -693,6 +727,7 @@ object RedPacketSettings {
                 text = {
                     AutomationSaveContent(saveState) {
                         RuleSetEditor(
+                            dialogContext = context,
                             rules = effective,
                             overriddenKeys = draft.keys(),
                             parentLabel = stringResource(parentLabelRes),
@@ -720,8 +755,10 @@ object RedPacketSettings {
         }
     }
 
+    @OptIn(ExperimentalFoundationApi::class)
     @Composable
     private fun RuleSetEditor(
+        dialogContext: Context,
         rules: RuleSet,
         overriddenKeys: Set<RuleKey>?,
         parentLabel: String,
@@ -737,7 +774,18 @@ object RedPacketSettings {
             if (uri == null) return@rememberLauncherForActivityResult
             val path = LocalStickerFiles.importFile(stickerContext, uri, uri.lastPathSegment.orEmpty())
             if (path != null) {
-                onChange(RuleKey.AUTO_REPLY, rules.copy(autoReply = rules.autoReply.copy(stickerPath = path)))
+                // 「单独回复表情」: 追加一条只有表情包的随机回复。
+                onChange(
+                    RuleKey.AUTO_REPLY,
+                    rules.copy(
+                        autoReply = rules.autoReply.copy(
+                            items = rules.autoReply.allReplies + ReplyItem(stickerPath = path),
+                            text = "",
+                            texts = emptyList(),
+                            stickerPath = "",
+                        ),
+                    ),
+                )
             }
         }
 
@@ -1095,35 +1143,148 @@ object RedPacketSettings {
                 item(key = "auto_reply_texts", animatedVisibility = rules.autoReply.enabled) {
                     val repliesTitle = stringResource(R.string.payment_red_packet_auto_reply_texts)
                     val addTitle = stringResource(R.string.payment_red_packet_auto_reply_add)
+                    val addStickerTitle = stringResource(R.string.payment_red_packet_reply_add_sticker)
                     val placeholderHint = stringResource(R.string.payment_red_packet_reply_placeholder_hint)
-                    BaseSupportingWidget(title = repliesTitle) {
+                    val longPressHint = stringResource(R.string.payment_red_packet_reply_long_press_hint)
+                    val stickerOnlyLabel = stringResource(R.string.payment_red_packet_reply_sticker_only)
+                    val itemTitle = stringResource(R.string.payment_red_packet_reply_item_title)
+                    val stickerTitle = stringResource(R.string.payment_red_packet_reply_sticker)
+                    val stickerNone = stringResource(R.string.payment_red_packet_reply_sticker_none)
+                    val stickerClear = stringResource(R.string.payment_red_packet_reply_sticker_clear)
+                    val stickerProbabilityTitle =
+                        stringResource(R.string.payment_red_packet_reply_sticker_probability)
+                    val itemDeleteTitle = stringResource(R.string.payment_red_packet_reply_item_delete)
+
+                    fun persistReplies(updated: List<ReplyItem>) {
+                        onChange(
+                            RuleKey.AUTO_REPLY,
+                            rules.copy(
+                                autoReply = rules.autoReply.copy(
+                                    items = updated,
+                                    // 统一迁移到 items 后清掉旧字段, 避免旧文案再次混入。
+                                    text = "",
+                                    texts = emptyList(),
+                                    stickerPath = "",
+                                ),
+                            ),
+                        )
+                    }
+
+                    fun editReply(index: Int) {
+                        val item = rules.autoReply.allReplies[index]
+                        showComposeDialog(dialogContext) {
+                            var draft by remember { mutableStateOf(item) }
+                            val picker = rememberLauncherForActivityResult(
+                                ActivityResultContracts.OpenDocument(),
+                            ) { uri ->
+                                if (uri == null) return@rememberLauncherForActivityResult
+                                val path =
+                                    LocalStickerFiles.importFile(stickerContext, uri, uri.lastPathSegment.orEmpty())
+                                if (path != null) draft = draft.copy(stickerPath = path)
+                            }
+                            AlertDialogContent(
+                                title = { Text(itemTitle) },
+                                text = {
+                                    Column(modifier = Modifier.fillMaxWidth()) {
+                                        if (draft.text.isNotBlank()) {
+                                            Text(
+                                                text = draft.text,
+                                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                                            )
+                                        }
+                                        PaymentValueRow(
+                                            title = stickerTitle,
+                                            value = draft.stickerPath.substringAfterLast('/'),
+                                            valueHint = stickerNone,
+                                            onClick = { picker.launch(arrayOf("image/*")) },
+                                        )
+                                        if (draft.stickerPath.isNotBlank()) {
+                                            BaseItemContainer {
+                                                IntNumberPickerWidget(
+                                                    title = stickerProbabilityTitle,
+                                                    value = draft.stickerProbability.toIntOrNull()
+                                                        ?.coerceIn(0, 100) ?: 100,
+                                                    startInt = 0,
+                                                    endInt = 100,
+                                                    stepSize = 1,
+                                                    valueSuffix = "%",
+                                                    onValueChange = {
+                                                        draft = draft.copy(stickerProbability = it.toString())
+                                                    },
+                                                )
+                                            }
+                                            TextButton(onClick = { draft = draft.copy(stickerPath = "") }) {
+                                                Text(stickerClear)
+                                            }
+                                        }
+                                    }
+                                },
+                                confirmButton = {
+                                    Button(
+                                        enabled = draft.hasContent,
+                                        onClick = {
+                                            val updated = rules.autoReply.allReplies.toMutableList()
+                                                .apply { this[index] = draft }
+                                            persistReplies(updated)
+                                            onDismiss()
+                                        },
+                                    ) {
+                                        Text(stringResource(R.string.dialog_confirm))
+                                    }
+                                },
+                                dismissButton = {
+                                    TextButton(
+                                        onClick = {
+                                            val updated = rules.autoReply.allReplies.toMutableList()
+                                                .apply { removeAt(index) }
+                                            persistReplies(updated)
+                                            onDismiss()
+                                        },
+                                    ) {
+                                        Text(itemDeleteTitle)
+                                    }
+                                },
+                            )
+                        }
+                    }
+
+                    BaseSupportingWidget(title = repliesTitle, description = longPressHint) {
                         Column(modifier = Modifier.fillMaxWidth()) {
-                            rules.autoReply.allTexts.forEachIndexed { index, reply ->
+                            rules.autoReply.allReplies.forEachIndexed { index, item ->
                                 Row(
                                     modifier = Modifier
                                         .fillMaxWidth()
+                                        .combinedClickable(
+                                            enabled = editable(RuleKey.AUTO_REPLY),
+                                            onClick = {},
+                                            onLongClick = { editReply(index) },
+                                        )
                                         .padding(horizontal = 16.dp, vertical = 4.dp),
                                     verticalAlignment = Alignment.CenterVertically,
                                 ) {
-                                    Text(
-                                        text = reply,
-                                        modifier = Modifier.weight(1f),
-                                        maxLines = 2,
-                                        overflow = TextOverflow.Ellipsis,
-                                    )
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text(
+                                            text = item.text.ifBlank { stickerOnlyLabel },
+                                            maxLines = 2,
+                                            overflow = TextOverflow.Ellipsis,
+                                        )
+                                        if (item.stickerPath.isNotBlank()) {
+                                            Text(
+                                                text = stringResource(
+                                                    R.string.payment_red_packet_reply_sticker_summary,
+                                                    item.stickerProbability,
+                                                ),
+                                                style = MaterialTheme.typography.bodySmall,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            )
+                                        }
+                                    }
                                     IconButton(
                                         enabled = editable(RuleKey.AUTO_REPLY),
                                         onClick = {
-                                            val updated = rules.autoReply.allTexts.toMutableList()
-                                                .apply { removeAt(index) }
-                                            onChange(
-                                                RuleKey.AUTO_REPLY,
-                                                rules.copy(
-                                                    autoReply = rules.autoReply.copy(
-                                                        texts = updated,
-                                                        text = "",
-                                                    )
-                                                )
+                                            persistReplies(
+                                                rules.autoReply.allReplies.toMutableList()
+                                                    .apply { removeAt(index) },
                                             )
                                         },
                                     ) {
@@ -1131,88 +1292,61 @@ object RedPacketSettings {
                                     }
                                 }
                             }
-                            TextButton(
-                                enabled = editable(RuleKey.AUTO_REPLY),
-                                onClick = {
-                                    onEditText(
-                                        PaymentTextEditMode(
-                                            title = addTitle,
-                                            initial = "",
-                                            supportingText = placeholderHint,
-                                            onCommit = { input ->
-                                                val reply = input.trim()
-                                                if (reply.isNotEmpty() && reply !in rules.autoReply.allTexts) {
-                                                    onChange(
-                                                        RuleKey.AUTO_REPLY,
-                                                        rules.copy(
-                                                            autoReply = rules.autoReply.copy(
-                                                                texts = rules.autoReply.allTexts + reply,
-                                                                text = "",
-                                                            )
+                            Row(modifier = Modifier.fillMaxWidth()) {
+                                TextButton(
+                                    enabled = editable(RuleKey.AUTO_REPLY),
+                                    onClick = {
+                                        onEditText(
+                                            PaymentTextEditMode(
+                                                title = addTitle,
+                                                initial = "",
+                                                supportingText = placeholderHint,
+                                                onCommit = { input ->
+                                                    val reply = input.trim()
+                                                    if (reply.isNotEmpty()) {
+                                                        persistReplies(
+                                                            rules.autoReply.allReplies + ReplyItem(text = reply),
                                                         )
-                                                    )
-                                                }
-                                            },
+                                                    }
+                                                },
+                                            )
                                         )
-                                    )
-                                },
-                            ) {
-                                Icon(MaterialSymbols.Outlined.Add, null)
-                                Text(addTitle)
+                                    },
+                                ) {
+                                    Icon(MaterialSymbols.Outlined.Add, null)
+                                    Text(addTitle)
+                                }
+                                TextButton(
+                                    enabled = editable(RuleKey.AUTO_REPLY),
+                                    onClick = { stickerPicker.launch(arrayOf("image/*")) },
+                                ) {
+                                    Icon(MaterialSymbols.Outlined.Add, null)
+                                    Text(addStickerTitle)
+                                }
                             }
                         }
                     }
                 }
 
-                item(key = "auto_reply_sticker", animatedVisibility = rules.autoReply.enabled) {
-                    val stickerTitle = stringResource(R.string.payment_red_packet_reply_sticker)
-                    Column(modifier = Modifier.fillMaxWidth()) {
-                        PaymentValueRow(
-                            title = stickerTitle,
-                            value = rules.autoReply.stickerPath.substringAfterLast('/'),
-                            valueHint = stringResource(R.string.payment_red_packet_reply_sticker_none),
-                            enabled = editable(RuleKey.AUTO_REPLY),
-                            onClick = { stickerPicker.launch(arrayOf("image/*")) },
-                        )
-                        if (rules.autoReply.stickerPath.isNotBlank()) {
-                            TextButton(
-                                enabled = editable(RuleKey.AUTO_REPLY),
-                                onClick = {
-                                    onChange(
-                                        RuleKey.AUTO_REPLY,
-                                        rules.copy(autoReply = rules.autoReply.copy(stickerPath = "")),
-                                    )
-                                },
-                            ) {
-                                Text(stringResource(R.string.payment_red_packet_reply_sticker_clear))
-                            }
-                        }
-                    }
-                }
                 item(key = "auto_reply_probability", animatedVisibility = rules.autoReply.enabled) {
                     val probabilityTitle = stringResource(R.string.payment_red_packet_reply_probability)
-                    PaymentValueRow(
-                        title = probabilityTitle,
-                        value = rules.autoReply.probability,
-                        valueHint = "100",
-                        enabled = editable(RuleKey.AUTO_REPLY),
-                        onClick = {
-                            onEditText(
-                                PaymentTextEditMode(
-                                    title = probabilityTitle,
-                                    initial = rules.autoReply.probability,
-                                    keyboardType = KeyboardType.Number,
-                                    filter = { it.filter(Char::isDigit).take(3) },
-                                    onCommit = {
-                                        onChange(
-                                            RuleKey.AUTO_REPLY,
-                                            rules.copy(autoReply = rules.autoReply.copy(probability = it)),
-                                        )
-                                    },
+                    BaseItemContainer {
+                        IntNumberPickerWidget(
+                            title = probabilityTitle,
+                            enabled = editable(RuleKey.AUTO_REPLY),
+                            value = rules.autoReply.probability.toIntOrNull()?.coerceIn(0, 100) ?: 100,
+                            startInt = 0,
+                            endInt = 100,
+                            stepSize = 1,
+                            valueSuffix = "%",
+                            onValueChange = {
+                                onChange(
+                                    RuleKey.AUTO_REPLY,
+                                    rules.copy(autoReply = rules.autoReply.copy(probability = it.toString())),
                                 )
-                            )
-                        },
-                    )
+                            },
+                        )
+                    }
                 }
 
                 item(key = "auto_reply_delay_min", animatedVisibility = rules.autoReply.enabled) {
@@ -1373,7 +1507,7 @@ object RedPacketSettings {
             }
         }
         if (validates(RuleKey.AUTO_REPLY) && rules.autoReply.enabled) {
-            if (rules.autoReply.allTexts.isEmpty() && rules.autoReply.stickerPath.isBlank()) {
+            if (rules.autoReply.allReplies.isEmpty()) {
                 return context.getString(R.string.automation_reply_required)
             }
             val probability = rules.autoReply.probability.toIntOrNull()
