@@ -1,8 +1,6 @@
 package com.xiao.feng.features.items.payment
 
 import android.content.Context
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Column
@@ -44,6 +42,7 @@ import com.xiao.feng.data.XiaoFengDatabase
 import com.xiao.feng.data.structured.asOverrides
 import com.xiao.feng.features.items.AutomationSaveContent
 import com.xiao.feng.features.items.chat.LocalStickerFiles
+import com.xiao.feng.features.items.chat.panel.pickPanelFile
 import com.xiao.feng.features.items.rememberAutomationSaveState
 import com.xiao.feng.features.items.AutomationContactSettingsSelector
 import com.xiao.feng.features.items.AutomationKeywordMode
@@ -70,7 +69,9 @@ import com.xiao.feng.utils.WeLogger
 import com.xiao.feng.utils.android.showToast
 import com.xiao.feng.utils.serialization.DefaultJson
 import com.xiao.feng.utils.strings.isGroupChatWxId
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
@@ -770,22 +771,21 @@ object RedPacketSettings {
     ) {
         val isGlobalEditor = overriddenKeys == null
         val stickerContext = LocalContext.current
-        val stickerPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
-            if (uri == null) return@rememberLauncherForActivityResult
-            val path = LocalStickerFiles.importFile(stickerContext, uri, uri.lastPathSegment.orEmpty())
-            if (path != null) {
-                // 「单独回复表情」: 追加一条只有表情包的随机回复。
-                onChange(
-                    RuleKey.AUTO_REPLY,
-                    rules.copy(
-                        autoReply = rules.autoReply.copy(
-                            items = rules.autoReply.allReplies + ReplyItem(stickerPath = path),
-                            text = "",
-                            texts = emptyList(),
-                            stickerPath = "",
-                        ),
-                    ),
-                )
+        // 通过模块自己的透明 Activity 选文件: 对话框的 ComposeView 在聊天界面里拿不到
+        // ActivityResultRegistryOwner, 直接注册 launcher 会闪退。
+        fun pickSticker(onPicked: (String) -> Unit) {
+            pickPanelFile(stickerContext, arrayOf("image/*")) { name, uri, activity ->
+                CoroutineScope(Dispatchers.IO).launch {
+                    val path = LocalStickerFiles.importFile(activity, uri, name)
+                    withContext(Dispatchers.Main) {
+                        activity.finish()
+                        if (path != null) {
+                            onPicked(path)
+                        } else {
+                            showToast(stickerContext, stickerContext.getString(R.string.emoji_files_import_failed))
+                        }
+                    }
+                }
             }
         }
 
@@ -1174,13 +1174,23 @@ object RedPacketSettings {
                         val item = rules.autoReply.allReplies[index]
                         showComposeDialog(dialogContext) {
                             var draft by remember { mutableStateOf(item) }
-                            val picker = rememberLauncherForActivityResult(
-                                ActivityResultContracts.OpenDocument(),
-                            ) { uri ->
-                                if (uri == null) return@rememberLauncherForActivityResult
-                                val path =
-                                    LocalStickerFiles.importFile(stickerContext, uri, uri.lastPathSegment.orEmpty())
-                                if (path != null) draft = draft.copy(stickerPath = path)
+                            fun pickItemSticker() {
+                                pickPanelFile(stickerContext, arrayOf("image/*")) { name, uri, activity ->
+                                    CoroutineScope(Dispatchers.IO).launch {
+                                        val path = LocalStickerFiles.importFile(activity, uri, name)
+                                        withContext(Dispatchers.Main) {
+                                            activity.finish()
+                                            if (path != null) {
+                                                draft = draft.copy(stickerPath = path)
+                                            } else {
+                                                showToast(
+                                                    stickerContext,
+                                                    stickerContext.getString(R.string.emoji_files_import_failed),
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
                             }
                             AlertDialogContent(
                                 title = { Text(itemTitle) },
@@ -1196,7 +1206,7 @@ object RedPacketSettings {
                                             title = stickerTitle,
                                             value = draft.stickerPath.substringAfterLast('/'),
                                             valueHint = stickerNone,
-                                            onClick = { picker.launch(arrayOf("image/*")) },
+                                            onClick = { pickItemSticker() },
                                         )
                                         if (draft.stickerPath.isNotBlank()) {
                                             BaseItemContainer {
@@ -1318,7 +1328,22 @@ object RedPacketSettings {
                                 }
                                 TextButton(
                                     enabled = editable(RuleKey.AUTO_REPLY),
-                                    onClick = { stickerPicker.launch(arrayOf("image/*")) },
+                                    onClick = {
+                                        pickSticker { path ->
+                                            // 「单独回复表情」: 追加一条只有表情包的随机回复。
+                                            onChange(
+                                                RuleKey.AUTO_REPLY,
+                                                rules.copy(
+                                                    autoReply = rules.autoReply.copy(
+                                                        items = rules.autoReply.allReplies + ReplyItem(stickerPath = path),
+                                                        text = "",
+                                                        texts = emptyList(),
+                                                        stickerPath = "",
+                                                    ),
+                                                ),
+                                            )
+                                        }
+                                    },
                                 ) {
                                     Icon(MaterialSymbols.Outlined.Add, null)
                                     Text(addStickerTitle)
