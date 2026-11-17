@@ -3591,7 +3591,7 @@
     <string name="payment_red_packet_reply_delay_min">回覆延時下限（秒）</string>
     <string name="payment_red_packet_reply_delay_max">回覆延時上限（秒）</string>
     <string name="payment_red_packet_amount_placeholder">使用 $amount 表示搶到的金額</string>
-    <string name="payment_red_packet_reply_probability">回覆機率（%）</string>
+    <string name="payment_red_packet_reply_probability">回覆機率（0-100）</string>
     <string name="payment_red_packet_reply_probability_invalid">回覆機率需在 0 到 100 之間</string>
     <string name="payment_red_packet_reply_sticker">回覆表情包</string>
     <string name="payment_red_packet_reply_sticker_none">未選擇</string>

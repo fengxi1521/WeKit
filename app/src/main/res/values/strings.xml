@@ -3640,7 +3640,7 @@
     <string name="payment_red_packet_auto_reply_texts">Random replies</string>
     <string name="payment_red_packet_auto_reply_add">Add a reply</string>
     <string name="payment_red_packet_amount_placeholder">Use $amount for the claimed amount</string>
-    <string name="payment_red_packet_reply_probability">Reply probability (%)</string>
+    <string name="payment_red_packet_reply_probability">Reply probability (0-100)</string>
     <string name="payment_red_packet_reply_probability_invalid">Reply probability must be between 0 and 100</string>
     <string name="payment_red_packet_reply_sticker">Reply sticker</string>
     <string name="payment_red_packet_reply_sticker_none">Not selected</string>

@@ -3681,7 +3681,7 @@
     <string name="payment_red_packet_auto_reply_texts">随机回复内容</string>
     <string name="payment_red_packet_auto_reply_add">添加一条回复</string>
     <string name="payment_red_packet_amount_placeholder">使用 $amount 表示抢到的金额</string>
-    <string name="payment_red_packet_reply_probability">回复概率（%）</string>
+    <string name="payment_red_packet_reply_probability">回复概率（0-100）</string>
     <string name="payment_red_packet_reply_probability_invalid">回复概率需在 0 到 100 之间</string>
     <string name="payment_red_packet_reply_sticker">回复表情包</string>
     <string name="payment_red_packet_reply_sticker_none">未选择</string>
