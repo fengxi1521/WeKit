@@ -5,6 +5,7 @@ import android.view.ViewGroup
 import androidx.activity.ComponentActivity
 import com.xiao.feng.R
 import com.xiao.feng.features.api.core.WeApi
+import com.xiao.feng.features.api.core.WeDatabaseApi
 import com.xiao.feng.features.api.core.WeDatabaseListenerApi
 import com.xiao.feng.features.api.ui.WeMomentsApi
 import com.xiao.feng.features.core.FeatureCategoryIds
@@ -25,10 +26,16 @@ object AutoLikeMoments : AutoMomentsBase(),
     override val TAG = "AutoLikeMoments"
 
     private const val RETRY_INTERVAL_MS = 30_000L
+    private const val FRIEND_CACHE_TTL_MS = 5 * 60_000L
 
     private val settings = MomentsAutomationSettings.Like
     private val handledSnsIds = ConcurrentHashMap.newKeySet<String>()
     private val lastAttemptAt = ConcurrentHashMap<String, Long>()
+
+    private data class FriendStatus(val isFriend: Boolean, val checkedAt: Long)
+
+    /** 好友判定结果缓存, 避免扫描缓存朋友圈时对同一个人反复查 rcontact。 */
+    private val friendStatus = ConcurrentHashMap<String, FriendStatus>()
     private val actionLock = Any()
 
     @Volatile
@@ -39,6 +46,7 @@ object AutoLikeMoments : AutoMomentsBase(),
         startAutomation()
         handledSnsIds.clear()
         lastAttemptAt.clear()
+        friendStatus.clear()
         WeDatabaseListenerApi.addListener(this)
         AutoRefresh.addListener(this)
         installTimelineHooks()
@@ -157,6 +165,8 @@ object AutoLikeMoments : AutoMomentsBase(),
         val owner = WeMomentsApi.getOwnerWxId(snsInfo)?.trim().orEmpty()
         val rules = settings.resolve(owner)
         if (owner.isBlank() || owner == WeApi.selfWxId) return
+        // 陌生人/公众号的朋友圈没有点赞权限, 发了只会收到「点赞未发送」, 直接跳过。
+        if (!isFriend(owner)) return
         if (source != "visible" && rules.effectiveMode != MomentAutomationMode.ALL_LOADED) return
         if (!matchesPublicationWindow(snsInfo, rules.effectiveMode, scope)) return
         if (!rules.matchesMoment(snsInfo)) return
@@ -229,6 +239,17 @@ object AutoLikeMoments : AutoMomentsBase(),
         if (now - last < RETRY_INTERVAL_MS) return@synchronized false
         lastAttemptAt[snsTableId] = now
         true
+    }
+
+    /** 只有好友的朋友圈才有点赞权限; 查不到联系人 (陌生人/公众号) 一律按非好友处理。 */
+    private fun isFriend(owner: String): Boolean {
+        val now = System.currentTimeMillis()
+        friendStatus[owner]?.let { cached ->
+            if (now - cached.checkedAt < FRIEND_CACHE_TTL_MS) return cached.isFriend
+        }
+        val friend = WeDatabaseApi.getFriend(owner) != null
+        friendStatus[owner] = FriendStatus(friend, now)
+        return friend
     }
 
     private fun processSnsInfoAsync(snsInfo: Any, source: String) {
