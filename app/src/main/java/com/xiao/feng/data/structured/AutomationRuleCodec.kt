@@ -123,6 +123,8 @@ fun RedPacketSettings.RuleOverrides.toEntity(scopeType: String, talkerId: String
         replyText = autoReply?.text,
         replyMinDelaySeconds = autoReply?.minDelaySeconds,
         replyMaxDelaySeconds = autoReply?.maxDelaySeconds,
+        replyProbability = autoReply?.probability,
+        replyStickerPath = autoReply?.stickerPath,
     )
 }
 
@@ -151,6 +153,9 @@ fun RedPacketRuleEntity.toOverrides(keywords: List<RedPacketKeywordEntity>): Red
                     .map { keyword -> keyword.text },
                 minDelaySeconds = replyMinDelaySeconds ?: "0",
                 maxDelaySeconds = replyMaxDelaySeconds ?: "0",
+                // 概率与表情包是后来加的列, 旧行读取时为 NULL, 缺失即「从未配置」。
+                probability = replyProbability ?: "100",
+                stickerPath = replyStickerPath.orEmpty(),
             )
         },
     )

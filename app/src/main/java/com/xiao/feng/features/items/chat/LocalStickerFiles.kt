@@ -1,7 +1,7 @@
 package com.xiao.feng.features.items.chat
 
+import android.content.Context
 import android.net.Uri
-import androidx.fragment.app.FragmentActivity
 import com.xiao.feng.features.api.core.WeMessageApi
 import com.xiao.feng.utils.HostInfo
 import com.xiao.feng.utils.WeLogger
@@ -20,11 +20,11 @@ object LocalStickerFiles {
     fun send(toUser: String, path: String): Boolean = WeMessageApi.sendEmoji(toUser, path)
 
     /** 把挑选到的文件复制进模块目录, 返回可以长期使用的绝对路径; 失败返回 null。 */
-    fun importFile(activity: FragmentActivity, uri: Uri, name: String): String? = runCatching {
+    fun importFile(context: Context, uri: Uri, name: String): String? = runCatching {
         val dir = File(HostInfo.application.filesDir, "local_stickers").apply { mkdirs() }
         val safeName = name.substringAfterLast('/').ifBlank { "sticker" }
         val destination = File(dir, "${System.currentTimeMillis()}_$safeName")
-        val input = activity.contentResolver.openInputStream(uri)
+        val input = context.contentResolver.openInputStream(uri)
             ?: error("cannot open picked sticker: $uri")
         input.use { source -> destination.outputStream().use { source.copyTo(it) } }
         destination.absolutePath

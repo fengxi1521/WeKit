@@ -1,6 +1,8 @@
 package com.xiao.feng.features.items.payment
 
 import android.content.Context
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -21,6 +23,7 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
@@ -37,6 +40,7 @@ import com.xiao.feng.data.JsonDataMigration
 import com.xiao.feng.data.XiaoFengDatabase
 import com.xiao.feng.data.structured.asOverrides
 import com.xiao.feng.features.items.AutomationSaveContent
+import com.xiao.feng.features.items.chat.LocalStickerFiles
 import com.xiao.feng.features.items.rememberAutomationSaveState
 import com.xiao.feng.features.items.AutomationContactSettingsSelector
 import com.xiao.feng.features.items.AutomationKeywordMode
@@ -97,12 +101,21 @@ object RedPacketSettings {
         /** 收到红包后延迟回复的随机范围 (秒), 两个都是 0 表示立即回复。 */
         val minDelaySeconds: String = "0",
         val maxDelaySeconds: String = "0",
+        /** 每次抢到后回复的概率 (0-100), 100 表示每次都回。 */
+        val probability: String = "100",
+        /** 本地表情包文件路径; 设置后回复时会一并发出。 */
+        val stickerPath: String = "",
     ) {
         val allTexts: List<String>
             get() = texts.map(String::trim).filter { it.isNotEmpty() }
                 .ifEmpty { listOfNotNull(text.trim().takeIf { it.isNotEmpty() }) }
 
         fun pickText(): String? = allTexts.randomOrNull()
+
+        fun shouldReply(): Boolean {
+            val percent = probability.toIntOrNull()?.coerceIn(0, 100) ?: 100
+            return percent > 0 && Random.nextInt(100) < percent
+        }
 
         fun delayMillis(): Long {
             val min = (minDelaySeconds.toLongOrNull() ?: 0L).coerceAtLeast(0L)
@@ -719,6 +732,14 @@ object RedPacketSettings {
         onEditText: (PaymentTextEditMode) -> Unit
     ) {
         val isGlobalEditor = overriddenKeys == null
+        val stickerContext = LocalContext.current
+        val stickerPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+            if (uri == null) return@rememberLauncherForActivityResult
+            val path = LocalStickerFiles.importFile(stickerContext, uri, uri.lastPathSegment.orEmpty())
+            if (path != null) {
+                onChange(RuleKey.AUTO_REPLY, rules.copy(autoReply = rules.autoReply.copy(stickerPath = path)))
+            }
+        }
 
         fun overridden(key: RuleKey): Boolean? = overriddenKeys?.let { key in it }
         fun editable(key: RuleKey): Boolean = overriddenKeys == null || key in overriddenKeys
@@ -1074,6 +1095,7 @@ object RedPacketSettings {
                 item(key = "auto_reply_texts", animatedVisibility = rules.autoReply.enabled) {
                     val repliesTitle = stringResource(R.string.payment_red_packet_auto_reply_texts)
                     val addTitle = stringResource(R.string.payment_red_packet_auto_reply_add)
+                    val placeholderHint = stringResource(R.string.payment_red_packet_reply_placeholder_hint)
                     BaseSupportingWidget(title = repliesTitle) {
                         Column(modifier = Modifier.fillMaxWidth()) {
                             rules.autoReply.allTexts.forEachIndexed { index, reply ->
@@ -1116,6 +1138,7 @@ object RedPacketSettings {
                                         PaymentTextEditMode(
                                             title = addTitle,
                                             initial = "",
+                                            supportingText = placeholderHint,
                                             onCommit = { input ->
                                                 val reply = input.trim()
                                                 if (reply.isNotEmpty() && reply !in rules.autoReply.allTexts) {
@@ -1139,6 +1162,57 @@ object RedPacketSettings {
                             }
                         }
                     }
+                }
+
+                item(key = "auto_reply_sticker", animatedVisibility = rules.autoReply.enabled) {
+                    val stickerTitle = stringResource(R.string.payment_red_packet_reply_sticker)
+                    Column(modifier = Modifier.fillMaxWidth()) {
+                        PaymentValueRow(
+                            title = stickerTitle,
+                            value = rules.autoReply.stickerPath.substringAfterLast('/'),
+                            valueHint = stringResource(R.string.payment_red_packet_reply_sticker_none),
+                            enabled = editable(RuleKey.AUTO_REPLY),
+                            onClick = { stickerPicker.launch(arrayOf("image/*")) },
+                        )
+                        if (rules.autoReply.stickerPath.isNotBlank()) {
+                            TextButton(
+                                enabled = editable(RuleKey.AUTO_REPLY),
+                                onClick = {
+                                    onChange(
+                                        RuleKey.AUTO_REPLY,
+                                        rules.copy(autoReply = rules.autoReply.copy(stickerPath = "")),
+                                    )
+                                },
+                            ) {
+                                Text(stringResource(R.string.payment_red_packet_reply_sticker_clear))
+                            }
+                        }
+                    }
+                }
+                item(key = "auto_reply_probability", animatedVisibility = rules.autoReply.enabled) {
+                    val probabilityTitle = stringResource(R.string.payment_red_packet_reply_probability)
+                    PaymentValueRow(
+                        title = probabilityTitle,
+                        value = rules.autoReply.probability,
+                        valueHint = "100",
+                        enabled = editable(RuleKey.AUTO_REPLY),
+                        onClick = {
+                            onEditText(
+                                PaymentTextEditMode(
+                                    title = probabilityTitle,
+                                    initial = rules.autoReply.probability,
+                                    keyboardType = KeyboardType.Number,
+                                    filter = { it.filter(Char::isDigit).take(3) },
+                                    onCommit = {
+                                        onChange(
+                                            RuleKey.AUTO_REPLY,
+                                            rules.copy(autoReply = rules.autoReply.copy(probability = it)),
+                                        )
+                                    },
+                                )
+                            )
+                        },
+                    )
                 }
 
                 item(key = "auto_reply_delay_min", animatedVisibility = rules.autoReply.enabled) {
@@ -1298,8 +1372,14 @@ object RedPacketSettings {
                 return context.getString(R.string.payment_red_packet_pause_invalid_seconds)
             }
         }
-        if (validates(RuleKey.AUTO_REPLY) && rules.autoReply.enabled && rules.autoReply.allTexts.isEmpty()) {
-            return context.getString(R.string.automation_reply_required)
+        if (validates(RuleKey.AUTO_REPLY) && rules.autoReply.enabled) {
+            if (rules.autoReply.allTexts.isEmpty() && rules.autoReply.stickerPath.isBlank()) {
+                return context.getString(R.string.automation_reply_required)
+            }
+            val probability = rules.autoReply.probability.toIntOrNull()
+            if (probability == null || probability !in 0..100) {
+                return context.getString(R.string.payment_red_packet_reply_probability_invalid)
+            }
         }
         return null
     }

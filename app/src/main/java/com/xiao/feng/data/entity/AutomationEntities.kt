@@ -43,6 +43,10 @@ data class RedPacketRuleEntity(
     /** 红包回复随机延时范围 (秒), 随回复规则一起保存。 */
     val replyMinDelaySeconds: String? = null,
     val replyMaxDelaySeconds: String? = null,
+    /** 抢到后回复的概率 (0-100), 100 表示每次都回。 */
+    val replyProbability: String? = null,
+    /** 回复时一并发送的本地表情包绝对路径; 为空表示只发文字。 */
+    val replyStickerPath: String? = null,
 )
 
 @Entity(

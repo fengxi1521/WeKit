@@ -24,6 +24,7 @@ import com.xiao.feng.features.api.core.WePaymentApi
 import com.xiao.feng.features.api.core.models.MessageInfo
 import com.xiao.feng.features.api.core.models.MessageType
 import com.xiao.feng.features.api.net.WeNetSceneApi
+import com.xiao.feng.features.items.chat.LocalStickerFiles
 import com.xiao.feng.features.items.payment.RedPacketSettings.ReceiveMode
 import com.xiao.feng.features.items.system.keepalive.WeChatKeepAlive
 import com.xiao.feng.features.core.ClickableFeature
@@ -124,7 +125,11 @@ object AutoOpenRedPackets : ClickableFeature(), WeDatabaseListenerApi.IInsertLis
         val headImg: String = "",
         val nickName: String = "",
         val notificationEnabled: Boolean = false,
+        /** 发送者 wxid, 用于把 {member} 占位符替换成昵称。 */
+        val sender: String = "",
         val autoReply: String = "",
+        /** 回复时要一起发出的本地表情包路径; 为空表示只发文字。 */
+        val autoReplySticker: String = "",
         /** 解析红包时就算好的随机回复延时, 避免回复路径再碰设置。 */
         val autoReplyDelayMs: Long = 0L,
     )
@@ -350,6 +355,8 @@ object AutoOpenRedPackets : ClickableFeature(), WeDatabaseListenerApi.IInsertLis
                 return
             }
 
+            // 回复概率只在检测时掷一次, 发送阶段不再重复判定。
+            val replyEnabled = settings.autoReply.enabled && settings.autoReply.shouldReply()
             val info = RedPacketInfo(
                 sendId = sendId,
                 nativeUrl = nativeUrl,
@@ -361,9 +368,11 @@ object AutoOpenRedPackets : ClickableFeature(), WeDatabaseListenerApi.IInsertLis
                 headImg = headImg,
                 nickName = nickName,
                 notificationEnabled = settings.notification.enabled,
+                sender = sender,
                 // 开关关掉时不能再取文案: 文案会保留在配置里, pickText() 本身不看 enabled。
-                autoReply = if (settings.autoReply.enabled) settings.autoReply.pickText().orEmpty() else "",
-                autoReplyDelayMs = settings.autoReply.delayMillis(),
+                autoReply = if (replyEnabled) settings.autoReply.pickText().orEmpty() else "",
+                autoReplySticker = if (replyEnabled) settings.autoReply.stickerPath else "",
+                autoReplyDelayMs = if (replyEnabled) settings.autoReply.delayMillis() else 0L,
             )
             currentRedPacketMap[sendId] = info
 
@@ -525,17 +534,25 @@ object AutoOpenRedPackets : ClickableFeature(), WeDatabaseListenerApi.IInsertLis
         val displayAmount = amount / 100.0
 
         val reply = info.autoReply
-        if (reply.isNotBlank()) {
-            val replyText = reply.replace($$"$amount", "¥$displayAmount")
+        val sticker = info.autoReplySticker
+        if (reply.isNotBlank() || sticker.isNotBlank()) {
+            val memberName = WeDatabaseApi.getDisplayName(info.sender).ifBlank { info.sender }
+            val replyText = reply
+                .replace($$"$amount", "¥$displayAmount")
+                .replace("{member}", memberName)
             val replyDelay = info.autoReplyDelayMs
+            val sendReply = {
+                if (replyText.isNotBlank()) WeMessageApi.sendText(info.talker, replyText)
+                if (sticker.isNotBlank()) LocalStickerFiles.send(info.talker, sticker)
+            }
             if (replyDelay > 0L) {
                 // 随机延时回复, 看起来不像秒回的机器人。
                 scope.launch {
                     delay(replyDelay)
-                    WeMessageApi.sendText(info.talker, replyText)
+                    sendReply()
                 }
             } else {
-                WeMessageApi.sendText(info.talker, replyText)
+                sendReply()
             }
         }
 
