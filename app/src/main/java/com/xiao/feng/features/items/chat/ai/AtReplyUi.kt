@@ -75,6 +75,8 @@ fun showAtReplyDialog(context: Context) {
                                 checked = autoAddNewGroups,
                                 onCheckedChange = {
                                     autoAddNewGroups = it
+                                    // 刚开启时先把现有群记为已知, 之后只有真正的新群才会被加入。
+                                    if (it) AtReply.markGroupsKnown(groups.map { group -> group.wxId })
                                     AtReply.autoAddNewGroups = it
                                 },
                             )

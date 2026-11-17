@@ -6,6 +6,7 @@ import com.xiao.feng.R
 import com.xiao.feng.data.KvStore
 import com.xiao.feng.data.KvStore.prefOption
 import com.xiao.feng.features.api.core.WeApi
+import com.xiao.feng.features.api.core.WeDatabaseApi
 import com.xiao.feng.features.api.core.WeDatabaseListenerApi
 import com.xiao.feng.features.core.ClickableFeature
 import com.xiao.feng.features.core.FeatureCategoryIds
@@ -21,6 +22,7 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import java.util.LinkedHashMap
 
 /**
@@ -51,6 +53,8 @@ object AtReply : ClickableFeature(), WeDatabaseListenerApi.IInsertListener {
     private const val KEY_PERSONA = "at_reply_persona"
     private const val KEY_AUTO_ADD_NEW_GROUPS = "at_reply_auto_add_new_groups"
     private const val KEY_EXCLUDED_TARGETS = "at_reply_excluded_targets"
+    private const val KEY_KNOWN_GROUPS = "at_reply_known_groups"
+    private const val KEY_KNOWN_GROUPS_BASELINE = "at_reply_known_groups_baseline_done"
 
     private const val TEXT_MESSAGE_TYPE = 1
     private const val REPLY_DEBOUNCE_MILLIS = 1_500L
@@ -69,6 +73,11 @@ object AtReply : ClickableFeature(), WeDatabaseListenerApi.IInsertListener {
 
     /** 加入新的群聊时, 自动把它加进生效群聊列表。列表为空(全部群)时不生效。 */
     var autoAddNewGroups: Boolean by prefOption(KEY_AUTO_ADD_NEW_GROUPS, false)
+
+    /** 已经见过的群; 用于区分真正的「新群」与宿主对 rcontact 的更新。 */
+    private var knownGroups: Set<String> by prefOption(KEY_KNOWN_GROUPS, emptySet<String>())
+
+    private var knownGroupsBaselineDone: Boolean by prefOption(KEY_KNOWN_GROUPS_BASELINE, false)
 
     private var scope = newScope()
     private val dedupKeys = LinkedHashMap<String, Unit>(MAX_DEDUP_KEYS, 0.75f, true)
@@ -93,6 +102,31 @@ object AtReply : ClickableFeature(), WeDatabaseListenerApi.IInsertListener {
         } else {
             targets = if (enabled) targets + talker else targets - talker
         }
+    }
+
+    /** 把当前已有的群记为已知; 开启「新群自动加入」时调用, 避免把老群当成新群。 */
+    fun markGroupsKnown(groupIds: Collection<String>) {
+        if (groupIds.isEmpty()) return
+        knownGroups = knownGroups + groupIds.filter { it.isGroupChatWxId }
+    }
+
+    /**
+     * 首次运行时把宿主里已有的群全部记为已知。
+     * 返回 false 表示当前进程无法完成基线 (非主进程或数据库未就绪), 调用方应跳过本次自动加入。
+     */
+    private fun ensureKnownGroupsBaseline(): Boolean {
+        if (knownGroupsBaselineDone) return true
+        if (!TargetProcesses.isInMain || !WeDatabaseApi.isReady) return false
+        val groups = runCatching {
+            runBlocking(Dispatchers.IO) { WeDatabaseApi.getGroups() }
+        }.getOrElse {
+            WeLogger.w(TAG, "failed to baseline known groups", it)
+            return false
+        }
+        markGroupsKnown(groups.map { it.wxId })
+        knownGroupsBaselineDone = true
+        WeLogger.i(TAG, "known group baseline: ${knownGroups.size}")
+        return true
     }
 
     /**
@@ -160,9 +194,19 @@ object AtReply : ClickableFeature(), WeDatabaseListenerApi.IInsertListener {
      * 否则空集合代表「全部群聊」, 追加一个反而把范围缩成一个群。
      */
     private fun handleNewContact(values: ContentValues) {
-        if (!replyEnabled() || !autoAddNewGroups) return
+        if (!replyEnabled()) return
         val username = values.getAsString("username") ?: return
         if (!username.isGroupChatWxId) return
+        if (!autoAddNewGroups) {
+            // 顺手记住见过的群, 之后开启自动加入时不会把老群当成新群。
+            if (username !in knownGroups) knownGroups = knownGroups + username
+            return
+        }
+        // rcontact 的更新同样会走 insert 回调; 只有从未见过的群才算真正的新群,
+        // 否则用户手动关掉的群会被「新群自动加入」反复加回生效列表。
+        if (!ensureKnownGroupsBaseline()) return
+        if (username in knownGroups) return
+        knownGroups = knownGroups + username
         val current = targets
         if (current.isEmpty() || username in current) return
         targets = current + username
