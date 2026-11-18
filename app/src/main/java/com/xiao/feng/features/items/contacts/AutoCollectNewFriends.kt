@@ -64,6 +64,7 @@ object AutoCollectNewFriends : ClickableFeature(), WeDatabaseListenerApi.IInsert
     private var baselineDone by KvStore.prefOption(KEY_BASELINE_DONE, false)
 
     private val baselineLock = Mutex()
+    private val applyLock = Mutex()
     private var scope: CoroutineScope? = null
 
     override fun onEnable() {
@@ -175,20 +176,26 @@ object AutoCollectNewFriends : ClickableFeature(), WeDatabaseListenerApi.IInsert
         }
         if (!isNew) return
 
-        val target = currentTarget() ?: return
-        delay(ContactCollector.intervalMillis(intervalSeconds))
-        if (!ContactCollector.prepare(target)) {
-            WeLogger.w(TAG, "failed to prepare target ${target.name} for new friend $wxId")
-            return
+        // 串行执行, 保证多个新好友同时到达时也按配置的间隔逐个处理。
+        applyLock.withLock {
+            val target = currentTarget() ?: return@withLock
+            delay(ContactCollector.intervalMillis(intervalSeconds))
+            if (!ContactCollector.prepare(target)) {
+                WeLogger.w(TAG, "failed to prepare target ${target.name} for new friend $wxId")
+                return@withLock
+            }
+            ContactCollector.apply(target, wxId)
+            WeLogger.i(TAG, "collected new friend $wxId into ${target.name}")
         }
-        ContactCollector.apply(target, wxId)
-        WeLogger.i(TAG, "collected new friend $wxId into ${target.name}")
     }
 
     private suspend fun ensureBaseline() {
-        while (!baselineDone) {
-            baselineLock.withLock { if (!baselineDone) mergeCurrentFriends() }
-            if (!baselineDone) delay(BASELINE_RETRY_MS)
+        while (true) {
+            val done = baselineLock.withLock {
+                baselineDone || mergeCurrentFriends()
+            }
+            if (done) return
+            delay(BASELINE_RETRY_MS)
         }
     }
 

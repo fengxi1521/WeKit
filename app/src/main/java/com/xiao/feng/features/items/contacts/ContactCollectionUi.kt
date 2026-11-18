@@ -166,14 +166,20 @@ fun Context.startGroupCollection(
             val ids = members.orEmpty().map { it.wxId }
             onIntervalPicked(intervalInput)
             val interval = ContactCollector.intervalMillis(intervalInput)
-            val ok = withContext(Dispatchers.IO) {
-                if (!ContactCollector.prepare(target)) return@withContext false
-                ids.forEachIndexed { index, wxId ->
-                    ContactCollector.apply(target, wxId)
-                    completed.intValue = index + 1
-                    if (index < ids.lastIndex && interval > 0) delay(interval)
+            // 批量执行期间禁止外部点击/返回键中断, 避免用户误触后只处理了一半。
+            dialog.setCancelable(false)
+            val ok = try {
+                withContext(Dispatchers.IO) {
+                    if (!ContactCollector.prepare(target)) return@withContext false
+                    ids.forEachIndexed { index, wxId ->
+                        ContactCollector.apply(target, wxId)
+                        completed.intValue = index + 1
+                        if (index < ids.lastIndex && interval > 0) delay(interval)
+                    }
+                    true
                 }
-                true
+            } finally {
+                dialog.setCancelable(true)
             }
             failed = !ok
             done = true
@@ -239,7 +245,7 @@ fun Context.startGroupCollection(
                     )
                 }
             },
-            dismissButton = if (runningTarget == null || done) {
+            dismissButton = if (runningTarget == null) {
                 { TextButton(onDismiss) { Text(stringResource(R.string.dialog_cancel)) } }
             } else null,
             confirmButton = if (done) {
