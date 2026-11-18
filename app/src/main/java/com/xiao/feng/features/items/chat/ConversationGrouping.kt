@@ -1505,6 +1505,35 @@ object ConversationGrouping : ClickableFeature(), IResolveDex {
                 )
             }
 
+    /** Public snapshot of the hand-picked groups, i.e. the only ones that accept new members. */
+    fun manualGroupChoices(context: Context): List<GroupChoice> =
+        loadGroups()
+            .filter { !isAllTab(it.id) && it.type == GroupType.MANUAL }
+            .map { group ->
+                GroupChoice(
+                    id = group.id,
+                    name = localizedGroupName(context, group),
+                    members = getGroupMembers(group),
+                )
+            }
+
+    /**
+     * Adds [talker] to the manual group [groupId] and persists it immediately. Returns false when
+     * the group is missing or computed automatically (preset / SQL) rather than hand-picked.
+     */
+    suspend fun addToGroup(groupId: String, talker: String): Boolean {
+        val group = groupById(groupId) ?: return false
+        if (group.type != GroupType.MANUAL) return false
+        if (talker in group.members) return true
+        // 只落库并让缓存失效; 刷新会话列表要回主线程, 由宿主下一次重建 tab 时读取新成员。
+        try {
+            XiaoFengDatabase.instance.conversationCollectionDao().appendGroupMember(groupId, talker)
+        } finally {
+            invalidateGroups()
+        }
+        return true
+    }
+
     @Composable
     private fun groupDisplayName(group: ChatGroup): String =
         localizedGroupName(LocalXiaoFengLocalizedContext.current, group)

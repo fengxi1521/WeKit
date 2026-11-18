@@ -590,6 +590,34 @@
     <string name="feature_batch_mark_as_read_description">After selecting multiple friends or group chats, mark their conversations as read at once</string>
     <string name="feature_batch_mute_conversations_name">Batch mute conversations</string>
     <string name="feature_batch_mute_conversations_description">After selecting multiple friends or group chats, turn on or off message do not disturb in batches</string>
+    <string name="feature_auto_collect_new_friends_name">Auto-collect new friends</string>
+    <string name="feature_auto_collect_new_friends_description">When a new friend is added, automatically put them into the selected label, folder or group. The interval is adjustable to avoid anti-abuse controls.</string>
+    <string name="feature_batch_label_group_members_name">Label group members</string>
+    <string name="feature_batch_label_group_members_description">Pick a group chat and append a label to every member that is already your friend. The interval is adjustable to avoid anti-abuse controls.</string>
+    <string name="feature_batch_collect_group_members_name">Collect group members</string>
+    <string name="feature_batch_collect_group_members_description">Pick a group chat and put every member that is already your friend into the selected folder or group. The interval is adjustable to avoid anti-abuse controls.</string>
+    <string name="batch_group_members_select_group">Select a group chat</string>
+    <string name="batch_group_members_no_friends">No member in this group is already your friend</string>
+    <string name="contact_collection_interval">Interval (seconds)</string>
+    <string name="contact_collection_section_label">Labels</string>
+    <string name="contact_collection_section_folder">Folders</string>
+    <string name="contact_collection_section_group">Groups</string>
+    <string name="contact_collection_empty">No target available. Create a label, folder or group first.</string>
+    <string name="contact_collection_new_label_hint">New label name</string>
+    <string name="contact_collection_new_label_apply">Create and apply</string>
+    <string name="contact_collection_prepare_failed">Cannot prepare target \"%1$s\". Check that it still exists.</string>
+    <string name="contact_collection_done_title">Finished</string>
+    <string name="contact_collection_current_target">Current target: %1$s</string>
+    <string name="contact_collection_no_target">Current target: not set, choose one below</string>
+    <string name="contact_collection_saved">Target set to: %1$s</string>
+    <plurals name="contact_collection_progress">
+        <item quantity="one">Adding 1/%3$d friend to %1$s</item>
+        <item quantity="other">Adding %2$d/%3$d friends to %1$s</item>
+    </plurals>
+    <plurals name="contact_collection_done">
+        <item quantity="one">Added %1$d/%2$d friend to %3$s</item>
+        <item quantity="other">Added %1$d/%2$d friends to %3$s</item>
+    </plurals>
     <string name="feature_mass_send_message_name">Mass-send messages</string>
     <string name="feature_mass_send_message_description">Write a text or card message, select multiple friends or group chats and send them in batches. Requests will be automatically spaced to avoid server anti-abuse controls.</string>
     <string name="feature_add_main_screen_fab_name">Add home-screen FAB</string>
@@ -2934,7 +2962,7 @@
     <string name="contacts_custom_avatar_configured">Configured — %1$s</string>
     <string name="contacts_custom_avatar_select">Select</string>
     <string name="contacts_detect_create_label_failed">Failed to create label “%1$s”</string>
-    <string name="contacts_detect_marking_done">Labeling complete</string>
+    <string name="contacts_detect_marking_done">Finished</string>
     <plurals name="contacts_detect_delete_done"><item quantity="one">Deletion complete: %1$d succeeded, %2$d failed</item><item quantity="other">Deletion complete: %1$d succeeded, %2$d failed</item></plurals>
     <string name="contacts_detect_warning_title">Warning</string>
     <string name="contacts_detect_warning_message">This feature may cause account abnormalities. Continue?</string>
@@ -2956,13 +2984,15 @@
     <string name="contacts_detect_wechat_number">WeChat number: %1$s</string>
     <plurals name="contacts_detect_confirm_delete"><item quantity="one">Delete the %1$d selected friend?\nThis cannot be undone. Their chat history will be cleared, and they will need to add you again.</item><item quantity="other">Delete the %1$d selected friends?\nThis cannot be undone. Their chat history will be cleared, and they will need to add you again.</item></plurals>
     <plurals name="contacts_detect_deleting"><item quantity="one">Deleting friends; please wait…\nCompleted: %1$d/%2$d friend</item><item quantity="other">Deleting friends; please wait…\nCompleted: %1$d/%2$d friends</item></plurals>
-    <plurals name="contacts_detect_select_label"><item quantity="one">Select a label to apply to %1$d abnormal friend</item><item quantity="other">Select a label to apply to all %1$d abnormal friends</item></plurals>
+    <plurals name="contacts_detect_select_label"><item quantity="one">Select a target to apply to %1$d abnormal friend</item><item quantity="other">Select a target to apply to all %1$d abnormal friends</item></plurals>
     <string name="contacts_detect_new_label">New label</string>
-    <plurals name="contacts_detect_marking"><item quantity="one">Applying label “%1$s”; please wait…\nCompleted: %2$d/%3$d friend</item><item quantity="other">Applying label “%1$s”; please wait…\nCompleted: %2$d/%3$d friends</item></plurals>
+    <plurals name="contacts_detect_marking"><item quantity="one">Adding into “%1$s”; please wait…\nCompleted: %2$d/%3$d friend</item><item quantity="other">Adding into “%1$s”; please wait…\nCompleted: %2$d/%3$d friends</item></plurals>
     <string name="contacts_detect_stop">Stop</string>
     <string name="contacts_detect_back">Back</string>
     <string name="contacts_detect_suggested_label">XiaoFeng_deleted_friends_%1$s</string>
     <string name="contacts_detect_mark_label">Apply label</string>
+    <string name="contacts_detect_collect">Collect / group / label</string>
+    <string name="contacts_detect_apply_delay">Action interval (seconds)</string>
     <string name="contacts_detect_delete_all">Delete all</string>
     <string name="contacts_hide_restored">Hidden contacts restored</string>
     <string name="contacts_hide_temporarily_shown">All hidden contacts are temporarily visible</string>

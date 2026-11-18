@@ -20,12 +20,10 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.composables.icons.materialsymbols.MaterialSymbols
-import com.composables.icons.materialsymbols.outlined.Add
 import com.composables.icons.materialsymbols.outlined.Delete
 import com.xiao.feng.R
 import com.xiao.feng.features.api.core.WeApi
 import com.xiao.feng.features.api.core.WeContactApi
-import com.xiao.feng.features.api.core.WeContactLabelApi
 import com.xiao.feng.features.api.core.WeDatabaseApi
 import com.xiao.feng.features.api.core.models.WeContact
 import com.xiao.feng.features.api.net.WePacketHelper
@@ -71,7 +69,6 @@ object DetectDeletedFriends : ClickableFeature() {
     override val noSwitchWidget = true
 
     private const val TAG = "DetectDeletedFriends"
-    private const val SUGGESTED_LABEL_CHOICE_KEY = "suggested_label"
 
     private enum class DetectionMode(val labelRes: Int) {
         BEFORE_TRANSFER(R.string.contacts_detect_mode_before_transfer),
@@ -105,11 +102,10 @@ object DetectDeletedFriends : ClickableFeature() {
         "detect_deleted_friends_delay_seconds",
         "2",
     )
-
-    private sealed class LabelChoice {
-        data class Suggested(val labelName: String) : LabelChoice()
-        data class Existing(val label: WeContactLabelApi.ContactLabel) : LabelChoice()
-    }
+    private var applyDelaySeconds by KvStore.prefOption(
+        "detect_deleted_friends_apply_delay_seconds",
+        "1",
+    )
 
     private sealed class DialogPhase {
         data object Idle : DialogPhase()
@@ -122,14 +118,14 @@ object DetectDeletedFriends : ClickableFeature() {
         ) : DialogPhase()
 
         data class Done(val friends: List<AbnormalFriend>) : DialogPhase()
-        data class SelectLabel(
+        data class SelectTarget(
             val friends: List<AbnormalFriend>,
             val suggestedLabelName: String
         ) : DialogPhase()
 
-        data class Marking(
+        data class Applying(
             val friends: List<AbnormalFriend>,
-            val labelName: String,
+            val target: ContactCollector.Target,
             val completed: MutableIntState,
             val total: Int
         ) : DialogPhase()
@@ -217,9 +213,10 @@ object DetectDeletedFriends : ClickableFeature() {
 
         showComposeDialog(context) {
             var phase by remember { mutableStateOf<DialogPhase>(DialogPhase.Idle) }
-            var availableLabels by remember { mutableStateOf<List<WeContactLabelApi.ContactLabel>?>(null) }
+            var availableTargets by remember { mutableStateOf<List<ContactCollector.Target>?>(null) }
             var selectedMode by remember { mutableStateOf(DetectionMode.valueOf(detectionModeName)) }
             var requestDelayInput by remember { mutableStateOf(requestDelaySeconds) }
+            var applyDelayInput by remember { mutableStateOf(applyDelaySeconds) }
             var unresolvedCount by remember { mutableIntStateOf(0) }
 
             LaunchedEffect(phase) {
@@ -300,57 +297,52 @@ object DetectDeletedFriends : ClickableFeature() {
                         phase = DialogPhase.Done(scanningPhase.abnormalFriends.toList())
                         dialog.setCancelable(true)
                     }
-                } else if (phase is DialogPhase.SelectLabel) {
+                } else if (phase is DialogPhase.SelectTarget) {
                     dialog.setCancelable(true)
-                    availableLabels = null
+                    availableTargets = null
                     CoroutineScope(Dispatchers.IO).launch {
-                        availableLabels = WeContactLabelApi.getAllLabels()
+                        availableTargets = ContactCollector.loadTargets(
+                            context = context,
+                            includeLabels = true,
+                            includeCollections = true,
+                        )
                     }
-                } else if (phase is DialogPhase.Marking) {
+                } else if (phase is DialogPhase.Applying) {
                     dialog.setCancelable(false)
                     CoroutineScope(Dispatchers.IO).launch {
-                        val markingPhase = phase as DialogPhase.Marking
-                        // ensure the target label exists before tagging; createLabel is a no-op
-                        // when the label is already present, otherwise it dispatches the
-                        // addcontactlabel netscene and waits for the server-assigned id to land
-                        val labelId = WeContactLabelApi.createLabel(markingPhase.labelName)
-                        if (labelId == null) {
-                            if (phase is DialogPhase.Marking) {
-                                phase = DialogPhase.Done(markingPhase.friends)
+                        val applyingPhase = phase as DialogPhase.Applying
+                        // 标签不存在时先按名称创建 (需要等待服务器下发 id), 归拢/分组必须事先存在。
+                        if (!ContactCollector.prepare(applyingPhase.target)) {
+                            if (phase is DialogPhase.Applying) {
+                                phase = DialogPhase.Done(applyingPhase.friends)
                                 dialog.setCancelable(true)
                                 showToastSuspend(
                                     context,
                                     context.localizedContactsString(
-                                        R.string.contacts_detect_create_label_failed,
-                                        markingPhase.labelName,
+                                        R.string.contact_collection_prepare_failed,
+                                        applyingPhase.target.name,
                                     ),
                                 )
                             }
                             return@launch
                         }
 
-                        for (abnormalFriend in markingPhase.friends) {
+                        val interval = ContactCollector.intervalMillis(applyDelaySeconds)
+                        for ((index, abnormalFriend) in applyingPhase.friends.withIndex()) {
                             // detect whether user quitted halfway
-                            if (phase !is DialogPhase.Marking) {
+                            if (phase !is DialogPhase.Applying) {
                                 break
                             }
 
-                            val friend = abnormalFriend.contact
-                            // additive: keep existing labels and append the target one
-                            val existing = WeContactLabelApi.getLabelNamesForContact(friend.wxId)
-                            if (markingPhase.labelName !in existing) {
-                                WeContactLabelApi.modifyLabel(
-                                    friend.wxId,
-                                    existing + markingPhase.labelName
-                                )
+                            ContactCollector.apply(applyingPhase.target, abnormalFriend.contact.wxId)
+                            applyingPhase.completed.intValue++
+                            if (index != applyingPhase.friends.lastIndex && interval > 0) {
+                                delay(interval)
                             }
-                            markingPhase.completed.intValue++
-                            // avoid hammering the netscene dispatcher
-                            delay(1.seconds)
                         }
 
-                        if (phase is DialogPhase.Marking) {
-                            phase = DialogPhase.Done(markingPhase.friends)
+                        if (phase is DialogPhase.Applying) {
+                            phase = DialogPhase.Done(applyingPhase.friends)
                             dialog.setCancelable(true)
                             showToastSuspend(
                                 context,
@@ -445,6 +437,24 @@ object DetectDeletedFriends : ClickableFeature() {
                                             }
                                         },
                                         dialogTitle = stringResource(R.string.contacts_detect_request_delay),
+                                        confirmLabel = stringResource(android.R.string.ok),
+                                        dismissLabel = stringResource(android.R.string.cancel),
+                                        keyboardType = KeyboardType.Decimal,
+                                        filter = ::filterPositiveDecimal,
+                                    )
+                                }
+                                item(key = "apply_delay") {
+                                    TextFieldDialogWidget(
+                                        title = stringResource(R.string.contacts_detect_apply_delay),
+                                        value = applyDelayInput,
+                                        onValueChange = { input ->
+                                            val value = input.toDoubleOrNull()
+                                            if (value != null && value >= 0.0 && value.isFinite()) {
+                                                applyDelayInput = input
+                                                applyDelaySeconds = input
+                                            }
+                                        },
+                                        dialogTitle = stringResource(R.string.contacts_detect_apply_delay),
                                         confirmLabel = stringResource(android.R.string.ok),
                                         dismissLabel = stringResource(android.R.string.cancel),
                                         keyboardType = KeyboardType.Decimal,
@@ -554,9 +564,9 @@ object DetectDeletedFriends : ClickableFeature() {
                             }
                         }
 
-                        is DialogPhase.SelectLabel -> {
-                            val selectPhase = phase as DialogPhase.SelectLabel
-                            val labels = availableLabels
+                        is DialogPhase.SelectTarget -> {
+                            val selectPhase = phase as DialogPhase.SelectTarget
+                            val targets = availableTargets
                             DefaultColumn {
                                 Text(
                                     pluralStringResource(
@@ -565,56 +575,41 @@ object DetectDeletedFriends : ClickableFeature() {
                                         selectPhase.friends.size,
                                     ),
                                 )
-                                if (labels == null) {
+                                if (targets == null) {
                                     LinearWavyProgressIndicator()
                                 } else {
-                                    LazyColumn {
-                                        val choices = listOf(
-                                            LabelChoice.Suggested(selectPhase.suggestedLabelName),
-                                        ) + labels.map { LabelChoice.Existing(it) }
-                                        lazySegmentedItems(
-                                            choices,
-                                            key = { choice ->
-                                                when (choice) {
-                                                    is LabelChoice.Suggested -> SUGGESTED_LABEL_CHOICE_KEY
-                                                    is LabelChoice.Existing -> choice.label.labelId
-                                                }
-                                            },
-                                        ) { choice ->
-                                            val suggested = choice is LabelChoice.Suggested
-                                            val labelName = when (choice) {
-                                                is LabelChoice.Suggested -> choice.labelName
-                                                is LabelChoice.Existing -> choice.label.labelName
-                                            }
-                                            BaseWidget(
-                                                icon = MaterialSymbols.Outlined.Add.takeIf { suggested },
-                                                title = labelName,
-                                                description = stringResource(R.string.contacts_detect_new_label)
-                                                    .takeIf { suggested },
-                                                onClick = {
-                                                    phase = DialogPhase.Marking(
-                                                        friends = selectPhase.friends,
-                                                        labelName = labelName,
-                                                        completed = mutableIntStateOf(0),
-                                                        total = selectPhase.friends.size
-                                                    )
-                                                },
+                                    ContactCollectionTargetList(
+                                        targets = targets,
+                                        allowNewLabel = true,
+                                        intervalInput = applyDelayInput,
+                                        onIntervalChange = { input ->
+                                            applyDelayInput = input
+                                            applyDelaySeconds = input
+                                        },
+                                        onPick = { target ->
+                                            phase = DialogPhase.Applying(
+                                                friends = selectPhase.friends,
+                                                target = target,
+                                                completed = mutableIntStateOf(0),
+                                                total = selectPhase.friends.size,
                                             )
-                                        }
-                                    }
+                                        },
+                                        newLabelDefault = selectPhase.suggestedLabelName,
+                                    )
                                 }
                             }
                         }
 
-                        is DialogPhase.Marking -> {
-                            val completed by (phase as DialogPhase.Marking).completed
-                            val total = (phase as DialogPhase.Marking).total
+                        is DialogPhase.Applying -> {
+                            val applyingPhase = phase as DialogPhase.Applying
+                            val completed by applyingPhase.completed
+                            val total = applyingPhase.total
                             DefaultColumn {
                                 Text(
                                     pluralStringResource(
                                         R.plurals.contacts_detect_marking,
                                         total,
-                                        (phase as DialogPhase.Marking).labelName,
+                                        applyingPhase.target.name,
                                         completed,
                                         total,
                                     ),
@@ -645,18 +640,18 @@ object DetectDeletedFriends : ClickableFeature() {
                         }
                     }
 
-                    is DialogPhase.SelectLabel -> {
+                    is DialogPhase.SelectTarget -> {
                         {
                             TextButton(onClick = {
-                                phase = DialogPhase.Done((phase as DialogPhase.SelectLabel).friends)
+                                phase = DialogPhase.Done((phase as DialogPhase.SelectTarget).friends)
                             }) { Text(stringResource(R.string.contacts_detect_back)) }
                         }
                     }
 
-                    is DialogPhase.Marking -> {
+                    is DialogPhase.Applying -> {
                         {
                             TextButton(onClick = {
-                                phase = DialogPhase.Done((phase as DialogPhase.Marking).friends)
+                                phase = DialogPhase.Done((phase as DialogPhase.Applying).friends)
                                 dialog.setCancelable(true)
                             }) { Text(stringResource(R.string.contacts_detect_stop)) }
                         }
@@ -709,15 +704,15 @@ object DetectDeletedFriends : ClickableFeature() {
                             val abnormalFriends = (phase as DialogPhase.Done).friends
                             if (abnormalFriends.isNotEmpty()) {
                                 TextButton(onClick = {
-                                    availableLabels = null
-                                    phase = DialogPhase.SelectLabel(
+                                    availableTargets = null
+                                    phase = DialogPhase.SelectTarget(
                                         friends = abnormalFriends,
                                         suggestedLabelName = context.localizedContactsString(
                                             R.string.contacts_detect_suggested_label,
                                             formatEpoch(System.currentTimeMillis(), includeDate = true),
                                         ),
                                     )
-                                }) { Text(stringResource(R.string.contacts_detect_mark_label)) }
+                                }) { Text(stringResource(R.string.contacts_detect_collect)) }
                                 TextButton(onClick = {
                                     phase = DialogPhase.ConfirmDelete(
                                         allFriends = abnormalFriends,

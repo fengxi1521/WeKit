@@ -147,6 +147,21 @@ interface ConversationCollectionDao {
         if (!hasFolderMember(id, wxId)) appendFolderMemberRow(id, wxId)
     }
 
+    @Query("SELECT type FROM conversation_groups WHERE id = :id")
+    suspend fun groupType(id: String): String?
+
+    @Query("SELECT EXISTS(SELECT 1 FROM conversation_group_members WHERE groupId = :id AND wxId = :wxId)")
+    suspend fun hasGroupMember(id: String, wxId: String): Boolean
+
+    @Query("INSERT INTO conversation_group_members (groupId, position, wxId) SELECT :id, COALESCE(MAX(position), -1) + 1, :wxId FROM conversation_group_members WHERE groupId = :id")
+    suspend fun appendGroupMemberRow(id: String, wxId: String)
+
+    @Transaction
+    suspend fun appendGroupMember(id: String, wxId: String) {
+        require(groupType(id) == ConversationGroupType.MANUAL.name) { "Only manual groups have editable members" }
+        if (!hasGroupMember(id, wxId)) appendGroupMemberRow(id, wxId)
+    }
+
     @Transaction
     suspend fun removeFolderMember(id: String, wxId: String) {
         require(folderType(id) == ConversationFolderType.MANUAL.name) { "Only manual folders have editable members" }

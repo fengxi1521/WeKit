@@ -554,6 +554,32 @@
     <string name="feature_batch_mark_as_read_description">选择多个好友或群聊后, 将它们的对话一次性标记为已读</string>
     <string name="feature_batch_mute_conversations_name">批量免打扰</string>
     <string name="feature_batch_mute_conversations_description">选择多个好友或群聊后, 批量开启或关闭消息免打扰</string>
+    <string name="feature_auto_collect_new_friends_name">加好友自动归拢</string>
+    <string name="feature_auto_collect_new_friends_description">检测到新好友后, 自动加入指定的标签/归拢/分组, 可调整操作间隔以规避风控</string>
+    <string name="feature_batch_label_group_members_name">群成员批量打标签</string>
+    <string name="feature_batch_label_group_members_description">选择一个群聊, 为群里已是好友的成员批量追加标签, 可调整间隔延迟以规避风控</string>
+    <string name="feature_batch_collect_group_members_name">群成员批量归拢</string>
+    <string name="feature_batch_collect_group_members_description">选择一个群聊, 把群里已是好友的成员批量加入指定的归拢或分组, 可调整间隔延迟以规避风控</string>
+    <string name="batch_group_members_select_group">选择群聊</string>
+    <string name="batch_group_members_no_friends">这个群里没有已是好友的成员</string>
+    <string name="contact_collection_interval">操作间隔（秒）</string>
+    <string name="contact_collection_section_label">标签</string>
+    <string name="contact_collection_section_folder">归拢</string>
+    <string name="contact_collection_section_group">分组</string>
+    <string name="contact_collection_empty">没有可用的目标, 请先在微信或模块里创建标签、归拢或分组</string>
+    <string name="contact_collection_new_label_hint">新建标签名称</string>
+    <string name="contact_collection_new_label_apply">新建并应用</string>
+    <string name="contact_collection_prepare_failed">无法准备目标“%1$s”, 请检查它是否仍然存在</string>
+    <string name="contact_collection_done_title">操作完成</string>
+    <string name="contact_collection_current_target">当前目标：%1$s</string>
+    <string name="contact_collection_no_target">当前目标：未设置, 点击下方选择</string>
+    <string name="contact_collection_saved">已设置为：%1$s</string>
+    <plurals name="contact_collection_progress">
+        <item quantity="other">正在把 %2$d/%3$d 位好友加入 %1$s</item>
+    </plurals>
+    <plurals name="contact_collection_done">
+        <item quantity="other">已将 %1$d/%2$d 位好友加入 %3$s</item>
+    </plurals>
     <string name="feature_mass_send_message_name">群发消息</string>
     <string name="feature_mass_send_message_description">编写一条文本或卡片消息, 选择多个好友或群聊后批量发送, 请求会自动间隔以规避服务器风控</string>
     <string name="feature_add_main_screen_fab_name">主屏幕添加 FAB</string>
@@ -2957,7 +2983,7 @@
     <string name="contacts_custom_avatar_configured">已设置 - %1$s</string>
     <string name="contacts_custom_avatar_select">选择</string>
     <string name="contacts_detect_create_label_failed">创建标签“%1$s”失败</string>
-    <string name="contacts_detect_marking_done">标记完成</string>
+    <string name="contacts_detect_marking_done">操作完成</string>
     <plurals name="contacts_detect_delete_done">
         <item quantity="other">删除完成：成功 %1$d，失败 %2$d</item>
     </plurals>
@@ -2992,16 +3018,18 @@
         <item quantity="other">正在删除好友，请稍等…\n已完成：%1$d/%2$d</item>
     </plurals>
     <plurals name="contacts_detect_select_label">
-        <item quantity="other">选择一个标签，将应用到全部 %1$d 个异常好友</item>
+        <item quantity="other">选择一个目标，将应用到全部 %1$d 个异常好友</item>
     </plurals>
     <string name="contacts_detect_new_label">新建标签</string>
     <plurals name="contacts_detect_marking">
-        <item quantity="other">正在标记为“%1$s”，请稍等…\n已完成：%2$d/%3$d</item>
+        <item quantity="other">正在加入“%1$s”，请稍等…\n已完成：%2$d/%3$d</item>
     </plurals>
     <string name="contacts_detect_stop">终止</string>
     <string name="contacts_detect_back">返回</string>
     <string name="contacts_detect_suggested_label">XiaoFeng_单删好友_%1$s</string>
     <string name="contacts_detect_mark_label">标记标签</string>
+    <string name="contacts_detect_collect">归拢/分组/标签</string>
+    <string name="contacts_detect_apply_delay">操作间隔（秒）</string>
     <string name="contacts_detect_delete_all">全部删除</string>
     <string name="contacts_hide_restored">已恢复隐藏联系人</string>
     <string name="contacts_hide_temporarily_shown">已临时显示所有隐藏的联系人</string>
