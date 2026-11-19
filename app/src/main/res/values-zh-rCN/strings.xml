@@ -560,6 +560,12 @@
     <string name="feature_batch_label_group_members_description">选择一个群聊, 为群里已是好友的成员批量追加标签, 可调整间隔延迟以规避风控</string>
     <string name="feature_batch_collect_group_members_name">群成员批量归拢</string>
     <string name="feature_batch_collect_group_members_description">选择一个群聊, 把群里已是好友的成员批量加入指定的归拢或分组, 可调整间隔延迟以规避风控</string>
+    <string name="feature_batch_collect_collection_members_name">归拢分组群成员批量归拢</string>
+    <string name="feature_batch_collect_collection_members_description">把所选归拢/分组里所有群聊的成员（仅已是好友的）批量归拢到另一个已有的归拢或分组, 可调整间隔延迟</string>
+    <string name="batch_collect_source">来源归拢/分组</string>
+    <string name="batch_collect_target">目标归拢/分组</string>
+    <string name="batch_collect_collection_running">正在归拢成员… %1$d/%2$d</string>
+    <string name="batch_collect_collection_done">完成, 共归拢 %1$d 人</string>
     <string name="batch_group_members_select_group">选择群聊</string>
     <string name="batch_group_members_no_friends">这个群里没有已是好友的成员</string>
     <string name="contact_collection_interval">操作间隔（秒）</string>
@@ -2983,7 +2989,7 @@
     <string name="contacts_custom_avatar_configured">已设置 - %1$s</string>
     <string name="contacts_custom_avatar_select">选择</string>
     <string name="contacts_detect_create_label_failed">创建标签“%1$s”失败</string>
-    <string name="contacts_detect_marking_done">操作完成</string>
+    <string name="contacts_detect_marking_done">标记完成</string>
     <plurals name="contacts_detect_delete_done">
         <item quantity="other">删除完成：成功 %1$d，失败 %2$d</item>
     </plurals>
@@ -3018,18 +3024,20 @@
         <item quantity="other">正在删除好友，请稍等…\n已完成：%1$d/%2$d</item>
     </plurals>
     <plurals name="contacts_detect_select_label">
-        <item quantity="other">选择一个目标，将应用到全部 %1$d 个异常好友</item>
+        <item quantity="other">选择一个标签，将应用到全部 %1$d 个异常好友</item>
     </plurals>
     <string name="contacts_detect_new_label">新建标签</string>
     <plurals name="contacts_detect_marking">
-        <item quantity="other">正在加入“%1$s”，请稍等…\n已完成：%2$d/%3$d</item>
+        <item quantity="other">正在标记为“%1$s”，请稍等…\n已完成：%2$d/%3$d</item>
     </plurals>
     <string name="contacts_detect_stop">终止</string>
     <string name="contacts_detect_back">返回</string>
     <string name="contacts_detect_suggested_label">XiaoFeng_单删好友_%1$s</string>
     <string name="contacts_detect_mark_label">标记标签</string>
-    <string name="contacts_detect_collect">归拢/分组/标签</string>
-    <string name="contacts_detect_apply_delay">操作间隔（秒）</string>
+    <string name="contacts_detect_scope">检测范围</string>
+    <string name="contacts_detect_scope_all">全部好友</string>
+    <string name="contacts_detect_scope_title">选择检测范围</string>
+    <string name="contacts_detect_scope_empty">该范围内没有好友</string>
     <string name="contacts_detect_delete_all">全部删除</string>
     <string name="contacts_hide_restored">已恢复隐藏联系人</string>
     <string name="contacts_hide_temporarily_shown">已临时显示所有隐藏的联系人</string>
@@ -4373,6 +4381,7 @@
     <string name="auto_grab_gifts_delay_description">收到礼物消息后等待多久再领取</string>
     <string name="feature_qq_music_order_name">QQ 点歌</string>
     <string name="feature_qq_music_order_description">在聊天里发送歌名，自动回一张可播放的 QQ 音乐卡片</string>
+    <string name="qq_music_order_need_keyword">请先在输入框输入歌名</string>
     <string name="qq_music_targets_title">其他人点歌的会话</string>
     <string name="qq_music_targets_empty">仅处理自己发送的指令</string>
     <string name="qq_music_targets_count">已选择 %1$d 个会话</string>

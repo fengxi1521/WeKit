@@ -596,6 +596,12 @@
     <string name="feature_batch_label_group_members_description">Pick a group chat and append a label to every member that is already your friend. The interval is adjustable to avoid anti-abuse controls.</string>
     <string name="feature_batch_collect_group_members_name">Collect group members</string>
     <string name="feature_batch_collect_group_members_description">Pick a group chat and put every member that is already your friend into the selected folder or group. The interval is adjustable to avoid anti-abuse controls.</string>
+    <string name="feature_batch_collect_collection_members_name">Collect collection members</string>
+    <string name="feature_batch_collect_collection_members_description">Collect every friend who is a member of any group chat inside the chosen folder or group into another existing folder or group. The interval is adjustable.</string>
+    <string name="batch_collect_source">Source folder / group</string>
+    <string name="batch_collect_target">Destination folder / group</string>
+    <string name="batch_collect_collection_running">Collecting members… %1$d/%2$d</string>
+    <string name="batch_collect_collection_done">Done, collected %1$d members</string>
     <string name="batch_group_members_select_group">Select a group chat</string>
     <string name="batch_group_members_no_friends">No member in this group is already your friend</string>
     <string name="contact_collection_interval">Interval (seconds)</string>
@@ -2962,7 +2968,7 @@
     <string name="contacts_custom_avatar_configured">Configured — %1$s</string>
     <string name="contacts_custom_avatar_select">Select</string>
     <string name="contacts_detect_create_label_failed">Failed to create label “%1$s”</string>
-    <string name="contacts_detect_marking_done">Finished</string>
+    <string name="contacts_detect_marking_done">Labeling complete</string>
     <plurals name="contacts_detect_delete_done"><item quantity="one">Deletion complete: %1$d succeeded, %2$d failed</item><item quantity="other">Deletion complete: %1$d succeeded, %2$d failed</item></plurals>
     <string name="contacts_detect_warning_title">Warning</string>
     <string name="contacts_detect_warning_message">This feature may cause account abnormalities. Continue?</string>
@@ -2984,15 +2990,17 @@
     <string name="contacts_detect_wechat_number">WeChat number: %1$s</string>
     <plurals name="contacts_detect_confirm_delete"><item quantity="one">Delete the %1$d selected friend?\nThis cannot be undone. Their chat history will be cleared, and they will need to add you again.</item><item quantity="other">Delete the %1$d selected friends?\nThis cannot be undone. Their chat history will be cleared, and they will need to add you again.</item></plurals>
     <plurals name="contacts_detect_deleting"><item quantity="one">Deleting friends; please wait…\nCompleted: %1$d/%2$d friend</item><item quantity="other">Deleting friends; please wait…\nCompleted: %1$d/%2$d friends</item></plurals>
-    <plurals name="contacts_detect_select_label"><item quantity="one">Select a target to apply to %1$d abnormal friend</item><item quantity="other">Select a target to apply to all %1$d abnormal friends</item></plurals>
+    <plurals name="contacts_detect_select_label"><item quantity="one">Select a label to apply to %1$d abnormal friend</item><item quantity="other">Select a label to apply to all %1$d abnormal friends</item></plurals>
     <string name="contacts_detect_new_label">New label</string>
-    <plurals name="contacts_detect_marking"><item quantity="one">Adding into “%1$s”; please wait…\nCompleted: %2$d/%3$d friend</item><item quantity="other">Adding into “%1$s”; please wait…\nCompleted: %2$d/%3$d friends</item></plurals>
+    <plurals name="contacts_detect_marking"><item quantity="one">Applying label “%1$s”; please wait…\nCompleted: %2$d/%3$d friend</item><item quantity="other">Applying label “%1$s”; please wait…\nCompleted: %2$d/%3$d friends</item></plurals>
     <string name="contacts_detect_stop">Stop</string>
     <string name="contacts_detect_back">Back</string>
     <string name="contacts_detect_suggested_label">XiaoFeng_deleted_friends_%1$s</string>
     <string name="contacts_detect_mark_label">Apply label</string>
-    <string name="contacts_detect_collect">Collect / group / label</string>
-    <string name="contacts_detect_apply_delay">Action interval (seconds)</string>
+    <string name="contacts_detect_scope">Detection scope</string>
+    <string name="contacts_detect_scope_all">All friends</string>
+    <string name="contacts_detect_scope_title">Choose detection scope</string>
+    <string name="contacts_detect_scope_empty">No friends in this scope</string>
     <string name="contacts_detect_delete_all">Delete all</string>
     <string name="contacts_hide_restored">Hidden contacts restored</string>
     <string name="contacts_hide_temporarily_shown">All hidden contacts are temporarily visible</string>
@@ -4343,6 +4351,7 @@
     <string name="auto_grab_gifts_delay_description">Wait this long after a gift message arrives before claiming</string>
     <string name="feature_qq_music_order_name">QQ Music requests</string>
     <string name="feature_qq_music_order_description">Send a song name in a chat to get a playable QQ Music card</string>
+    <string name="qq_music_order_need_keyword">Type a song name in the input box first</string>
     <string name="qq_music_targets_title">Chats for other members</string>
     <string name="qq_music_targets_empty">Only commands you send are handled</string>
     <string name="qq_music_targets_count">%1$d chats selected</string>

@@ -61,6 +61,42 @@ object ContactCollector {
         }
 
     /**
+     * 一个归拢/分组里的所有群聊成员中, 已经是好友的人 (去重, 排除自己)。
+     * 用于「把整个归拢/分组里的群成员归拢到目标」。
+     */
+    fun friendMembersOfCollection(source: Target): List<String> {
+        val talkers = when (source.kind) {
+            TargetKind.FOLDER -> ConversationAggregation.folderMembers(source.id)
+            TargetKind.GROUP -> ConversationGrouping.manualGroupMembers(source.id).orEmpty()
+            TargetKind.LABEL -> emptyList()
+        }
+        val result = LinkedHashSet<String>()
+        talkers.filter { it.endsWith("@chatroom") }.forEach { groupWxId ->
+            friendMembersOf(groupWxId).forEach { member -> result += member.wxId }
+        }
+        return result.toList()
+    }
+
+    /**
+     * [target] 内的好友 wxId。null 表示不筛选 (全部好友)。
+     * 用于「检测单向删除好友」时限定检测范围。
+     */
+    fun scopeMembers(target: Target?): Set<String>? = when (target?.kind) {
+        null -> null
+        TargetKind.LABEL -> WeContactLabelApi.getContactsByLabelId(target.id.toInt()).toSet()
+        TargetKind.FOLDER -> if (JsonDataMigration.isCompleted("chat", "folders")) {
+            ConversationAggregation.folderMembers(target.id).toSet()
+        } else {
+            emptySet()
+        }
+        TargetKind.GROUP -> if (JsonDataMigration.isCompleted("chat", "groups")) {
+            ConversationGrouping.manualGroupMembers(target.id)?.toSet().orEmpty()
+        } else {
+            emptySet()
+        }
+    }
+
+    /**
      * 批量操作前确认目标可用。标签在不存在时按名称创建 (需要等待服务器下发 id),
      * 归拢与分组必须事先存在。
      */

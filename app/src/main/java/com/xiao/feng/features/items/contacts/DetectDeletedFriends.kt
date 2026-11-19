@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearWavyProgressIndicator
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.MutableIntState
@@ -56,6 +57,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import kotlin.coroutines.resume
 import kotlin.time.Duration.Companion.milliseconds
@@ -105,6 +107,23 @@ object DetectDeletedFriends : ClickableFeature() {
         "detect_deleted_friends_delay_seconds",
         "2",
     )
+    private var scopeKindName by KvStore.prefOption("detect_deleted_friends_scope_kind", "")
+    private var scopeId by KvStore.prefOption("detect_deleted_friends_scope_id", "")
+    private var scopeName by KvStore.prefOption("detect_deleted_friends_scope_name", "")
+
+    /** 上次选择的检测范围; null 表示全部好友。 */
+    private fun savedScope(): ContactCollector.Target? {
+        val kind = ContactCollector.TargetKind.entries
+            .firstOrNull { it.name == scopeKindName } ?: return null
+        if (scopeName.isBlank()) return null
+        return ContactCollector.Target(kind, scopeId, scopeName)
+    }
+
+    private fun saveScope(target: ContactCollector.Target?) {
+        scopeKindName = target?.kind?.name ?: ""
+        scopeId = target?.id ?: ""
+        scopeName = target?.name ?: ""
+    }
 
     private sealed class LabelChoice {
         data class Suggested(val labelName: String) : LabelChoice()
@@ -115,7 +134,7 @@ object DetectDeletedFriends : ClickableFeature() {
         data object Idle : DialogPhase()
         data class Scanning(
             val completed: MutableIntState,
-            val total: Int,
+            val friends: List<WeContact>,
             val mode: DetectionMode,
             val requestDelayMillis: Long,
             val abnormalFriends: MutableList<AbnormalFriend> = mutableListOf(),
@@ -221,13 +240,43 @@ object DetectDeletedFriends : ClickableFeature() {
             var selectedMode by remember { mutableStateOf(DetectionMode.valueOf(detectionModeName)) }
             var requestDelayInput by remember { mutableStateOf(requestDelaySeconds) }
             var unresolvedCount by remember { mutableIntStateOf(0) }
+            var scope by remember { mutableStateOf(savedScope()) }
+            var collectionTargets by remember { mutableStateOf<List<ContactCollector.Target>?>(null) }
+            var scopeMemberIds by remember { mutableStateOf<Set<String>?>(null) }
+            var scopeLoading by remember { mutableStateOf(false) }
+
+            LaunchedEffect(Unit) {
+                withContext(Dispatchers.IO) {
+                    collectionTargets =
+                        ContactCollector.loadTargets(context, includeLabels = true, includeCollections = true)
+                }
+            }
+
+            LaunchedEffect(scope) {
+                val target = scope
+                if (target == null) {
+                    scopeMemberIds = null
+                    scopeLoading = false
+                } else {
+                    scopeLoading = true
+                    scopeMemberIds = withContext(Dispatchers.IO) {
+                        ContactCollector.scopeMembers(target)
+                    }
+                    scopeLoading = false
+                }
+            }
+
+            // 只检测所选归拢/分组/标签内的好友; 不选则检测全部好友。
+            val scopedFriends = remember(scopeMemberIds) {
+                scopeMemberIds?.let { ids -> friends.filter { it.wxId in ids } } ?: friends
+            }
 
             LaunchedEffect(phase) {
                 if (phase is DialogPhase.Scanning) {
                     dialog.setCancelable(false)
                     val scanningPhase = phase as DialogPhase.Scanning
                     var rateLimited = false
-                    for ((index, friend) in friends.withIndex()) {
+                    for ((index, friend) in scanningPhase.friends.withIndex()) {
                         if (phase !== scanningPhase) break
 
                         val outcome = when (scanningPhase.mode) {
@@ -278,14 +327,14 @@ object DetectDeletedFriends : ClickableFeature() {
                                 scanningPhase.abnormalFriends += outcome.friend
                             DetectionOutcome.Failed -> unresolvedCount++
                             DetectionOutcome.RateLimited -> {
-                                unresolvedCount += friends.size - index
+                                unresolvedCount += scanningPhase.friends.size - index
                                 rateLimited = true
                             }
                         }
                         scanningPhase.completed.intValue++
 
                         if (rateLimited) break
-                        if (index != friends.lastIndex) {
+                        if (index != scanningPhase.friends.lastIndex) {
                             delay(scanningPhase.requestDelayMillis.milliseconds)
                         }
                     }
@@ -451,12 +500,46 @@ object DetectDeletedFriends : ClickableFeature() {
                                         filter = ::filterPositiveDecimal,
                                     )
                                 }
+                                item(key = "detection_scope") {
+                                    BaseWidget(
+                                        title = stringResource(R.string.contacts_detect_scope),
+                                        description = scope?.name
+                                            ?: stringResource(R.string.contacts_detect_scope_all),
+                                        onClick = {
+                                            collectionTargets?.let { targets ->
+                                                context.pickContactTarget(
+                                                    title = context.localizedContactsString(
+                                                        R.string.contacts_detect_scope_title,
+                                                    ),
+                                                    targets = targets,
+                                                    allLabel = context.localizedContactsString(
+                                                        R.string.contacts_detect_scope_all,
+                                                    ),
+                                                    onPickAll = {
+                                                        scope = null
+                                                        saveScope(null)
+                                                    },
+                                                    onPick = { target ->
+                                                        scope = target
+                                                        saveScope(target)
+                                                    },
+                                                )
+                                            }
+                                        },
+                                    )
+                                }
+                            }
+                            if (!scopeLoading && scopedFriends.isEmpty()) {
+                                Text(
+                                    text = stringResource(R.string.contacts_detect_scope_empty),
+                                    color = MaterialTheme.colorScheme.error,
+                                )
                             }
                         }
 
                         is DialogPhase.Scanning -> {
                             val completed by (phase as DialogPhase.Scanning).completed
-                            val total = (phase as DialogPhase.Scanning).total
+                            val total = (phase as DialogPhase.Scanning).friends.size
                             DefaultColumn {
                                 Text(
                                     pluralStringResource(
@@ -637,7 +720,7 @@ object DetectDeletedFriends : ClickableFeature() {
                                 val scanningPhase = phase as DialogPhase.Scanning
                                 // display current snapshot immediately
                                 unresolvedCount +=
-                                    scanningPhase.total - scanningPhase.completed.intValue
+                                    scanningPhase.friends.size - scanningPhase.completed.intValue
                                 val foundSoFar = scanningPhase.abnormalFriends.toList()
                                 phase = DialogPhase.Done(foundSoFar)
                                 dialog.setCancelable(true)
@@ -687,20 +770,22 @@ object DetectDeletedFriends : ClickableFeature() {
                 confirmButton = when (phase) {
                     is DialogPhase.Idle -> {
                         {
-                            Button(onClick = {
-                                unresolvedCount = 0
-                                val requestDelayMillis =
-                                    (requestDelayInput.toDouble() * 1_000.0)
-                                        .toLong()
-                                        .coerceAtLeast(1L)
-                                phase = DialogPhase.Scanning(
-                                    completed = mutableIntStateOf(0),
-                                    total = friends.size,
-                                    mode = selectedMode,
-                                    requestDelayMillis = requestDelayMillis,
-                                )
-                            })
-                            { Text(stringResource(R.string.dialog_confirm)) }
+                            Button(
+                                onClick = {
+                                    unresolvedCount = 0
+                                    val requestDelayMillis =
+                                        (requestDelayInput.toDouble() * 1_000.0)
+                                            .toLong()
+                                            .coerceAtLeast(1L)
+                                    phase = DialogPhase.Scanning(
+                                        completed = mutableIntStateOf(0),
+                                        friends = scopedFriends,
+                                        mode = selectedMode,
+                                        requestDelayMillis = requestDelayMillis,
+                                    )
+                                },
+                                enabled = !scopeLoading && scopedFriends.isNotEmpty(),
+                            ) { Text(stringResource(R.string.dialog_confirm)) }
                         }
                     }
 

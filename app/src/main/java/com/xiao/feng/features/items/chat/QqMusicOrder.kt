@@ -2,6 +2,8 @@ package com.xiao.feng.features.items.chat
 
 import android.content.ContentValues
 import androidx.activity.ComponentActivity
+import com.composables.icons.materialsymbols.MaterialSymbols
+import com.composables.icons.materialsymbols.outlined.Music_note
 import com.tencent.mm.pluginsdk.ui.chat.ChatFooter
 import com.xiao.feng.R
 import com.xiao.feng.data.KvStore
@@ -22,6 +24,7 @@ import com.xiao.feng.utils.HostInfo
 import com.xiao.feng.utils.TargetProcess
 import com.xiao.feng.utils.TargetProcesses
 import com.xiao.feng.utils.WeLogger
+import com.xiao.feng.utils.android.showToast
 import com.xiao.feng.utils.strings.isGroupChatWxId
 import com.xiao.feng.utils.strings.stripWxId
 import dev.ujhhgtg.reflekt.reflekt
@@ -112,6 +115,39 @@ object QqMusicOrder : ClickableFeature(), WeDatabaseListenerApi.IInsertListener 
     }
     private val processed = ConcurrentHashMap<String, Boolean>()
 
+    /** 长按聊天输入栏「+」菜单里的 QQ 点歌入口。 */
+    private val inputBarProvider = WeChatInputBarMenuApi.IActionItemsProvider {
+        listOf(
+            WeChatInputBarMenuApi.ActionItem(
+                id = "qq_music_order",
+                icon = MaterialSymbols.Outlined.Music_note,
+                label = HostLocalizedStrings.get(R.string.feature_qq_music_order_name),
+                isSupported = { _, _ -> WeCurrentConversationApi.value.isNotBlank() },
+                onClick = { context, chatFooter ->
+                    val keyword = chatFooter.lastText.trim()
+                    if (keyword.isEmpty()) {
+                        showToast(
+                            context,
+                            HostLocalizedStrings.get(R.string.qq_music_order_need_keyword),
+                        )
+                    } else {
+                        chatFooter.lastText = ""
+                        orderFromInputBar(WeCurrentConversationApi.value, keyword)
+                    }
+                },
+            ),
+        )
+    }
+
+    /** 从输入栏菜单直接点歌, 跳过聊天指令解析。 */
+    fun orderFromInputBar(talker: String, keyword: String) {
+        if (talker.isBlank() || keyword.isBlank()) return
+        executor.execute {
+            runCatching { process(talker, WeApi.selfWxId, MusicCommand(keyword, null)) }
+                .onFailure { WeLogger.e(TAG, "failed to process music order from input bar", it) }
+        }
+    }
+
     override fun onEnable() {
         WeDatabaseListenerApi.removeListener(this)
         WeDatabaseListenerApi.addListener(this)
@@ -119,6 +155,8 @@ object QqMusicOrder : ClickableFeature(), WeDatabaseListenerApi.IInsertListener 
 
         // 输入栏开关指令只属于有 UI 的主进程。
         if (!TargetProcesses.isInMain) return
+
+        WeChatInputBarMenuApi.addProvider(inputBarProvider)
 
         // 聊天内开关指令: 在发送前拦下 "开启点歌"/"关闭点歌", 只更新本会话的允许名单,
         // 不把指令本身发进聊天 (清空输入框, 原生发送键会因此直接返回)。
@@ -158,6 +196,7 @@ object QqMusicOrder : ClickableFeature(), WeDatabaseListenerApi.IInsertListener 
 
     override fun onDisable() {
         WeDatabaseListenerApi.removeListener(this)
+        WeChatInputBarMenuApi.removeProvider(inputBarProvider)
         processed.clear()
     }
 

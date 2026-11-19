@@ -1534,6 +1534,13 @@ object ConversationGrouping : ClickableFeature(), IResolveDex {
         return true
     }
 
+    /** 手动分组 [groupId] 的成员; 分组不存在或不是手动分组时返回 null。 */
+    fun manualGroupMembers(groupId: String): List<String>? {
+        val group = groupById(groupId) ?: return null
+        if (group.type != GroupType.MANUAL) return null
+        return group.members
+    }
+
     @Composable
     private fun groupDisplayName(group: ChatGroup): String =
         localizedGroupName(LocalXiaoFengLocalizedContext.current, group)

@@ -46,16 +46,19 @@ fun ContactCollectionTargetList(
     onIntervalChange: (String) -> Unit,
     onPick: (ContactCollector.Target) -> Unit,
     newLabelDefault: String = "",
+    showInterval: Boolean = true,
 ) {
     DefaultColumn {
-        OutlinedTextField(
-            value = intervalInput,
-            onValueChange = { onIntervalChange(sanitizeDecimalInput(it)) },
-            modifier = Modifier.fillMaxWidth(),
-            label = { Text(stringResource(R.string.contact_collection_interval)) },
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-            singleLine = true,
-        )
+        if (showInterval) {
+            OutlinedTextField(
+                value = intervalInput,
+                onValueChange = { onIntervalChange(sanitizeDecimalInput(it)) },
+                modifier = Modifier.fillMaxWidth(),
+                label = { Text(stringResource(R.string.contact_collection_interval)) },
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                singleLine = true,
+            )
+        }
 
         if (allowNewLabel) {
             var newLabelName by remember { mutableStateOf(newLabelDefault) }
@@ -83,26 +86,83 @@ fun ContactCollectionTargetList(
         if (targets.isEmpty()) {
             Text(stringResource(R.string.contact_collection_empty))
         } else {
-            LazyColumn {
-                ContactCollector.TargetKind.entries.forEach { kind ->
-                    val group = targets.filter { it.kind == kind }
-                    if (group.isEmpty()) return@forEach
-                    item(key = "header_${kind.name}") {
-                        Text(
-                            text = stringResource(kind.sectionLabelRes),
-                            style = MaterialTheme.typography.titleSmall,
-                            color = MaterialTheme.colorScheme.primary,
-                        )
-                    }
-                    items(group, key = { "${it.kind.name}_${it.id}_${it.name}" }) { target ->
-                        ListItem(
-                            modifier = Modifier.clickable { onPick(target) },
-                            content = { Text(target.name) },
-                        )
-                    }
-                }
+            ContactTargetsList(targets = targets, onPick = onPick)
+        }
+    }
+}
+
+/** 按类别分组的已有目标列表, 不带任何额外输入项。 */
+@Composable
+fun ContactTargetsList(
+    targets: List<ContactCollector.Target>,
+    onPick: (ContactCollector.Target) -> Unit,
+    leadingContent: (@Composable () -> Unit)? = null,
+) {
+    LazyColumn {
+        leadingContent?.let { content -> item(key = "leading") { content() } }
+        ContactCollector.TargetKind.entries.forEach { kind ->
+            val group = targets.filter { it.kind == kind }
+            if (group.isEmpty()) return@forEach
+            item(key = "header_${kind.name}") {
+                Text(
+                    text = stringResource(kind.sectionLabelRes),
+                    style = MaterialTheme.typography.titleSmall,
+                    color = MaterialTheme.colorScheme.primary,
+                )
+            }
+            items(group, key = { "${it.kind.name}_${it.id}_${it.name}" }) { target ->
+                ListItem(
+                    modifier = Modifier.clickable { onPick(target) },
+                    content = { Text(target.name) },
+                )
             }
         }
+    }
+}
+
+/**
+ * 打开一个目标选择对话框。[allLabel] 非空时在列表顶部增加一个「全部」选项。
+ */
+fun Context.pickContactTarget(
+    title: String,
+    targets: List<ContactCollector.Target>,
+    onPick: (ContactCollector.Target) -> Unit,
+    allLabel: String? = null,
+    onPickAll: () -> Unit = {},
+) {
+    showComposeDialog(this) {
+        val all = allLabel.orEmpty()
+        val leading: (@Composable () -> Unit)? = if (allLabel == null) null else {
+            {
+                ListItem(
+                    modifier = Modifier.clickable {
+                        onPickAll()
+                        onDismiss()
+                    },
+                    content = { Text(all) },
+                )
+            }
+        }
+        AlertDialogContent(
+            title = { Text(title) },
+            text = {
+                if (targets.isEmpty()) {
+                    Text(stringResource(R.string.contact_collection_empty))
+                } else {
+                    ContactTargetsList(
+                        targets = targets,
+                        onPick = {
+                            onPick(it)
+                            onDismiss()
+                        },
+                        leadingContent = leading,
+                    )
+                }
+            },
+            dismissButton = {
+                TextButton(onDismiss) { Text(stringResource(R.string.dialog_cancel)) }
+            },
+        )
     }
 }
 
