@@ -571,8 +571,8 @@ object AutoCommentMoments : AutoMomentsBase() {
     /** 本地评论表里是否已有自己发出的评论, 用于跨重启/跨入口的最终去重。 */
     private fun hasOwnComment(snsId: Long): Boolean =
         WeMomentsApi.rawQuerySnsInfo(
-            "SELECT 1 FROM SnsComment WHERE snsID = ? AND isSend = 1 LIMIT 1",
-            arrayOf(snsId.toString()),
+            "SELECT 1 FROM SnsComment WHERE snsID = ? AND (isSend = 1 OR talker = ?) LIMIT 1",
+            arrayOf(snsId.toString(), WeApi.selfWxId),
         ).use { it.moveToFirst() }
 
     fun aiConfig() = AutoCommentAi.Config(
@@ -916,8 +916,8 @@ object AutoCommentMoments : AutoMomentsBase() {
 
     private fun hasSentReplyTo(snsId: Long, parentCommentId: Long): Boolean =
         WeMomentsApi.rawQuerySnsInfo(
-            "SELECT 1 FROM SnsComment WHERE snsID = ? AND parentID = ? AND isSend = 1 LIMIT 1",
-            arrayOf(snsId.toString(), parentCommentId.toString()),
+            "SELECT 1 FROM SnsComment WHERE snsID = ? AND parentID = ? AND (isSend = 1 OR talker = ?) LIMIT 1",
+            arrayOf(snsId.toString(), parentCommentId.toString(), WeApi.selfWxId),
         ).use { it.moveToFirst() }
 
     private fun unmarkReply(replyKey: String, contentKey: String?) {
