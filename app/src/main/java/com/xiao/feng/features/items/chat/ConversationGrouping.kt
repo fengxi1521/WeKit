@@ -1534,11 +1534,10 @@ object ConversationGrouping : ClickableFeature(), IResolveDex {
         return true
     }
 
-    /** 手动分组 [groupId] 的成员; 分组不存在或不是手动分组时返回 null。 */
-    fun manualGroupMembers(groupId: String): List<String>? {
+    /** 分组 [groupId] 的成员; 分组不存在时返回 null。自动/预设分组会即时计算成员。 */
+    fun groupMembers(groupId: String): List<String>? {
         val group = groupById(groupId) ?: return null
-        if (group.type != GroupType.MANUAL) return null
-        return group.members
+        return getGroupMembers(group)
     }
 
     @Composable

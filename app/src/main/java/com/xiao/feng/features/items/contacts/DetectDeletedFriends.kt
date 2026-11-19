@@ -247,8 +247,7 @@ object DetectDeletedFriends : ClickableFeature() {
 
             LaunchedEffect(Unit) {
                 withContext(Dispatchers.IO) {
-                    collectionTargets =
-                        ContactCollector.loadTargets(context, includeLabels = true, includeCollections = true)
+                    collectionTargets = ContactCollector.loadScopes(context, includeLabels = true)
                 }
             }
 

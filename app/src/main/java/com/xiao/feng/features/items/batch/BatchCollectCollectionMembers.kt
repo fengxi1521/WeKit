@@ -49,7 +49,8 @@ object BatchCollectCollectionMembers : ClickableFeature() {
 
     override fun onClick(context: ComponentActivity) {
         showComposeDialog(context) {
-            var collections by remember { mutableStateOf<List<ContactCollector.Target>?>(null) }
+            var sources by remember { mutableStateOf<List<ContactCollector.Target>?>(null) }
+            var targets by remember { mutableStateOf<List<ContactCollector.Target>?>(null) }
             var source by remember { mutableStateOf<ContactCollector.Target?>(null) }
             var target by remember { mutableStateOf<ContactCollector.Target?>(null) }
             var intervalInput by remember { mutableStateOf(intervalSeconds) }
@@ -61,7 +62,13 @@ object BatchCollectCollectionMembers : ClickableFeature() {
 
             LaunchedEffect(Unit) {
                 withContext(Dispatchers.IO) {
-                    collections = ContactCollector.loadTargets(
+                    // 来源可以是自动归拢/内置分组; 目标只能是能接收新成员的手动归拢/分组。
+                    sources = ContactCollector.loadScopes(
+                        context,
+                        includeLabels = false,
+                        includeAllGroups = true,
+                    )
+                    targets = ContactCollector.loadTargets(
                         context,
                         includeLabels = false,
                         includeCollections = true,
@@ -125,7 +132,7 @@ object BatchCollectCollectionMembers : ClickableFeature() {
                                     title = stringResource(R.string.batch_collect_source),
                                     description = source?.name,
                                     onClick = {
-                                        collections?.let { options ->
+                                        sources?.let { options ->
                                             context.pickContactTarget(
                                                 title = context.localizedBatchString(R.string.batch_collect_source),
                                                 targets = options,
@@ -138,7 +145,7 @@ object BatchCollectCollectionMembers : ClickableFeature() {
                                     title = stringResource(R.string.batch_collect_target),
                                     description = target?.name,
                                     onClick = {
-                                        collections?.let { options ->
+                                        targets?.let { options ->
                                             context.pickContactTarget(
                                                 title = context.localizedBatchString(R.string.batch_collect_target),
                                                 targets = options,

@@ -38,19 +38,47 @@ object ContactCollector {
             }
         }
         if (includeCollections) {
-            // 归拢/分组必须在其功能已启用且迁移完成后才能读取, 否则读取会抛异常。
-            if (ConversationAggregation.isActive && JsonDataMigration.isCompleted("chat", "folders")) {
+            // 归拢/分组必须在其迁移完成后才能读取, 否则读取会抛异常。
+            if (JsonDataMigration.isCompleted("chat", "folders")) {
                 ConversationAggregation.aggregationFolders()
                     .filterNot { it.isAuto }
                     .forEach { folder ->
                         add(Target(TargetKind.FOLDER, folder.id, folder.name))
                     }
             }
-            if (ConversationGrouping.isActive && JsonDataMigration.isCompleted("chat", "groups")) {
+            if (JsonDataMigration.isCompleted("chat", "groups")) {
                 ConversationGrouping.manualGroupChoices(context).forEach { group ->
                     add(Target(TargetKind.GROUP, group.id, group.name))
                 }
             }
+        }
+    }
+
+    /**
+     * 归拢/分组的完整列表 (含自动归拢与内置分组), 只读取成员, 用于「检测范围」与批量来源。
+     * 批量归拢的目标仍然使用 [loadTargets], 只有手动归拢/分组才能接收新成员。
+     */
+    fun loadScopes(
+        context: Context,
+        includeLabels: Boolean,
+        includeAllGroups: Boolean = false,
+    ): List<Target> = buildList {
+        if (includeLabels) {
+            WeContactLabelApi.getAllLabels().forEach { label ->
+                add(Target(TargetKind.LABEL, label.labelId.toString(), label.labelName))
+            }
+        }
+        if (JsonDataMigration.isCompleted("chat", "folders")) {
+            ConversationAggregation.aggregationFolders()
+                .forEach { folder -> add(Target(TargetKind.FOLDER, folder.id, folder.name)) }
+        }
+        if (JsonDataMigration.isCompleted("chat", "groups")) {
+            val groups = if (includeAllGroups) {
+                ConversationGrouping.groupFilterOptions(context)
+            } else {
+                ConversationGrouping.manualGroupChoices(context)
+            }
+            groups.forEach { group -> add(Target(TargetKind.GROUP, group.id, group.name)) }
         }
     }
 
@@ -67,7 +95,7 @@ object ContactCollector {
     fun friendMembersOfCollection(source: Target): List<String> {
         val talkers = when (source.kind) {
             TargetKind.FOLDER -> ConversationAggregation.folderMembers(source.id)
-            TargetKind.GROUP -> ConversationGrouping.manualGroupMembers(source.id).orEmpty()
+            TargetKind.GROUP -> ConversationGrouping.groupMembers(source.id).orEmpty()
             TargetKind.LABEL -> emptyList()
         }
         val result = LinkedHashSet<String>()
@@ -90,7 +118,7 @@ object ContactCollector {
             emptySet()
         }
         TargetKind.GROUP -> if (JsonDataMigration.isCompleted("chat", "groups")) {
-            ConversationGrouping.manualGroupMembers(target.id)?.toSet().orEmpty()
+            ConversationGrouping.groupMembers(target.id)?.toSet().orEmpty()
         } else {
             emptySet()
         }
