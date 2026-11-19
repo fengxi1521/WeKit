@@ -510,7 +510,7 @@ object AutoCommentMoments : AutoMomentsBase() {
             }
             // 开启 AI 后生成失败(例如视频/图片无法识别)说明这条内容不适合评论,
             // 此时不再退回固定文案, 否则同一帖子会被反复刷上同一句固定评论。
-            if (aiEnabled && generated.isNullOrBlank()) {
+            if (aiEnabled && aiApiKey.isNotBlank() && generated.isNullOrBlank()) {
                 return@sendWithDelay WeMomentsApi.ActionResult(
                     success = true, sent = false, message = "AI comment generation failed",
                 )
