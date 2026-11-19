@@ -19,6 +19,11 @@ fn main() {
 
     let mut config = cmake::Config::new(&manifest);
     config.generator("Ninja").profile("RelWithDebInfo");
+    // Never let CMake scan/import the host's C++23 std module sources; the NDK build uses no
+    // C++ modules and the CI runner's GCC 15 headers break the scan.
+    config
+        .define("CMAKE_CXX_SCAN_FOR_MODULES", "OFF")
+        .define("CMAKE_CXX_MODULE_STD", "OFF");
     if android {
         assert_eq!(
             env::var("TARGET").unwrap(),

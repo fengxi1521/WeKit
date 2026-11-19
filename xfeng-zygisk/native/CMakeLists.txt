@@ -1,4 +1,8 @@
 cmake_minimum_required(VERSION 3.28)
+# 这里不使用 C++ 模块。Clang 21 + CMake 4 默认会去导入宿主的 std 模块,
+# 在 CI 镜像上直接报 "bits/stdc++.h not found", 因此关闭模块扫描与 std 模块导入。
+set(CMAKE_CXX_SCAN_FOR_MODULES OFF)
+set(CMAKE_CXX_MODULE_STD OFF)
 project(xfeng_zygisk_native LANGUAGES C)
 
 set(CMAKE_CXX_STANDARD 23)
@@ -39,10 +43,6 @@ if(NOT ANDROID_ABI STREQUAL "arm64-v8a")
     message(FATAL_ERROR "The XiaoFeng Zygisk bridge requires Android arm64-v8a")
 endif()
 enable_language(CXX)
-
-# 这里不使用 C++ 模块。Clang 21 的 P1689 扫描会误取宿主 GCC 的 <std> 模块源文件,
-# 在 CI 镜像上直接报 "bits/stdc++.h not found", 因此关闭模块扫描。
-set(CMAKE_CXX_SCAN_FOR_MODULES OFF)
 
 set(LSPLANT_SOURCE "${XFENG_ROOT}/third_party/lsplant/lsplant/src/main/jni")
 if(NOT EXISTS "${LSPLANT_SOURCE}/external/dex_builder/external/parallel_hashmap/CMakeLists.txt")
