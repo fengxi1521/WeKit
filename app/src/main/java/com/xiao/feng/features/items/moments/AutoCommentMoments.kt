@@ -467,8 +467,18 @@ object AutoCommentMoments : AutoMomentsBase() {
         if (WeMomentsApi.isDeleted(snsInfo) || WeMomentsApi.isAd(snsInfo)) return
 
         val snsTableId = WeMomentsApi.getSnsTableId(snsInfo) ?: return
-        if (isIntercepted(snsInfo) || snsTableId in handledSnsIds) return
-        if (!canAttempt(snsTableId)) return
+        val snsId = WeMomentsApi.getSnsIdLong(snsInfo)
+        // 数字 snsId 是同一条朋友圈在各入口下唯一稳定的标识; table id 在不同入口可能不一致。
+        val handledKey = snsId?.toString() ?: snsTableId
+        if (isIntercepted(snsInfo)) return
+        if (handledKey in handledSnsIds || snsTableId in handledSnsIds) return
+        if (!canAttempt(handledKey)) return
+        // 本地评论表是最权威的去重依据: 即使内存标记丢失(重启、清缓存、超过 500 条被淘汰),
+        // 只要这条朋友圈下已经有自己发出的评论, 就绝不能再评论一次。
+        if (snsId != null && hasOwnComment(snsId)) {
+            rememberHandled(handledKey, snsTableId)
+            return
+        }
 
         val template = commentText.trim()
         val result = sendWithDelay(intervalSeconds * 1000L) {
@@ -477,7 +487,7 @@ object AutoCommentMoments : AutoMomentsBase() {
                     success = true, sent = false, message = "automation stopped",
                 )
             }
-            if (snsTableId in handledSnsIds) {
+            if (handledKey in handledSnsIds || snsTableId in handledSnsIds) {
                 return@sendWithDelay WeMomentsApi.ActionResult(
                     success = true, sent = false, message = "already handled",
                 )
@@ -498,15 +508,23 @@ object AutoCommentMoments : AutoMomentsBase() {
                     success = true, sent = false, message = "automation stopped",
                 )
             }
+            // 开启 AI 后生成失败(例如视频/图片无法识别)说明这条内容不适合评论,
+            // 此时不再退回固定文案, 否则同一帖子会被反复刷上同一句固定评论。
+            if (aiEnabled && generated.isNullOrBlank()) {
+                return@sendWithDelay WeMomentsApi.ActionResult(
+                    success = true, sent = false, message = "AI comment generation failed",
+                )
+            }
             val text = generated?.takeIf { it.isNotBlank() } ?: template
             if (text.isBlank()) {
                 return@sendWithDelay WeMomentsApi.ActionResult(
                     success = false, sent = false, message = "empty AI comment",
                 )
             }
-            // Remember the text before sending: the host may write the comment row synchronously
-            // inside comment(), and that write is what reveals the comment's server id.
-            val snsKey = WeMomentsApi.getSnsIdLong(snsInfo)?.toString()
+            // 先记账再发送: 宿主即使在发送后抛出异常(评论其实已经发出), 也不会在下一轮扫描
+            // 再发一条同样的评论。
+            rememberHandled(handledKey, snsTableId)
+            val snsKey = snsId?.toString()
             if (snsKey != null) rememberAiComment(snsKey, text)
             val action = WeMomentsApi.comment(snsInfo, text)
             if (!action.sent && snsKey != null) forgetAiComment(snsKey, text)
@@ -514,7 +532,7 @@ object AutoCommentMoments : AutoMomentsBase() {
         }
 
         if (result.success) {
-            if (result.sent) rememberHandled(snsTableId)
+            if (result.sent) rememberHandled(handledKey, snsTableId)
             WeLogger.i(TAG, "auto-comment $source sent=${result.sent}, owner=$owner, sns=$snsTableId")
         } else {
             val message = "auto-comment $source failed, owner=$owner, sns=$snsTableId, message=${result.message}"
@@ -534,8 +552,10 @@ object AutoCommentMoments : AutoMomentsBase() {
             .filter { it.isNotEmpty() }
             .toSet()
 
-    private fun rememberHandled(snsTableId: String) {
-        if (!handledSnsIds.add(snsTableId)) return
+    private fun rememberHandled(vararg snsIds: String) {
+        var added = false
+        snsIds.forEach { if (it.isNotBlank() && handledSnsIds.add(it)) added = true }
+        if (!added) return
         if (handledSnsIds.size > MAX_HANDLED_IDS) {
             val iterator = handledSnsIds.iterator()
             while (handledSnsIds.size > MAX_HANDLED_IDS && iterator.hasNext()) {
@@ -545,6 +565,13 @@ object AutoCommentMoments : AutoMomentsBase() {
         }
         savedHandledIds = handledSnsIds.toSet()
     }
+
+    /** 本地评论表里是否已有自己发出的评论, 用于跨重启/跨入口的最终去重。 */
+    private fun hasOwnComment(snsId: Long): Boolean =
+        WeMomentsApi.rawQuerySnsInfo(
+            "SELECT 1 FROM SnsComment WHERE snsID = ? AND isSend = 1 LIMIT 1",
+            arrayOf(snsId.toString()),
+        ).use { it.moveToFirst() }
 
     fun aiConfig() = AutoCommentAi.Config(
         apiKey = aiApiKey,
