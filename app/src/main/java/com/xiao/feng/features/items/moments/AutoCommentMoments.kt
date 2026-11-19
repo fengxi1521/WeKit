@@ -463,20 +463,23 @@ object AutoCommentMoments : AutoMomentsBase() {
         if (owner.isBlank() || owner == WeApi.selfWxId) return
         if (!aiEnabled && commentText.isBlank()) return
         if (isOwnerFiltered(owner)) return
-        if (WeMomentsApi.getCreateTimeSeconds(snsInfo) <= scope.publishedAfterSeconds) return
+        val createTimeSeconds = WeMomentsApi.getCreateTimeSeconds(snsInfo)
+        if (createTimeSeconds <= scope.publishedAfterSeconds) return
         if (WeMomentsApi.isDeleted(snsInfo) || WeMomentsApi.isAd(snsInfo)) return
 
         val snsTableId = WeMomentsApi.getSnsTableId(snsInfo) ?: return
         val snsId = WeMomentsApi.getSnsIdLong(snsInfo)
         // 数字 snsId 是同一条朋友圈在各入口下唯一稳定的标识; table id 在不同入口可能不一致。
         val handledKey = snsId?.toString() ?: snsTableId
+        // 作者 + 发布时间是另一种稳定标识, 即使两种 id 都拿不到同一形态也能命中同一条帖子。
+        val postKey = "$owner:$createTimeSeconds"
         if (isIntercepted(snsInfo)) return
-        if (handledKey in handledSnsIds || snsTableId in handledSnsIds) return
-        if (!canAttempt(handledKey)) return
+        if (handledKey in handledSnsIds || postKey in handledSnsIds || snsTableId in handledSnsIds) return
+        if (!canAttempt(postKey)) return
         // 本地评论表是最权威的去重依据: 即使内存标记丢失(重启、清缓存、超过 500 条被淘汰),
         // 只要这条朋友圈下已经有自己发出的评论, 就绝不能再评论一次。
         if (snsId != null && hasOwnComment(snsId)) {
-            rememberHandled(handledKey, snsTableId)
+            rememberHandled(handledKey, postKey)
             return
         }
 
@@ -487,7 +490,7 @@ object AutoCommentMoments : AutoMomentsBase() {
                     success = true, sent = false, message = "automation stopped",
                 )
             }
-            if (handledKey in handledSnsIds || snsTableId in handledSnsIds) {
+            if (handledKey in handledSnsIds || postKey in handledSnsIds || snsTableId in handledSnsIds) {
                 return@sendWithDelay WeMomentsApi.ActionResult(
                     success = true, sent = false, message = "already handled",
                 )
@@ -523,7 +526,7 @@ object AutoCommentMoments : AutoMomentsBase() {
             }
             // 先记账再发送: 宿主即使在发送后抛出异常(评论其实已经发出), 也不会在下一轮扫描
             // 再发一条同样的评论。
-            rememberHandled(handledKey, snsTableId)
+            rememberHandled(handledKey, postKey)
             val snsKey = snsId?.toString()
             if (snsKey != null) rememberAiComment(snsKey, text)
             val action = WeMomentsApi.comment(snsInfo, text)
@@ -532,7 +535,6 @@ object AutoCommentMoments : AutoMomentsBase() {
         }
 
         if (result.success) {
-            if (result.sent) rememberHandled(handledKey, snsTableId)
             WeLogger.i(TAG, "auto-comment $source sent=${result.sent}, owner=$owner, sns=$snsTableId")
         } else {
             val message = "auto-comment $source failed, owner=$owner, sns=$snsTableId, message=${result.message}"
@@ -731,11 +733,20 @@ object AutoCommentMoments : AutoMomentsBase() {
             System.currentTimeMillis() / 1000 - createdSeconds > MAX_REPLY_AGE_SECONDS
         ) return
         if ("$snsKey:$commentId" in answeredReplies) return
+        // 同一条回复可能先以本地 id、后以服务端 id 出现两次; 用内容指纹兜底避免回复两遍。
+        val contentKey = replyContentKey(snsKey, talker, createdSeconds, text)
+        if (contentKey != null && contentKey in answeredReplies) return
         WeLogger.i(
             TAG,
             "incoming Moments reply, sns=$snsKey, comment=$commentId, parent=$parentId, talker=$talker",
         )
-        submitItemWork { answerIncomingReply(snsId, commentId, parentId, talker, text) }
+        submitItemWork { answerIncomingReply(snsId, commentId, parentId, talker, text, contentKey) }
+    }
+
+    private fun replyContentKey(snsKey: String, talker: String, createdSeconds: Long, text: String): String? {
+        val normalized = text.trim()
+        if (normalized.isEmpty() || createdSeconds <= 0L) return null
+        return "$snsKey:content:$talker:$createdSeconds:$normalized"
     }
 
     private fun answerIncomingReply(
@@ -744,10 +755,12 @@ object AutoCommentMoments : AutoMomentsBase() {
         parentId: Long,
         talker: String,
         replyText: String,
+        contentKey: String?,
     ) {
         val replyKey = "$snsId:$commentSvrId"
         runCatching {
             if (!answeredReplies.add(replyKey)) return@runCatching
+            if (contentKey != null && !answeredReplies.add(contentKey)) return@runCatching
             // 父评论还在本地就精确判断是不是 AI 写的；父评论 id 对不上（自己的评论可能先以 0
             // 存库、之后才补服务端 id）时，退回“这条动态上 AI 评论过”的判断。
             val parent = lookupParentComment(snsId, parentId)
@@ -755,11 +768,13 @@ object AutoCommentMoments : AutoMomentsBase() {
             if (ourComment == null) {
                 // The parent row may still be in flight; a later trigger re-inspects this reply.
                 answeredReplies.remove(replyKey)
+                if (contentKey != null) answeredReplies.remove(contentKey)
                 return@runCatching
             }
-            replyToAiComment(snsId, commentSvrId, talker, replyText, replyKey, ourComment)
+            replyToAiComment(snsId, commentSvrId, talker, replyText, replyKey, contentKey, ourComment)
         }.onFailure {
             answeredReplies.remove(replyKey)
+            if (contentKey != null) answeredReplies.remove(contentKey)
             WeLogger.w(TAG, "failed to reply to an AI comment", it)
         }
     }
@@ -848,16 +863,22 @@ object AutoCommentMoments : AutoMomentsBase() {
         talker: String,
         replyText: String,
         replyKey: String,
+        contentKey: String?,
         ourComment: String,
     ) {
         val scope = captureAutomationScope()
         if (scope == null || !isAutomationCurrent(scope) || !aiEnabled || !aiReplyToReplies) {
-            answeredReplies.remove(replyKey)
+            unmarkReply(replyKey, contentKey)
             return
         }
         val snsInfo = WeMomentsApi.getSnsInfoBySnsId(snsId)
         if (snsInfo == null || WeMomentsApi.isDeleted(snsInfo)) {
-            answeredReplies.remove(replyKey)
+            unmarkReply(replyKey, contentKey)
+            return
+        }
+        // 本地评论表里已经有针对这条评论的回复时绝不再发(标记丢失、重复触发都不会造成二次回复)。
+        if (hasSentReplyTo(snsId, commentSvrId)) {
+            persistAnsweredReplies()
             return
         }
         val replyAuthor = runCatching { WeDatabaseApi.getDisplayName(talker) }.getOrDefault(talker)
@@ -869,7 +890,7 @@ object AutoCommentMoments : AutoMomentsBase() {
             replyText = replyText,
         )
         if (generated == null) {
-            answeredReplies.remove(replyKey)
+            unmarkReply(replyKey, contentKey)
             WeLogger.w(TAG, "no AI reply generated, sns=$snsId")
             return
         }
@@ -887,9 +908,21 @@ object AutoCommentMoments : AutoMomentsBase() {
             persistAnsweredReplies()
             WeLogger.i(TAG, "AI replied to comment, sns=$snsId, talker=$talker")
         } else {
-            answeredReplies.remove(replyKey)
+            // 请求已经发出, 即使宿主回报失败也保持已回复标记, 避免下一轮扫描再补一条。
+            persistAnsweredReplies()
             WeLogger.w(TAG, "failed to send AI comment reply, sns=$snsId, message=${result.message}")
         }
+    }
+
+    private fun hasSentReplyTo(snsId: Long, parentCommentId: Long): Boolean =
+        WeMomentsApi.rawQuerySnsInfo(
+            "SELECT 1 FROM SnsComment WHERE snsID = ? AND parentID = ? AND isSend = 1 LIMIT 1",
+            arrayOf(snsId.toString(), parentCommentId.toString()),
+        ).use { it.moveToFirst() }
+
+    private fun unmarkReply(replyKey: String, contentKey: String?) {
+        answeredReplies.remove(replyKey)
+        if (contentKey != null) answeredReplies.remove(contentKey)
     }
 
     private fun commentText(comment: Any): String {
