@@ -512,7 +512,6 @@ object AiChat : ClickableFeature(), WeDatabaseListenerApi.IInsertListener {
                 bubble = bubble,
                 atReply = atReply,
                 triggerSenderName = senderName,
-                selfNames = if (atReply) selfNames(talker) else emptyList(),
             ),
         )
         return listOf(system) + conversation
@@ -525,7 +524,6 @@ object AiChat : ClickableFeature(), WeDatabaseListenerApi.IInsertListener {
         bubble: Boolean,
         atReply: Boolean,
         triggerSenderName: String,
-        selfNames: List<String>,
     ): String {
         val now = Calendar.getInstance()
         val time = "%02d:%02d".format(now.get(Calendar.HOUR_OF_DAY), now.get(Calendar.MINUTE))
@@ -546,11 +544,9 @@ object AiChat : ClickableFeature(), WeDatabaseListenerApi.IInsertListener {
             if (atReply) {
                 append("\n\n现在群友「$triggerSenderName」刚在 @ 你。带「@我」标记的那条就是 @ 你的消息，其余是按时间排列的上下文。")
                 append("\n回复前先看清楚：")
+                append("\n- 只有明确 @ 你的那条才是在叫你；其他人聊天里出现的普通词语（哪怕和你的昵称一样）只是正常说话用词，不是在称呼你，也不要把它当成名字写进回复。")
                 append("\n- 这条消息是在跟谁说、在聊哪件事；上下文里别人同时在聊别的话题时，不要混进来。")
                 append("\n- 如果这句话是在接上面某个人说的内容，就顺着被接的那件事回应，不要答非所问。")
-                if (selfNames.isNotEmpty()) {
-                    append("\n- 你在群里可能被叫：${selfNames.joinToString("、")}。@ 后面如果还连着别的字，说明 @ 的是别人，不要当成在叫你。")
-                }
             }
             if (bubble) {
                 append("\n\n现在聊天比较冷清，请你主动冒个泡：发一句能开启话题或活跃气氛的话。")
@@ -606,6 +602,8 @@ object AiChat : ClickableFeature(), WeDatabaseListenerApi.IInsertListener {
             .firstOrNull { it.isNotEmpty() }
             ?: return null
         val cleaned = line
+            // 上下文里的消息都带「昵称：」, 模型偶尔会照着加一个前缀, 这里统一去掉。
+            .replace(LEADING_SPEAKER_PREFIX, "")
             .removePrefix("我：")
             .removePrefix("AI：")
             .trim('"', '\'', '“', '”', '‘', '’', '「', '」', '《', '》')
@@ -683,6 +681,9 @@ object AiChat : ClickableFeature(), WeDatabaseListenerApi.IInsertListener {
     private const val AT_REPLY_MARKER = "【@我】"
 
     private val AT_USER_LIST_REGEX = Regex("""<atuserlist>\s*(?:<!\[CDATA\[)?([^<\]]*)""")
+
+    /** 模型照着上下文格式加在开头的「昵称：」前缀。 */
+    private val LEADING_SPEAKER_PREFIX = Regex("""^[^\s：:，,。]{1,12}[：:]\s*""")
 
     /** 群聊里让指定成员收到"有人@我"提醒, 气泡内容本身保持原文。 */
     private fun atMsgSource(wxId: String): String =
