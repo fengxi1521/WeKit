@@ -568,12 +568,38 @@ object AutoCommentMoments : AutoMomentsBase() {
         savedHandledIds = handledSnsIds.toSet()
     }
 
-    /** 本地评论表里是否已有自己发出的评论, 用于跨重启/跨入口的最终去重。 */
-    private fun hasOwnComment(snsId: Long): Boolean =
-        WeMomentsApi.rawQuerySnsInfo(
-            "SELECT 1 FROM SnsComment WHERE snsID = ? AND (isSend = 1 OR talker = ?) LIMIT 1",
-            arrayOf(snsId.toString(), WeApi.selfWxId),
-        ).use { it.moveToFirst() }
+    /**
+     * 本地评论表里是否已有自己发出的评论, 用于跨重启/跨入口的最终去重。
+     *
+     * 先走权威列 (isSend / talker)。但在 8.0.78 上, 通过 sendComment 发出的评论
+     * isSend 可能为 0、talker 也未必能命中自己, 仅靠列判断会在每次浏览 / 重启后
+     * 把同一条朋友圈再评论一遍。因此再用本模块实际发出并持久化记住的评论内容做
+     * 兜底比对: 解码 SnsComment.curActionBuf, 只要该动态下有一条内容是我们记过的
+     * 评论, 就视为已经评论过, 绝不再发。
+     */
+    private fun hasOwnComment(snsId: Long): Boolean {
+        val snsKey = snsId.toString()
+        if (WeMomentsApi.rawQuerySnsInfo(
+                "SELECT 1 FROM SnsComment WHERE snsID = ? AND (isSend = 1 OR talker = ?) LIMIT 1",
+                arrayOf(snsKey, WeApi.selfWxId),
+            ).use { it.moveToFirst() }
+        ) return true
+        if (!hasAiCommentHistory(snsKey)) return false
+        return WeMomentsApi.rawQuerySnsInfo(
+            "SELECT curActionBuf FROM SnsComment WHERE snsID = ?",
+            arrayOf(snsKey),
+        ).use { cursor ->
+            val bufIndex = cursor.getColumnIndex("curActionBuf")
+            if (bufIndex < 0) return@use false
+            while (cursor.moveToNext()) {
+                val buf = cursor.getBlob(bufIndex) ?: continue
+                val content = runCatching { SnsCommentActionProto.decode(buf).content.orEmpty() }
+                    .getOrDefault("")
+                if (content.isNotEmpty() && isOurAiText(snsKey, content)) return@use true
+            }
+            false
+        }
+    }
 
     fun aiConfig() = AutoCommentAi.Config(
         apiKey = aiApiKey,
