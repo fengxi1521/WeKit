@@ -4300,4 +4300,21 @@
     <string name="qq_music_channel_required">請至少開啟音樂卡片或歌曲語音傳送</string>
     <string name="qq_music_toggle_enabled">該聊天點歌已開啟，其他人可以點歌了</string>
     <string name="qq_music_toggle_disabled">該聊天點歌已關閉，只有你能點歌了</string>
+    <string name="qq_music_group_enabled">已在本聊天開啟點歌</string>
+    <string name="qq_music_group_disabled">已在本聊天關閉點歌</string>
+    <string name="qq_music_group_off_hint">本聊天已關閉點歌，長按選單入口可重新開啟</string>
+
+    <string name="feature_pat_group_members_name">拍一拍群友</string>
+    <string name="feature_pat_group_members_description">在聊天輸入欄「+」裡選擇群友拍一拍，支援多選、延遲和次數</string>
+    <string name="pat_group_members_group_only">僅群聊可用</string>
+    <string name="pat_group_members_empty">這個群沒有可拍的成員</string>
+    <string name="pat_group_members_select_one">請至少選擇一位群友</string>
+    <string name="pat_group_members_schedule_title">拍一拍設定</string>
+    <string name="pat_group_members_selected_count">已選擇 %1$d 位群友</string>
+    <string name="pat_group_members_times_title">拍幾次</string>
+    <string name="pat_group_members_delay_title">延遲</string>
+    <string name="pat_group_members_delay_description">每次拍之前等待的秒數，第一次也會先等這麼久</string>
+    <string name="pat_group_members_seconds_suffix">秒</string>
+    <string name="pat_group_members_start">開始拍</string>
+    <string name="pat_group_members_finished">拍一拍完成（成功 %1$d 次）</string>
 </resources>

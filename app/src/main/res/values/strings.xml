@@ -4380,6 +4380,23 @@
     <string name="qq_music_channel_required">Enable the music card or the voice message first</string>
     <string name="qq_music_toggle_enabled">Song requests enabled for this chat; other members can request songs now</string>
     <string name="qq_music_toggle_disabled">Song requests disabled for this chat; only you can request songs now</string>
+    <string name="qq_music_group_enabled">Song requests enabled in this chat</string>
+    <string name="qq_music_group_disabled">Song requests disabled in this chat</string>
+    <string name="qq_music_group_off_hint">Song requests are off in this chat; long-press the menu entry to enable</string>
+
+    <string name="feature_pat_group_members_name">Pat group members</string>
+    <string name="feature_pat_group_members_description">Pick members from the chat input menu to pat them; supports multiple members, delay and repeat count</string>
+    <string name="pat_group_members_group_only">Only available in group chats</string>
+    <string name="pat_group_members_empty">No members to pat in this group</string>
+    <string name="pat_group_members_select_one">Select at least one member</string>
+    <string name="pat_group_members_schedule_title">Pat settings</string>
+    <string name="pat_group_members_selected_count">%1$d members selected</string>
+    <string name="pat_group_members_times_title">Repeat count</string>
+    <string name="pat_group_members_delay_title">Delay</string>
+    <string name="pat_group_members_delay_description">Seconds to wait before each pat; the first one also waits this long</string>
+    <string name="pat_group_members_seconds_suffix">s</string>
+    <string name="pat_group_members_start">Start patting</string>
+    <string name="pat_group_members_finished">Patting finished (%1$d sent)</string>
 
     <string name="emoji_files_add">Add sticker</string>
     <string name="emoji_files_empty">No stickers yet. Tap the button above to pick images from your gallery.</string>
