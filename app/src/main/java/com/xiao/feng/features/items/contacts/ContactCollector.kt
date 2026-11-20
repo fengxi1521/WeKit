@@ -111,7 +111,12 @@ object ContactCollector {
      */
     fun scopeMembers(target: Target?): Set<String>? = when (target?.kind) {
         null -> null
-        TargetKind.LABEL -> WeContactLabelApi.getContactsByLabelId(target.id.toInt()).toSet()
+        // 新建标签在创建前 id 为空, 此时没有任何成员。
+        TargetKind.LABEL -> if (target.id.isBlank()) {
+            emptySet()
+        } else {
+            WeContactLabelApi.getContactsByLabelId(target.id.toInt()).toSet()
+        }
         TargetKind.FOLDER -> if (JsonDataMigration.isCompleted("chat", "folders")) {
             ConversationAggregation.folderMembers(target.id).toSet()
         } else {

@@ -210,6 +210,9 @@ fun Context.startGroupCollection(
         var failed by remember { mutableStateOf(false) }
         val completed = remember { mutableIntStateOf(0) }
         val completedValue by completed
+        // 需要处理的人数 (已排除目标里已有的成员), 进度与结果都按它计算。
+        val pending = remember { mutableIntStateOf(0) }
+        val pendingValue by pending
 
         LaunchedEffect(Unit) {
             withContext(Dispatchers.IO) {
@@ -223,7 +226,6 @@ fun Context.startGroupCollection(
 
         LaunchedEffect(runningTarget) {
             val target = runningTarget ?: return@LaunchedEffect
-            val ids = members.orEmpty().map { it.wxId }
             onIntervalPicked(intervalInput)
             val interval = ContactCollector.intervalMillis(intervalInput)
             // 批量执行期间禁止外部点击/返回键中断, 避免用户误触后只处理了一半。
@@ -231,6 +233,10 @@ fun Context.startGroupCollection(
             val ok = try {
                 withContext(Dispatchers.IO) {
                     if (!ContactCollector.prepare(target)) return@withContext false
+                    // 已经在目标里的成员不再重复归拢, 只处理还没加进去的人。
+                    val already = ContactCollector.scopeMembers(target) ?: emptySet()
+                    val ids = members.orEmpty().map { it.wxId }.filterNot { it in already }
+                    pending.intValue = ids.size
                     ids.forEachIndexed { index, wxId ->
                         ContactCollector.apply(target, wxId)
                         completed.intValue = index + 1
@@ -266,14 +272,14 @@ fun Context.startGroupCollection(
                                 R.plurals.contact_collection_done,
                                 completedValue,
                                 completedValue,
-                                currentMembers.orEmpty().size,
+                                pendingValue,
                                 runningTarget?.name.orEmpty(),
                             )
                         }
                     )
 
                     runningTarget != null -> DefaultColumn {
-                        val total = currentMembers.orEmpty().size
+                        val total = pendingValue
                         Text(
                             pluralStringResource(
                                 R.plurals.contact_collection_progress,

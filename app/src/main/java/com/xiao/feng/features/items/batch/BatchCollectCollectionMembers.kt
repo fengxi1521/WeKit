@@ -86,7 +86,10 @@ object BatchCollectCollectionMembers : ClickableFeature() {
                 val ok = try {
                     withContext(Dispatchers.IO) {
                         if (!ContactCollector.prepare(to)) return@withContext false
+                        // 已经在目标里的成员不再重复归拢, 只处理还没加进去的人。
+                        val already = ContactCollector.scopeMembers(to) ?: emptySet()
                         val ids = ContactCollector.friendMembersOfCollection(from)
+                            .filterNot { it in already }
                         total = ids.size
                         ids.forEachIndexed { index, wxId ->
                             ContactCollector.apply(to, wxId)
