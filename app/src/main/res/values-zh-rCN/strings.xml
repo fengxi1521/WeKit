@@ -4434,6 +4434,8 @@
     <string name="at_reply_select_title">选择生效群聊</string>
     <string name="at_reply_delay_title">回复延迟</string>
     <string name="at_reply_delay_description">被 @ 后等待多久再回复，更像真人</string>
+    <string name="at_reply_context_title">上下文条数</string>
+    <string name="at_reply_context_description">回复前分析最近多少条群消息；条数越多越不容易答非所问，0 表示只看被 @ 的那一条</string>
     <string name="at_reply_persona_title">人设提示词</string>
     <string name="at_reply_persona_description">单独设置艾特回复的人设，留空则沿用「AI 聊天」里的人设</string>
     <string name="at_reply_persona_follow_ai">跟随 AI 聊天的人设</string>

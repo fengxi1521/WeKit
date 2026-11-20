@@ -41,6 +41,7 @@ fun showAtReplyDialog(context: Context) {
         var targets by remember { mutableStateOf(AtReply.targets) }
         var autoAddNewGroups by remember { mutableStateOf(AtReply.autoAddNewGroups) }
         var delayInput by remember { mutableIntStateOf(AtReply.replyDelaySeconds) }
+        var contextInput by remember { mutableIntStateOf(AtReply.contextCount) }
         var personaInput by remember { mutableStateOf(AtReply.persona) }
         var groups by remember { mutableStateOf<List<IWeContact>>(emptyList()) }
 
@@ -146,6 +147,23 @@ fun showAtReplyDialog(context: Context) {
                                     }
                                 },
                             )
+                        }
+                        item {
+                            BaseItemContainer {
+                                IntNumberPickerWidget(
+                                    title = stringResource(R.string.at_reply_context_title),
+                                    description = stringResource(R.string.at_reply_context_description),
+                                    value = contextInput,
+                                    startInt = 0,
+                                    endInt = 50,
+                                    stepSize = 1,
+                                    valueSuffix = "",
+                                    onValueChange = {
+                                        contextInput = it
+                                        AtReply.contextCount = it
+                                    },
+                                )
+                            }
                         }
                         item {
                             BaseItemContainer {

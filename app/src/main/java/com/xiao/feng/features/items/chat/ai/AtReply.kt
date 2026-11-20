@@ -50,6 +50,7 @@ object AtReply : ClickableFeature(), WeDatabaseListenerApi.IInsertListener {
 
     private const val KEY_TARGETS = "at_reply_targets"
     private const val KEY_DELAY = "at_reply_delay_seconds"
+    private const val KEY_CONTEXT_COUNT = "at_reply_context_count"
     private const val KEY_PERSONA = "at_reply_persona"
     private const val KEY_AUTO_ADD_NEW_GROUPS = "at_reply_auto_add_new_groups"
     private const val KEY_EXCLUDED_TARGETS = "at_reply_excluded_targets"
@@ -67,6 +68,9 @@ object AtReply : ClickableFeature(), WeDatabaseListenerApi.IInsertListener {
     var excludedTargets: Set<String> by prefOption(KEY_EXCLUDED_TARGETS, emptySet<String>())
 
     var replyDelaySeconds: Int by prefOption(KEY_DELAY, 2)
+
+    /** 生成回复前一起发给模型的最近消息条数; 0 表示只看被 @ 的那一条。 */
+    var contextCount: Int by prefOption(KEY_CONTEXT_COUNT, 20)
 
     /** 单独的人设提示词; 留空表示沿用「AI 聊天」里的人格设定。 */
     var persona: String by prefOption(KEY_PERSONA, "")
@@ -166,7 +170,8 @@ object AtReply : ClickableFeature(), WeDatabaseListenerApi.IInsertListener {
 
         val text = rawContent.stripWxId().trim()
         if (text.isEmpty()) return
-        if (!AiChat.isMentioningMe(talker, text)) return
+        // 宿主自带的 atuserlist 才是真正被 @ 的名单, 能排除「别人 @ 了昵称相近的成员」。
+        if (!AiChat.isMentioningMe(talker, text, values.getAsString("msgSource"))) return
         if (!AiChat.isConfigured()) return
 
         val msgId = values.getAsLong("msgId") ?: 0L
@@ -177,7 +182,7 @@ object AtReply : ClickableFeature(), WeDatabaseListenerApi.IInsertListener {
         scope.launch {
             delay(REPLY_DEBOUNCE_MILLIS + replyDelaySeconds.coerceAtLeast(0) * 1000L)
             val answer = runCatching {
-                AiChat.requestReplyFor(talker, sender, msgId, text, persona)
+                AiChat.requestReplyFor(talker, sender, text, persona, contextCount.coerceIn(0, 50))
             }.onFailure {
                 WeLogger.w(TAG, "failed to generate reply for $talker", it)
             }.getOrNull() ?: return@launch

@@ -4404,6 +4404,8 @@
     <string name="at_reply_select_title">Select groups</string>
     <string name="at_reply_delay_title">Reply delay</string>
     <string name="at_reply_delay_description">How long to wait after being mentioned before replying, which feels more human</string>
+    <string name="at_reply_context_title">Context messages</string>
+    <string name="at_reply_context_description">How many recent group messages to analyze before replying; more context avoids off-topic replies. 0 means only the message that mentioned you</string>
     <string name="at_reply_persona_title">Persona prompt</string>
     <string name="at_reply_persona_description">A separate persona for mention replies; leave blank to reuse the AI chat persona</string>
     <string name="at_reply_persona_follow_ai">Follow the AI chat persona</string>

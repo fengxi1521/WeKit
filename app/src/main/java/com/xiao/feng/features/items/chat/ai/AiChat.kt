@@ -235,7 +235,7 @@ object AiChat : ClickableFeature(), WeDatabaseListenerApi.IInsertListener {
         if (!markSeen(dedupKey)) return
 
         // 被 @ 的消息必须回复, 不能因为后面又来了别的消息就被代次检查取消。
-        val mentioned = isMentioningMe(talker, text)
+        val mentioned = isMentioningMe(talker, text, values.getAsString("msgSource"))
         // 已经开启「艾特回复」的群聊交给它按被 @ 的消息单独回复, 避免同一条消息回两遍。
         if (mentioned && AtReply.isActiveFor(talker)) return
 
@@ -252,21 +252,43 @@ object AiChat : ClickableFeature(), WeDatabaseListenerApi.IInsertListener {
         }
     }
 
-    /** 群聊里 @ 我 (群昵称或微信昵称)。「艾特回复」也复用这套判断。 */
-    fun isMentioningMe(talker: String, strippedContent: String): Boolean {
-        if (!talker.isGroupChatWxId || '@' !in strippedContent) return false
+    /**
+     * 群聊里 @ 我 (群昵称或微信昵称)。「艾特回复」也复用这套判断。
+     *
+     * [msgSource] 有 atuserlist 时以它为准: 别人 @ 了昵称相近的成员(如「@辅助小王」)
+     * 时不会因为文本里出现「@辅助」就误判成在叫我。没有该节点时退回文本匹配, 但要求
+     * @ 后面就是名字结尾, 同样避免前缀误命中。
+     */
+    fun isMentioningMe(talker: String, strippedContent: String, msgSource: String? = null): Boolean {
+        if (!talker.isGroupChatWxId) return false
         val self = WeApi.selfWxId
         if (self.isBlank()) return false
-        val names = buildSet {
-            runCatching { WeDatabaseApi.getGroupMemberDisplayName(talker, self) }
-                .getOrDefault("")
-                .takeIf { it.isNotBlank() }?.let(::add)
-            runCatching { WeDatabaseApi.getDisplayName(self) }
-                .getOrDefault("")
-                .takeIf { it.isNotBlank() }?.let(::add)
-        }
-        return names.any { strippedContent.contains("@$it") }
+        val atUsers = atUserList(msgSource.orEmpty())
+        if (atUsers.isNotEmpty()) return self in atUsers
+        if ('@' !in strippedContent) return false
+        return selfNames(talker).any { mentionPattern(it).containsMatchIn(strippedContent) }
     }
+
+    /** 解析 msgSource 里的 atuserlist; 没有该节点时返回空列表。 */
+    private fun atUserList(msgSource: String): List<String> {
+        val raw = AT_USER_LIST_REGEX.find(msgSource)?.groupValues?.get(1)?.trim().orEmpty()
+        return raw.split(',').map { it.trim() }.filter { it.isNotEmpty() }
+    }
+
+    /** 群里可能指向「我」的名字: 群昵称 + 微信昵称。 */
+    private fun selfNames(talker: String): List<String> = buildList {
+        runCatching { WeDatabaseApi.getGroupMemberDisplayName(talker, WeApi.selfWxId) }
+            .getOrDefault("")
+            .takeIf { it.isNotBlank() }
+            ?.let(::add)
+        runCatching { WeDatabaseApi.getDisplayName(WeApi.selfWxId) }
+            .getOrDefault("")
+            .takeIf { it.isNotBlank() }
+            ?.let(::add)
+    }
+
+    /** 「@昵称」必须在此处结束, 否则 @辅助小王 会被当成 @辅助。 */
+    private fun mentionPattern(name: String) = Regex("@${Regex.escape(name)}(?![\\p{L}\\p{N}_])")
 
     /** 插入时的 ContentValues 没有自增 msgId 时, 按会话 + 时间查回这条消息。 */
     private fun resolveMsgId(talker: String, createTime: Long): Long = runCatching {
@@ -300,7 +322,6 @@ object AiChat : ClickableFeature(), WeDatabaseListenerApi.IInsertListener {
         val messages = buildMessages(
             talker = talker,
             config = config,
-            triggerMsgId = triggerMsgId,
             triggerSender = sender,
             triggerText = triggerText,
             bubble = false,
@@ -344,24 +365,29 @@ object AiChat : ClickableFeature(), WeDatabaseListenerApi.IInsertListener {
     /** 是否已经配置好可用的模型凭据; 「艾特回复」在触发前先看这个。 */
     fun isConfigured(): Boolean = apiKey.isNotBlank()
 
-    /** 供「艾特回复」复用同一套模型、人格与上下文配置, 生成一条回复。 */
+    /**
+     * 供「艾特回复」复用同一套模型与人格, 按被 @ 的消息生成一条回复。
+     *
+     * [contextCount] 覆盖「AI 聊天」里的上下文条数, 让艾特回复单独控制分析多少条历史消息。
+     */
     suspend fun requestReplyFor(
         talker: String,
         sender: String,
-        triggerMsgId: Long,
         triggerText: String,
         persona: String = "",
+        contextCount: Int? = null,
     ): String? {
         val config = snapshot()
         if (config.apiKey.isBlank()) return null
-        val effective = if (persona.isBlank()) config else config.copy(persona = persona)
+        val effective = (if (persona.isBlank()) config else config.copy(persona = persona))
+            .let { if (contextCount == null) it else it.copy(contextCount = contextCount) }
         val messages = buildMessages(
             talker = talker,
             config = effective,
-            triggerMsgId = triggerMsgId.takeIf { it > 0L },
             triggerSender = sender,
             triggerText = triggerText,
             bubble = false,
+            atReply = true,
         )
         return ask(config, messages)
     }
@@ -397,7 +423,6 @@ object AiChat : ClickableFeature(), WeDatabaseListenerApi.IInsertListener {
         val messages = buildMessages(
             talker = talker,
             config = config,
-            triggerMsgId = null,
             triggerSender = "",
             triggerText = "",
             bubble = true,
@@ -410,10 +435,10 @@ object AiChat : ClickableFeature(), WeDatabaseListenerApi.IInsertListener {
     private fun buildMessages(
         talker: String,
         config: Config,
-        triggerMsgId: Long?,
         triggerSender: String,
         triggerText: String,
         bubble: Boolean,
+        atReply: Boolean = false,
     ): List<LlmMessage> {
         val isGroup = talker.isGroupChatWxId
         val conversationName = runCatching { WeDatabaseApi.getDisplayName(talker) }.getOrDefault(talker)
@@ -433,37 +458,48 @@ object AiChat : ClickableFeature(), WeDatabaseListenerApi.IInsertListener {
             emptyList()
         }
 
+        fun memberName(wxId: String): String = memberNames[wxId]?.takeIf { it.isNotBlank() }
+            ?: runCatching { WeDatabaseApi.getDisplayName(wxId) }.getOrDefault(wxId)
+
         fun speakerOf(message: WeMessage): String = when {
             message.isSend == 1 -> "我"
-            isGroup -> {
-                val sender = groupSenderOf(message.content)
-                memberNames[sender]?.takeIf { it.isNotBlank() }
-                    ?: runCatching { WeDatabaseApi.getDisplayName(sender) }.getOrDefault(sender)
-            }
-
+            isGroup -> memberName(groupSenderOf(message.content))
             else -> conversationName
         }
 
-        val conversation = history.mapNotNull { message ->
-            if (message.typeCode != TEXT_MESSAGE_TYPE) return@mapNotNull null
+        // 触发消息可能已经落库(出现在 history 里), 也可能还没; 按发言人 + 文本定位,
+        // 既避免重复喂给模型, 也让「艾特回复」能标出真正要回的那一条。
+        val triggerIndex = if (!bubble && triggerText.isNotBlank()) {
+            history.indexOfLast { message ->
+                message.isSend == 0 &&
+                    if (isGroup) {
+                        groupSenderOf(message.content) == triggerSender &&
+                            message.content.stripWxId().trim() == triggerText
+                    } else {
+                        message.content.trim() == triggerText
+                    }
+            }
+        } else {
+            -1
+        }
+
+        val conversation = history.mapIndexedNotNull { index, message ->
+            if (message.typeCode != TEXT_MESSAGE_TYPE) return@mapIndexedNotNull null
             val text = (if (isGroup) message.content.stripWxId() else message.content).trim()
-            if (text.isEmpty()) return@mapNotNull null
+            if (text.isEmpty()) return@mapIndexedNotNull null
             val role = if (message.isSend == 1) LlmRole.ASSISTANT else LlmRole.USER
-            LlmMessage(role, if (isGroup) "${speakerOf(message)}：$text" else text)
+            val body = if (isGroup) "${speakerOf(message)}：$text" else text
+            LlmMessage(role, if (atReply && index == triggerIndex) AT_REPLY_MARKER + body else body)
         }.toMutableList()
 
+        val senderName = if (isGroup) memberName(triggerSender) else conversationName
+
         // 入库回调里的这条消息有时还没落到查询可见的位置, 补一条保证模型看到最新发言。
-        if (!bubble && triggerText.isNotBlank() && history.none { it.msgId == triggerMsgId }) {
-            val senderName = if (isGroup) {
-                memberNames[triggerSender]?.takeIf { it.isNotBlank() }
-                    ?: runCatching { WeDatabaseApi.getDisplayName(triggerSender) }
-                        .getOrDefault(triggerSender)
-            } else {
-                conversationName
-            }
+        if (!bubble && triggerText.isNotBlank() && triggerIndex < 0) {
+            val body = if (isGroup) "$senderName：$triggerText" else triggerText
             conversation += LlmMessage(
                 LlmRole.USER,
-                if (isGroup) "$senderName：$triggerText" else triggerText,
+                if (atReply) AT_REPLY_MARKER + body else body,
             )
         }
 
@@ -474,6 +510,9 @@ object AiChat : ClickableFeature(), WeDatabaseListenerApi.IInsertListener {
                 conversationName = conversationName,
                 isGroup = isGroup,
                 bubble = bubble,
+                atReply = atReply,
+                triggerSenderName = senderName,
+                selfNames = if (atReply) selfNames(talker) else emptyList(),
             ),
         )
         return listOf(system) + conversation
@@ -484,6 +523,9 @@ object AiChat : ClickableFeature(), WeDatabaseListenerApi.IInsertListener {
         conversationName: String,
         isGroup: Boolean,
         bubble: Boolean,
+        atReply: Boolean,
+        triggerSenderName: String,
+        selfNames: List<String>,
     ): String {
         val now = Calendar.getInstance()
         val time = "%02d:%02d".format(now.get(Calendar.HOUR_OF_DAY), now.get(Calendar.MINUTE))
@@ -501,6 +543,15 @@ object AiChat : ClickableFeature(), WeDatabaseListenerApi.IInsertListener {
             append("\n4. 不要使用 Markdown、列表或标题，可以用表情。")
             append("\n5. 像真人闲聊：可以用短句、语气词（哈哈、嗯、确实、可以啊），不必每句都完整。")
             append("\n6. 被 @ 或被引用时，直接回应对方那一句，不要答非所问。")
+            if (atReply) {
+                append("\n\n现在群友「$triggerSenderName」刚在 @ 你。带「@我」标记的那条就是 @ 你的消息，其余是按时间排列的上下文。")
+                append("\n回复前先看清楚：")
+                append("\n- 这条消息是在跟谁说、在聊哪件事；上下文里别人同时在聊别的话题时，不要混进来。")
+                append("\n- 如果这句话是在接上面某个人说的内容，就顺着被接的那件事回应，不要答非所问。")
+                if (selfNames.isNotEmpty()) {
+                    append("\n- 你在群里可能被叫：${selfNames.joinToString("、")}。@ 后面如果还连着别的字，说明 @ 的是别人，不要当成在叫你。")
+                }
+            }
             if (bubble) {
                 append("\n\n现在聊天比较冷清，请你主动冒个泡：发一句能开启话题或活跃气氛的话。")
             }
@@ -627,6 +678,11 @@ object AiChat : ClickableFeature(), WeDatabaseListenerApi.IInsertListener {
     override fun onClick(context: ComponentActivity) = showAiChatDialog(context)
 
     private val GROUP_SENDER_REGEX = Regex("""^([^:\n]+):\n""")
+
+    /** 「艾特回复」在上下文里标出被 @ 的那条消息, 让模型分清要回哪一句。 */
+    private const val AT_REPLY_MARKER = "【@我】"
+
+    private val AT_USER_LIST_REGEX = Regex("""<atuserlist>\s*(?:<!\[CDATA\[)?([^<\]]*)""")
 
     /** 群聊里让指定成员收到"有人@我"提醒, 气泡内容本身保持原文。 */
     private fun atMsgSource(wxId: String): String =
