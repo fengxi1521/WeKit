@@ -45,29 +45,38 @@ object AutoGrabGifts : ClickableFeature() {
         if (hookInstalled) return
         hookInstalled = true
 
+        // 真实到达的消息可能走 handleApiInsertMessage(Bb), 只挂 storageInsertMessage(yb)
+        // 会漏掉一部分; 两条插入路径都挂上, 重复命中由 markHandled 去重。
         WeMessageApi.methodMsgInfoStorageInsertMessage.hookBefore {
-            if (!isEnabled) return@hookBefore
-
-            val msgInfo = MessageInfo(args[0]!!)
-            if (msgInfo.isSelfSender) return@hookBefore
-
-            val content = msgInfo.content
-            if (!content.contains("<orderid>")) return@hookBefore
-
-            val split = content.indexOf(":\n")
-            val xml = if (split > 0 && content.indexOf('<') > split) {
-                content.substring(split + 2)
-            } else {
-                content
-            }
-            val orderId = XmlUtils.extractXmlTag(xml, "orderid").trim()
-            if (orderId.isEmpty()) return@hookBefore
-            if (!markHandled(orderId)) return@hookBefore
-
-            val delayMillis = delaySeconds.coerceAtLeast(0) * 1000L
-            WeLogger.i(TAG, "gift message detected, orderId=$orderId, delay=$delayMillis")
-            mainHandler.postDelayed({ if (isEnabled) WeGiftApi.grab(msgInfo.instance) }, delayMillis)
+            detectInsertedGift(args[0])
         }
+        WeMessageApi.methodMsgInfoHandleApiInsertMessage.hookBefore {
+            detectInsertedGift(args[0])
+        }
+    }
+
+    private fun detectInsertedGift(message: Any?) {
+        if (!isEnabled) return
+
+        val msgInfo = MessageInfo(message!!)
+        if (msgInfo.isSelfSender) return
+
+        val content = msgInfo.content
+        if (!content.contains("<orderid>")) return
+
+        val split = content.indexOf(":\n")
+        val xml = if (split > 0 && content.indexOf('<') > split) {
+            content.substring(split + 2)
+        } else {
+            content
+        }
+        val orderId = XmlUtils.extractXmlTag(xml, "orderid").trim()
+        if (orderId.isEmpty()) return
+        if (!markHandled(orderId)) return
+
+        val delayMillis = delaySeconds.coerceAtLeast(0) * 1000L
+        WeLogger.i(TAG, "gift message detected, orderId=$orderId, delay=$delayMillis")
+        mainHandler.postDelayed({ if (isEnabled) WeGiftApi.grab(msgInfo.instance) }, delayMillis)
     }
 
     private fun markHandled(orderId: String): Boolean {
