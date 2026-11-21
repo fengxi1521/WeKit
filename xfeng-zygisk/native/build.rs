@@ -38,7 +38,14 @@ fn main() {
             )
             .define("ANDROID_ABI", "arm64-v8a")
             .define("ANDROID_PLATFORM", format!("android-{api}"))
-            .define("ANDROID_STL", "c++_static");
+            .define("ANDROID_STL", "c++_static")
+            // CMake >= 4.5 synthesizes the `import std` module for targets with
+            // C++ module sources and asks the compiler for the standard library
+            // module metadata. In an NDK cross build it picks the *host*
+            // libstdc++ metadata (e.g. /usr/include/c++/15/bits/std.cc) and then
+            // fails scanning `<bits/stdc++.h>`. Nothing here imports std, so an
+            // empty value tells CMake the library exposes no importable modules.
+            .define("CMAKE_CXX_STDLIB_MODULES_JSON", "");
         let lsplant = root.join("third_party/lsplant");
         println!(
             "cargo:rerun-if-changed={}",

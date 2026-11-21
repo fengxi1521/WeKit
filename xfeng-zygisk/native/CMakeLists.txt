@@ -43,6 +43,11 @@ enable_language(CXX)
 # 这里不使用 C++ 模块。Clang 21 的 P1689 扫描会误取宿主 GCC 的 <std> 模块源文件,
 # 在 CI 镜像上直接报 "bits/stdc++.h not found", 因此关闭模块扫描。
 set(CMAKE_CXX_SCAN_FOR_MODULES OFF)
+# CMake 4.5 会为使用 C++ 模块的目标自动合成 `import std` 模块, 并调用编译器
+# 查找 C++ 标准库的模块元数据。交叉编译到 Android 时它会误用宿主 libstdc++ 的
+# 元数据 (例如 /usr/include/c++/15/bits/std.cc), 扫描时找不到 <bits/stdc++.h>。
+# 空值表示标准库没有可导入的模块, 从而跳过合成; 本项目也没有任何 import std。
+set(CMAKE_CXX_STDLIB_MODULES_JSON "")
 
 set(LSPLANT_SOURCE "${XFENG_ROOT}/third_party/lsplant/lsplant/src/main/jni")
 if(NOT EXISTS "${LSPLANT_SOURCE}/external/dex_builder/external/parallel_hashmap/CMakeLists.txt")
