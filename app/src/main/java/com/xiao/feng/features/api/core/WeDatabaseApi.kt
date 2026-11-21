@@ -192,6 +192,18 @@ object WeDatabaseApi : ApiFeature(), IResolveDex {
             WHERE r.username = '$wxId'
         """.trimIndent()
 
+        /**
+         * 成员列表包含指定 wxId 的群聊。
+         * chatroom.memberlist 是 `wxid1;wxid2;` 文本, LIKE 只能粗筛, 调用方需按 ';' 精确校验。
+         */
+        fun groupsContainingMember(wxId: String) = """
+            SELECT $GROUP_FIELDS, c.memberlist
+            FROM chatroom c
+            JOIN rcontact r ON r.username = c.chatroomname
+            $LEFT_JOIN_IMG_FLAG
+            WHERE c.memberlist LIKE '%$wxId%'
+        """.trimIndent()
+
         /** 获取群成员列表 */
         fun groupMembers(idsStr: String) = """
             SELECT $CONTACT_FIELDS
@@ -512,6 +524,28 @@ object WeDatabaseApi : ApiFeature(), IResolveDex {
                 avatarUrl = row.str("avatarUrl")
             )
         }
+    }
+
+    /**
+     * 自己已加入、且成员列表包含 [memberWxId] 的群聊。
+     * [SqlStatements.groupsContainingMember] 的 LIKE 只是粗筛, 这里再按 ';' 精确匹配成员。
+     */
+    fun getGroupsContainingMember(memberWxId: String): List<WeGroup> {
+        if (memberWxId.isEmpty()) return emptyList()
+        val escapedWxid = memberWxId.replace("'", "''")
+        return executeQuery(SqlStatements.groupsContainingMember(escapedWxid))
+            .filter { row ->
+                row.str("memberlist").split(";").any { it.trim() == memberWxId }
+            }
+            .map { row ->
+                WeGroup(
+                    wxId = row.str("username"),
+                    nickname = row.str("nickname"),
+                    nicknameShortPinyin = row.str("pyInitial"),
+                    nicknamePinyin = row.str("quanPin"),
+                    avatarUrl = row.str("avatarUrl"),
+                )
+            }
     }
 
     fun getChatroomSyncState(roomId: String): ChatroomSyncStateReadResult {

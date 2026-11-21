@@ -37,13 +37,13 @@ import com.xiao.feng.utils.strings.isGroupChatWxId
 /**
  * @所有人 (含隐蔽@模式)。
  *
- * 隐蔽@模式: 确认成员选择后用宿主的发送场景 [WeMessageApi.sendTextWithMsgSource]
- * 发出输入框原文 (不附加 @昵称 前缀), 并在出网 msgsource 中携带
- * `<atuserlist><![CDATA[wxid1,wxid2,...]]></atuserlist>` (全选时为 notify@all)。
- * 微信服务器只看 atuserlist 里的成员/notify@all 推送"有人@我"提醒,
+ * 隐蔽@模式: 走与普通@相同的 `newSendMsg` 直连请求, 区别是 content 保持用户原文,
+ * 只把 `<atuserlist><![CDATA[wxid1,wxid2,...]]></atuserlist>` (全选时为 notify@all)
+ * 放进 msgsource。微信服务器只看 atuserlist 里的成员/notify@all 推送"有人@我"提醒,
  * 不要求 content 中存在 @ 文本, 因此接收方气泡内看不到任何 @ 痕迹。
- * 早期实现依赖 MsgSourceHelper 的节点合并方法注入 atuserlist, 但该方法是
- * alnode 专用合并, 对 atuserlist 是 no-op, 故改为在发送场景构造时直接携带。
+ *
+ * 早前实现把 msgSource 交给宿主发送场景 `NetSceneSendMsg` 的构造参数, 但宿主在
+ * 组装请求时会重建 msgsource, 传进去的 atuserlist 会被丢弃; 因此改为直接构造请求。
  */
 object MentionMembers : SwitchFeature() {
 
@@ -141,44 +141,31 @@ object MentionMembers : SwitchFeature() {
                                 onDismiss()
 
                                 val selectedContacts = allMembers.filter { it.wxId in selectedWxIds }
-
-                                if (stealthMentionAll) {
-                                    // 隐蔽@: 输入框原文 + atuserlist 一起交给宿主发送场景;
-                                    // 全选用 notify@all 提醒全部成员, 部分选择列出 wxid
-                                    val atUserList = if (selectedContacts.size == allMembers.size) {
-                                        "notify@all"
-                                    } else {
-                                        selectedContacts
-                                            .map { it.wxId }
-                                            .filter { it != "weixin" && it != "filehelper" }
-                                            .take(MAX_AT_USERS)
-                                            .joinToString(",")
-                                    }
-                                    val msgSource = """<msgsource><atuserlist><![CDATA[$atUserList]]></atuserlist><pua>1</pua><alnode><cf>5</cf><inlenlist>73</inlenlist></alnode><eggIncluded>1</eggIncluded></msgsource>"""
-
-                                    if (WeMessageApi.sendTextWithMsgSource(currentConv, chatFooter.lastText, msgSource)) {
-                                        chatFooter.lastText = ""
-                                    } else {
-                                        showToast(
-                                            dialogContext,
-                                            localizedContext.localizedChatInputString(R.string.chat_send_failed),
-                                        )
-                                    }
-                                    return@ContactsSelector
-                                }
-
+                                val isStealth = stealthMentionAll
                                 val content = chatFooter.lastText
-                                val atNicknames = selectedContacts.joinToString("") { "@${it.nickname} " }
-                                val isAllSelected = selectedContacts.size == allMembers.size
-                                val atWxIds = if (isAllSelected) {
+
+                                // 全选用 notify@all; 部分选择列出 wxid。
+                                val atWxIds = if (selectedContacts.size == allMembers.size) {
                                     "notify@all"
                                 } else {
-                                    selectedContacts.joinToString(",") { it.wxId }
+                                    selectedContacts
+                                        .map { it.wxId }
+                                        .filter { it != "weixin" && it != "filehelper" }
+                                        .take(MAX_AT_USERS)
+                                        .joinToString(",")
+                                }
+
+                                // 隐蔽@: 只把 atuserlist 放进 msgsource, content 保持用户原文,
+                                // 接收方气泡里看不到任何 @ 痕迹, 但服务器仍会按 atuserlist 提醒。
+                                val outgoingContent = if (isStealth) {
+                                    content
+                                } else {
+                                    selectedContacts.joinToString("") { "@${it.nickname} " } + content
                                 }
 
                                 val item = NewSendMsgItemProto(
                                     toUser = UserNameProto(currentConv),
-                                    content = atNicknames + content,
+                                    content = outgoingContent,
                                     type = 1,
                                     msgSource = """<msgsource><atuserlist><![CDATA[$atWxIds]]></atuserlist><pua>1</pua><alnode><cf>5</cf><inlenlist>73</inlenlist></alnode><eggIncluded>1</eggIncluded></msgsource>"""
                                 )
@@ -196,21 +183,35 @@ object MentionMembers : SwitchFeature() {
                                     reqBytes = reqBytes
                                 ) {
                                     onSuccess { _ ->
-                                        showToast(
-                                            context,
-                                            context.localizedChatInputString(R.string.mention_members_sent_unseen),
-                                        )
                                         val now = System.currentTimeMillis()
-                                        WeMessageApi.createSimpleMsgInfoAndInsert(
-                                            10000,
-                                            currentConv,
-                                            context.localizedChatInputQuantity(
-                                                R.plurals.mention_members_message_count,
-                                                selectedContacts.size,
-                                                selectedContacts.size,
-                                            ),
-                                            now
-                                        )
+                                        if (isStealth) {
+                                            showToast(
+                                                context,
+                                                context.localizedChatInputString(R.string.mention_members_sent_unseen),
+                                            )
+                                            WeMessageApi.createSimpleMsgInfoAndInsert(
+                                                1,
+                                                currentConv,
+                                                content,
+                                                now,
+                                                isSend = 1,
+                                            )
+                                        } else {
+                                            showToast(
+                                                context,
+                                                context.localizedChatInputString(R.string.mention_members_sent_unseen),
+                                            )
+                                            WeMessageApi.createSimpleMsgInfoAndInsert(
+                                                10000,
+                                                currentConv,
+                                                context.localizedChatInputQuantity(
+                                                    R.plurals.mention_members_message_count,
+                                                    selectedContacts.size,
+                                                    selectedContacts.size,
+                                                ),
+                                                now
+                                            )
+                                        }
                                         chatFooter.lastText = ""
                                     }
                                 }

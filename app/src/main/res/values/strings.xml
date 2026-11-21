@@ -288,6 +288,8 @@
     <string name="logs_collapse">Collapse</string>
     <string name="logs_expand">Expand</string>
     <string name="settings_section_debug">Debug</string>
+    <string name="settings_run_log_title">Run log</string>
+    <string name="settings_run_log_summary">When off, no new run logs are written; the log page keeps existing records</string>
     <string name="settings_verbose_log_title">Verbose logging</string>
     <string name="settings_verbose_log_summary">Output high-frequency logs (this may expose private information)</string>
     <string name="settings_startup_toast_title">Show startup completion toast</string>
@@ -4393,10 +4395,22 @@
     <string name="pat_group_members_selected_count">%1$d members selected</string>
     <string name="pat_group_members_times_title">Repeat count</string>
     <string name="pat_group_members_delay_title">Delay</string>
-    <string name="pat_group_members_delay_description">Seconds to wait before each pat; the first one also waits this long</string>
+    <string name="pat_group_members_delay_description">Seconds to wait before each pat (minimum 8); the first one also waits this long. Long-press the menu item to view or stop running tasks</string>
     <string name="pat_group_members_seconds_suffix">s</string>
     <string name="pat_group_members_start">Start patting</string>
     <string name="pat_group_members_finished">Patting finished (%1$d sent)</string>
+    <string name="pat_group_members_tasks_title">Pat tasks</string>
+    <string name="pat_group_members_tasks_empty">No pat task is running</string>
+    <string name="pat_group_members_task_progress">%1$d/%2$d sent</string>
+    <string name="pat_group_members_task_stop">Stop</string>
+    <string name="feature_chat_relation_finder_name">Group friends &amp; common groups</string>
+    <string name="feature_chat_relation_finder_description">Show your friends in the current group from the chat input “+” menu, or the groups you share with a friend in a one-to-one chat</string>
+    <string name="chat_relation_action_label">Group friends / Common groups</string>
+    <string name="chat_relation_group_friends_title">Friends in this group (%1$d)</string>
+    <string name="chat_relation_common_groups_title">Groups shared with %1$s (%2$d)</string>
+    <string name="chat_relation_empty_friends">None of your friends are in this group</string>
+    <string name="chat_relation_empty_groups">You share no group with this friend</string>
+    <string name="chat_relation_loading">Loading…</string>
 
     <string name="emoji_files_add">Add sticker</string>
     <string name="emoji_files_empty">No stickers yet. Tap the button above to pick images from your gallery.</string>

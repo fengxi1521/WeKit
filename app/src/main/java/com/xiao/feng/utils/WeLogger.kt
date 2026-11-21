@@ -2,6 +2,7 @@ package com.xiao.feng.utils
 
 import android.util.Log
 import com.xiao.feng.BuildConfig
+import com.xiao.feng.constants.Preferences
 import com.xiao.feng.utils.fs.KnownPaths
 import com.xiao.feng.utils.fs.createDirsSafe
 import java.io.FileWriter
@@ -190,11 +191,29 @@ object WeLogger {
     }
 
     private fun enqueue(record: WriteTask.Record) {
+        if (!isRunLogEnabled()) return
         val isImportant = record.level == "E" || record.level == "W" || record.level == "A"
         val hasRoom = isImportant || writeQueue.remainingCapacity() > RESERVED_IMPORTANT_CAPACITY
         if (!hasRoom || !writeQueue.offer(record)) {
             droppedRecords.incrementAndGet()
         }
+    }
+
+    /**
+     * 运行日志开关。缓存的读取时间戳会先于实际读取更新, 避免 KvStore 初始化期间
+     * 由日志触发的递归读取。
+     */
+    @Volatile
+    private var runLogEnabled = true
+    @Volatile
+    private var runLogReadAtNanos = 0L
+
+    private fun isRunLogEnabled(): Boolean {
+        val now = System.nanoTime()
+        if (now - runLogReadAtNanos < 1_000_000_000L) return runLogEnabled
+        runLogReadAtNanos = now
+        runLogEnabled = runCatching { Preferences.runLog }.getOrDefault(true)
+        return runLogEnabled
     }
 
     /**

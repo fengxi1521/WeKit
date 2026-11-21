@@ -65,6 +65,7 @@ import androidx.compose.ui.window.DialogProperties
 import coil3.compose.AsyncImage
 import com.composables.icons.materialsymbols.MaterialSymbols
 import com.composables.icons.materialsymbols.outlined.Account_circle
+import com.composables.icons.materialsymbols.outlined.Article
 import com.composables.icons.materialsymbols.outlined.Auto_delete
 import com.composables.icons.materialsymbols.outlined.Block
 import com.composables.icons.materialsymbols.outlined.Brightness_medium
@@ -169,6 +170,15 @@ fun SettingsPager(onOpenLicense: () -> Unit) {
         item {
             SegmentedColumn(title = stringResource(R.string.settings_section_debug)) {
                 item { SecuritySwitch(context) }
+                item {
+                    PrefSwitch(
+                        key = Preferences.RUN_LOG,
+                        title = stringResource(R.string.settings_run_log_title),
+                        summary = stringResource(R.string.settings_run_log_summary),
+                        icon = MaterialSymbols.Outlined.Article,
+                        default = true,
+                    )
+                }
                 item {
                     PrefSwitch(
                         key = Preferences.VERBOSE_LOG,

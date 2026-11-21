@@ -343,12 +343,19 @@ object WeMessageApi : ApiFeature(), IResolveDex {
         return msgInfo
     }
 
-    fun createSimpleMsgInfoAndInsert(type: Int, talker: String, content: String, currentTime: Long) {
+    fun createSimpleMsgInfoAndInsert(
+        type: Int,
+        talker: String,
+        content: String,
+        currentTime: Long,
+        isSend: Int = 0,
+    ) {
         val values = ContentValues().apply {
             put("msgid", 0)
             put("msgSvrId", currentTime + Random.nextInt())
             put("type", type)
             put("status", 3)
+            put("isSend", isSend)
             put("createTime", currentTime)
             put("talker", talker)
             put("content", content)

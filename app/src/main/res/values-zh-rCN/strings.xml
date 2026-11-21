@@ -259,6 +259,8 @@
     <string name="logs_collapse">折叠</string>
     <string name="logs_expand">展开</string>
     <string name="settings_section_debug">调试</string>
+    <string name="settings_run_log_title">运行日志</string>
+    <string name="settings_run_log_summary">关闭后不再写入运行日志，日志页只保留已有记录</string>
     <string name="settings_verbose_log_title">详细日志</string>
     <string name="settings_verbose_log_summary">输出高频日志（这可能会暴露你的隐私信息）</string>
     <string name="settings_startup_toast_title">显示加载完成 Toast</string>
@@ -4423,10 +4425,22 @@
     <string name="pat_group_members_selected_count">已选择 %1$d 位群友</string>
     <string name="pat_group_members_times_title">拍几次</string>
     <string name="pat_group_members_delay_title">延迟</string>
-    <string name="pat_group_members_delay_description">每次拍之前等待的秒数，第一次也会先等这么久</string>
+    <string name="pat_group_members_delay_description">每次拍之前等待的秒数，最低 8 秒；第一次也会先等这么久。长按菜单项可查看并停止正在执行的任务</string>
     <string name="pat_group_members_seconds_suffix">秒</string>
     <string name="pat_group_members_start">开始拍</string>
     <string name="pat_group_members_finished">拍一拍完成（成功 %1$d 次）</string>
+    <string name="pat_group_members_tasks_title">拍一拍任务</string>
+    <string name="pat_group_members_tasks_empty">当前没有正在执行的拍一拍任务</string>
+    <string name="pat_group_members_task_progress">已拍 %1$d/%2$d</string>
+    <string name="pat_group_members_task_stop">停止</string>
+    <string name="feature_chat_relation_finder_name">群内好友与共同群聊</string>
+    <string name="feature_chat_relation_finder_description">聊天输入栏「+」菜单里查看当前群聊中的好友；在好友单聊里查看与 TA 的共同群聊</string>
+    <string name="chat_relation_action_label">群内好友 / 共同群聊</string>
+    <string name="chat_relation_group_friends_title">群内好友（%1$d）</string>
+    <string name="chat_relation_common_groups_title">与 %1$s 的共同群聊（%2$d）</string>
+    <string name="chat_relation_empty_friends">这个群里没有你的好友</string>
+    <string name="chat_relation_empty_groups">你和 TA 没有共同群聊</string>
+    <string name="chat_relation_loading">正在读取…</string>
 
     <string name="emoji_files_add">添加表情</string>
     <string name="emoji_files_empty">还没有添加表情，点击上方按钮从相册选择图片</string>

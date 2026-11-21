@@ -259,6 +259,8 @@
     <string name="logs_collapse">摺疊</string>
     <string name="logs_expand">展開</string>
     <string name="settings_section_debug">調試</string>
+    <string name="settings_run_log_title">運行日誌</string>
+    <string name="settings_run_log_summary">關閉後不再寫入運行日誌，日誌頁只保留既有記錄</string>
     <string name="settings_verbose_log_title">詳細日誌</string>
     <string name="settings_verbose_log_summary">輸出高頻日誌（這可能會暴露你的隱私信息）</string>
     <string name="settings_startup_toast_title">顯示加載完成 Toast</string>
@@ -4313,8 +4315,20 @@
     <string name="pat_group_members_selected_count">已選擇 %1$d 位群友</string>
     <string name="pat_group_members_times_title">拍幾次</string>
     <string name="pat_group_members_delay_title">延遲</string>
-    <string name="pat_group_members_delay_description">每次拍之前等待的秒數，第一次也會先等這麼久</string>
+    <string name="pat_group_members_delay_description">每次拍之前等待的秒數，最低 8 秒；第一次也會先等這麼久。長按選單項可查看並停止正在執行的任務</string>
     <string name="pat_group_members_seconds_suffix">秒</string>
     <string name="pat_group_members_start">開始拍</string>
     <string name="pat_group_members_finished">拍一拍完成（成功 %1$d 次）</string>
+    <string name="pat_group_members_tasks_title">拍一拍任務</string>
+    <string name="pat_group_members_tasks_empty">目前沒有正在執行的拍一拍任務</string>
+    <string name="pat_group_members_task_progress">已拍 %1$d/%2$d</string>
+    <string name="pat_group_members_task_stop">停止</string>
+    <string name="feature_chat_relation_finder_name">群內好友與共同群聊</string>
+    <string name="feature_chat_relation_finder_description">聊天輸入欄「+」選單裡查看目前群聊中的好友；在好友單聊裡查看與 TA 的共同群聊</string>
+    <string name="chat_relation_action_label">群內好友 / 共同群聊</string>
+    <string name="chat_relation_group_friends_title">群內好友（%1$d）</string>
+    <string name="chat_relation_common_groups_title">與 %1$s 的共同群聊（%2$d）</string>
+    <string name="chat_relation_empty_friends">這個群裡沒有你的好友</string>
+    <string name="chat_relation_empty_groups">你和 TA 沒有共同群聊</string>
+    <string name="chat_relation_loading">正在讀取…</string>
 </resources>
