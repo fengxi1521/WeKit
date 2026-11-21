@@ -1,0 +1,16 @@
+2026-11-21 22:39:33.940 D/XiaoFeng WeLauncher: loading in process name=com.tencent.mm:appbrand1, type=APPBRAND
+2026-11-21 22:39:34.029 D/XiaoFeng ResourcesInjector: successfully injected module resources
+2026-11-21 22:39:34.444 I/XiaoFeng FeaturePointsTable: loaded 136 bundled feature entries
+2026-11-21 22:39:34.457 I/XiaoFeng FeaturesLoader: loading all features took 10.578386ms
+2026-11-21 22:40:32.661 D/XiaoFeng WeLauncher: loading in process name=com.tencent.mm:xweb_privileged_process_0, type=OTHERS
+2026-11-21 22:40:32.762 D/XiaoFeng ResourcesInjector: successfully injected module resources
+2026-11-21 22:40:33.118 D/XiaoFeng WeLauncher: loading in process name=com.tencent.mm:appbrand1, type=APPBRAND
+2026-11-21 22:40:33.209 D/XiaoFeng ResourcesInjector: successfully injected module resources
+2026-11-21 22:40:33.225 I/XiaoFeng FeaturePointsTable: loaded 136 bundled feature entries
+2026-11-21 22:40:33.229 I/XiaoFeng FeaturesLoader: loading all features took 208.646us
+2026-11-21 22:40:33.405 D/XiaoFeng WeLauncher: loading in process name=com.tencent.mm:appbrand0, type=APPBRAND
+2026-11-21 22:40:33.524 D/XiaoFeng ResourcesInjector: successfully injected module resources
+2026-11-21 22:40:33.545 I/XiaoFeng FeaturePointsTable: loaded 136 bundled feature entries
+2026-11-21 22:40:33.560 I/XiaoFeng FeaturesLoader: loading all features took 11.098125ms
+2026-11-21 22:40:33.874 I/XiaoFeng FeaturePointsTable: loaded 136 bundled feature entries
+2026-11-21 22:40:33.890 I/XiaoFeng FeaturesLoader: loading all features took 11.746667ms
