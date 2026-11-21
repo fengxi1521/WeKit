@@ -38,8 +38,10 @@ import com.xiao.feng.utils.strings.isGroupChatWxId
  * @所有人 (含隐蔽@模式)。
  *
  * 隐蔽@模式: 走与普通@相同的 `newSendMsg` 直连请求, 区别是 content 保持用户原文,
- * 只把 `<atuserlist><![CDATA[wxid1,wxid2,...]]></atuserlist>` (全选时为 notify@all)
- * 放进 msgsource。微信服务器只看 atuserlist 里的成员/notify@all 推送"有人@我"提醒,
+ * 只把 `<atuserlist><![CDATA[wxid1,wxid2,...]]></atuserlist>` 放进 msgsource。
+ * 即使全选也逐个列出成员 wxid, 而不是用 `notify@all` —— 服务器会校验发送者的
+ * 群管理身份, 非管理员发的 notify@all 会被丢弃; 接收方客户端只检查自己的 wxid
+ * 是否在列表里, 所以逐个列 wxid 才能真正触发"有人@我"。
  * 不要求 content 中存在 @ 文本, 因此接收方气泡内看不到任何 @ 痕迹。
  *
  * 早前实现把 msgSource 交给宿主发送场景 `NetSceneSendMsg` 的构造参数, 但宿主在
@@ -144,8 +146,12 @@ object MentionMembers : SwitchFeature() {
                                 val isStealth = stealthMentionAll
                                 val content = chatFooter.lastText
 
-                                // 全选用 notify@all; 部分选择列出 wxid。
-                                val atWxIds = if (selectedContacts.size == allMembers.size) {
+                                // 普通@全选时用 notify@all; 隐蔽@模式不能用它:
+                                // 服务器会按发送者在群里的身份校验 notify@all, 非管理员
+                                // (以及部分客户端) 会被直接丢弃, 接收方就收不到提醒。
+                                // 隐蔽@改成把每个成员的 wxid 全部列进 atuserlist, 接收方
+                                // 客户端只检查"自己的 wxid 是否在列表里", 不受 @all 权限限制。
+                                val atWxIds = if (!isStealth && selectedContacts.size == allMembers.size) {
                                     "notify@all"
                                 } else {
                                     selectedContacts
