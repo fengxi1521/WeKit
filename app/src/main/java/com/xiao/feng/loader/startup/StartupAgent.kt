@@ -68,6 +68,7 @@ object StartupAgent {
         if (TargetProcesses.isInMain) {
             LegacyDocumentMigration.run(application)
             JsonDataMigration.run()
+            WeLogger.reconcileRunLogMarker()
         }
         if (hookBridge is ArtHookBridge) {
             hideModuleLibraries(hookBridge)

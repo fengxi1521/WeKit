@@ -128,6 +128,7 @@ import com.xiao.feng.ui.utils.theme.AppPaletteStyle
 import com.xiao.feng.ui.utils.theme.AppThemeMode
 import com.xiao.feng.ui.utils.theme.PageTransitionAnimation
 import com.xiao.feng.ui.utils.theme.ThemeSettings
+import com.xiao.feng.utils.WeLogger
 import com.xiao.feng.utils.android.showToastSuspend
 import com.xiao.feng.utils.formatEpoch
 import kotlinx.coroutines.CoroutineScope
@@ -177,6 +178,7 @@ fun SettingsPager(onOpenLicense: () -> Unit) {
                         summary = stringResource(R.string.settings_run_log_summary),
                         icon = MaterialSymbols.Outlined.Article,
                         default = true,
+                        persist = { WeLogger.setRunLogEnabled(it) },
                     )
                 }
                 item {
@@ -746,6 +748,7 @@ private fun PrefSwitch(
     summary: String,
     icon: ImageVector,
     default: Boolean = false,
+    persist: ((Boolean) -> Unit)? = null,
 ) {
     // Must match the default declared on the matching `prefOption`, otherwise the switch shows
     // "off" for a preference that is actually on until the user toggles it once.
@@ -758,7 +761,7 @@ private fun PrefSwitch(
         checked = checked,
         onCheckedChange = {
             checked = it
-            KvStore.putBool(key, it)
+            if (persist != null) persist(it) else KvStore.putBool(key, it)
         },
     )
 }

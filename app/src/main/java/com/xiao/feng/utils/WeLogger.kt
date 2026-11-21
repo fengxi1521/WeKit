@@ -212,8 +212,43 @@ object WeLogger {
         val now = System.nanoTime()
         if (now - runLogReadAtNanos < 1_000_000_000L) return runLogEnabled
         runLogReadAtNanos = now
+        // 共享标记文件优先: 小程序 / xweb 等辅助进程可能读不到 Room 偏好, 但都能看到同一个文件。
+        if (runLogDisabledMarker?.exists() == true) {
+            runLogEnabled = false
+            return false
+        }
         runLogEnabled = runCatching { Preferences.runLog }.getOrDefault(true)
         return runLogEnabled
+    }
+
+    private val runLogDisabledMarker: java.io.File?
+        get() = runCatching {
+            (KnownPaths.moduleRoot / "logs").createDirsSafe()
+                .resolve(".run_log_disabled").toFile()
+        }.getOrNull()
+
+    /**
+     * 设置运行日志开关。除写入偏好外还维护共享标记文件, 让读不到偏好库的辅助进程也能立即停止写日志。
+     */
+    fun setRunLogEnabled(enabled: Boolean) {
+        Preferences.runLog = enabled
+        runLogEnabled = enabled
+        runLogReadAtNanos = System.nanoTime()
+        runCatching {
+            val marker = runLogDisabledMarker ?: return@runCatching
+            if (enabled) marker.delete() else marker.createNewFile()
+        }
+    }
+
+    /** 主进程启动时把持久化的开关同步到共享标记, 兼容升级前已关闭日志的用户。 */
+    fun reconcileRunLogMarker() {
+        val enabled = runCatching { Preferences.runLog }.getOrNull() ?: return
+        runCatching {
+            val marker = runLogDisabledMarker ?: return@runCatching
+            if (enabled) marker.delete() else marker.createNewFile()
+        }
+        runLogEnabled = enabled
+        runLogReadAtNanos = System.nanoTime()
     }
 
     /**
