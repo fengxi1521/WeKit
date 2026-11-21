@@ -158,6 +158,14 @@ object MentionMembers : SwitchFeature(), IResolveDex {
             val msgInfo = MessageInfo(args[0]!!)
             if (msgInfo.isSend != 1 || msgInfo.typeCode != 1) return@hookBefore
 
+            // 诊断: 记录所有带 @ 的出站文本消息, 用于对比原生 @ 与模块发送的 msgsource
+            if (msgInfo.content.contains('@')) {
+                WeLogger.i(
+                    TAG,
+                    "outgoing @ message: content=[${msgInfo.content}] msgSource=[${msgInfo.msgSource}]",
+                )
+            }
+
             val pending = pendingAtUserList ?: return@hookBefore
             // 先消费标记: 发送失败时残留会污染下一条消息
             pendingAtUserList = null
