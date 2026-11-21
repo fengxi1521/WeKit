@@ -890,7 +890,7 @@
     <string name="feature_voice_panel_name">语音面板</string>
     <string name="feature_voice_panel_description">长按语音按钮打开语音面板</string>
     <string name="feature_mention_members_name">@所有人</string>
-    <string name="feature_mention_members_description">在群聊输入栏长按菜单中添加「@所有人」功能, 支持选择接收成员; 长按此项可配置发送设置</string>
+    <string name="feature_mention_members_description">在群聊输入栏长按菜单中添加「@所有人」功能, 支持选择接收成员</string>
     <string name="feature_send_card_message_name">发送卡片消息</string>
     <string name="feature_send_card_message_description">在聊天输入栏长按菜单中添加「发送卡片消息」功能</string>
     <string name="feature_send_voice_file_name">发送语音文件</string>
@@ -2338,18 +2338,11 @@
         <item quantity="other">已保存 %1$d 张贴纸到 %2$s</item>
     </plurals>
     <!-- 聊天输入栏菜单与 API 核心简体中文资源。 -->
-    <string name="mention_members_settings_title">@所有人设置</string>
-    <string name="mention_members_stealth_label">隐蔽@所有人</string>
-    <string name="mention_members_stealth_description">开启时确认成员选择后以原生方式发送输入框文本（不附带@昵称前缀），接收方会收到“有人@我”提醒但消息内不显示@文本；全选时提醒全部成员，部分选择时最多提醒前 200 人。关闭时在消息头部附带@昵称文本</string>
-    <string name="mention_members_action_label">@所有人（长按配置）</string>
+    <string name="mention_members_action_label">@所有人</string>
     <string name="mention_members_group_only">只能在群组里使用！</string>
-    <string name="mention_members_sent_unseen">已发送（自己无法看到该消息）</string>
     <string name="mention_members_input_empty">输入框内容为空！</string>
     <string name="mention_members_empty_group">群成员列表为空！</string>
     <string name="mention_members_select_one">请选择至少一个好友！</string>
-    <plurals name="mention_members_message_count">
-        <item quantity="other">你@了 %1$d 个人</item>
-    </plurals>
     <string name="send_card_message_input_empty">输入内容为空！</string>
     <string name="send_card_message_failed">发送卡片消息失败，请检查格式</string>
     <string name="message_type_moments">朋友圈</string>

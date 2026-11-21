@@ -928,7 +928,7 @@
     <string name="feature_voice_panel_name">Voice panel</string>
     <string name="feature_voice_panel_description">Long press the voice button to open the voice panel</string>
     <string name="feature_mention_members_name">@everyone</string>
-    <string name="feature_mention_members_description">Add the "@Everyone" function to the long-press menu of the group chat input field to support selecting receiving members; long-press this item to configure sending settings</string>
+    <string name="feature_mention_members_description">Add the "@Everyone" function to the long-press menu of the group chat input field to support selecting receiving members</string>
     <string name="feature_send_card_message_name">Send card message</string>
     <string name="feature_send_card_message_description">Add the "Send Card Message" function to the long-press menu of the chat input field</string>
     <string name="feature_send_voice_file_name">Send voice file</string>
@@ -2372,19 +2372,11 @@
     <string name="chat_sticker_manager_exporting">Exporting…</string>
     <plurals name="chat_sticker_manager_exported"><item quantity="one">Saved %1$d sticker to %2$s</item><item quantity="other">Saved %1$d stickers to %2$s</item></plurals>
     <!-- Chat-input-bar-menu and API-core resources. -->
-    <string name="mention_members_settings_title">@everyone settings</string>
-    <string name="mention_members_stealth_label">Stealth @everyone</string>
-    <string name="mention_members_stealth_description">When enabled, confirming member selection sends the input text natively (no @name prefix); recipients get the "mentioned you" notification but see no @ text in the bubble. Selecting everyone notifies all members; a partial selection notifies at most the first 200. When disabled, the message starts with @name text.</string>
-    <string name="mention_members_action_label">@everyone (long-press to configure)</string>
+    <string name="mention_members_action_label">@everyone</string>
     <string name="mention_members_group_only">This action is only available in groups.</string>
-    <string name="mention_members_sent_unseen">Sent (you cannot see this message yourself)</string>
     <string name="mention_members_input_empty">The input box is empty.</string>
     <string name="mention_members_empty_group">The group member list is empty.</string>
     <string name="mention_members_select_one">Select at least one contact.</string>
-    <plurals name="mention_members_message_count">
-        <item quantity="one">You mentioned %1$d person</item>
-        <item quantity="other">You mentioned %1$d people</item>
-    </plurals>
     <string name="send_card_message_input_empty">The input is empty.</string>
     <string name="send_card_message_failed">Failed to send the card message. Check its format.</string>
     <string name="message_type_moments">Moments</string>
