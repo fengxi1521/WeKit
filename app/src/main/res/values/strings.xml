@@ -1078,6 +1078,9 @@
     <string name="moments_auto_comment_whitelist_title">Whitelist</string>
     <string name="moments_auto_comment_blacklist_title">Blacklist</string>
     <string name="moments_auto_comment_list_hint">Separate wxids with commas or spaces. When the whitelist is not empty, only listed friends are commented; the blacklist is always excluded</string>
+    <string name="moments_cache_retention_title">Cache retention</string>
+    <string name="moments_cache_retention_description">Keep only the last N days of Moments dedup and AI reply cache; older entries are cleaned up automatically</string>
+    <string name="moments_cache_retention_unit">d</string>
     <string name="feature_auto_refresh_name">Auto refresh</string>
     <string name="feature_auto_refresh_description">Automatically refresh the Moments list regularly</string>
     <string name="feature_auto_repost_moments_name">Auto-repost Moments</string>

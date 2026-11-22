@@ -27,6 +27,7 @@ object AutoLikeMoments : AutoMomentsBase(),
 
     private const val RETRY_INTERVAL_MS = 30_000L
     private const val FRIEND_CACHE_TTL_MS = 5 * 60_000L
+    private const val ATTEMPT_CACHE_LIMIT = 512
 
     private val settings = MomentsAutomationSettings.Like
     private val handledSnsIds = ConcurrentHashMap.newKeySet<String>()
@@ -60,7 +61,14 @@ object AutoLikeMoments : AutoMomentsBase(),
     }
 
     override fun onRefresh() {
+        cleanupExpiredCaches()
         if (settings.hasAllLoadedTargets()) scanCachedTargetMoments()
+    }
+
+    /** 按「缓存保留天数」清理尝试记录与过期的好友判定结果。 */
+    private fun cleanupExpiredCaches(now: Long = System.currentTimeMillis()) {
+        MomentsCacheRetention.prune(lastAttemptAt, { it }, now)
+        MomentsCacheRetention.prune(friendStatus, { it.checkedAt }, now)
     }
 
     override fun onClick(context: ComponentActivity) {
@@ -235,6 +243,7 @@ object AutoLikeMoments : AutoMomentsBase(),
 
     private fun canAttempt(snsTableId: String): Boolean = synchronized(lastAttemptAt) {
         val now = System.currentTimeMillis()
+        if (lastAttemptAt.size > ATTEMPT_CACHE_LIMIT) cleanupExpiredCaches(now)
         val last = lastAttemptAt[snsTableId] ?: 0L
         if (now - last < RETRY_INTERVAL_MS) return@synchronized false
         lastAttemptAt[snsTableId] = now

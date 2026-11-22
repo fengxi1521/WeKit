@@ -53,8 +53,10 @@ import com.xiao.feng.data.KvStore
 import com.xiao.feng.ui.content.AlertDialogContent
 import com.xiao.feng.ui.content.Button
 import com.xiao.feng.ui.content.TextButton
+import com.xiao.feng.ui.content.m3.BaseItemContainer
 import com.xiao.feng.ui.content.m3.BaseSupportingWidget
 import com.xiao.feng.ui.content.m3.BaseWidget
+import com.xiao.feng.ui.content.m3.IntNumberPickerWidget
 import com.xiao.feng.ui.content.m3.RadioButtonWidget
 import com.xiao.feng.ui.content.m3.SegmentedColumn
 import com.xiao.feng.ui.utils.showComposeDialog
@@ -234,6 +236,7 @@ class MomentsAutomationSettings private constructor(
             return
         }
         showComposeDialog(context) {
+            var retentionInput by remember { mutableIntStateOf(MomentsCacheRetention.normalizedDays()) }
             AlertDialogContent(
                 title = { Text(stringResource(featureNameRes)) },
                 text = {
@@ -251,6 +254,25 @@ class MomentsAutomationSettings private constructor(
                                 description = stringResource(R.string.moments_automation_contact_summary),
                                 onClick = { showContactSelector(context, onSettingsChanged) },
                             )
+                        }
+                        if (includeAction) {
+                            item {
+                                BaseItemContainer {
+                                    IntNumberPickerWidget(
+                                        title = stringResource(R.string.moments_cache_retention_title),
+                                        description = stringResource(R.string.moments_cache_retention_description),
+                                        value = retentionInput,
+                                        startInt = MomentsCacheRetention.MIN_DAYS,
+                                        endInt = MomentsCacheRetention.MAX_DAYS,
+                                        stepSize = 1,
+                                        valueSuffix = stringResource(R.string.moments_cache_retention_unit),
+                                        onValueChange = {
+                                            retentionInput = it
+                                            MomentsCacheRetention.days = it
+                                        },
+                                    )
+                                }
+                            }
                         }
                     }
                 },

@@ -59,6 +59,7 @@ object AutoCommentMoments : AutoMomentsBase() {
     private const val SCAN_INTERVAL_MS = 60_000L
     private const val REPLY_POLL_INTERVAL_MS = 45_000L
     private const val REPLY_POLL_LIMIT = 200
+    private const val CACHE_CLEANUP_INTERVAL_MS = 60L * 60_000L
 
     private var commentText by prefOption("moments_auto_comment_text", "")
     private var intervalSeconds by prefOption("moments_auto_comment_interval_seconds", 3)
@@ -66,6 +67,10 @@ object AutoCommentMoments : AutoMomentsBase() {
     private var whitelistRaw by prefOption("moments_auto_comment_whitelist", "")
     private var blacklistRaw by prefOption("moments_auto_comment_blacklist", "")
     private var savedHandledIds by prefOption("moments_auto_comment_handled", emptySet<String>())
+    private var savedHandledAt by prefOption("moments_auto_comment_handled_at", "")
+
+    /** 去重缓存被清理到的时间点 (秒)；更早的帖子永不自动评论，避免调大保留天数后重复评论。 */
+    private var prunedBeforeSeconds by prefOption("moments_auto_comment_pruned_before", 0L)
 
     private var aiEnabled by prefOption("moments_auto_comment_ai_enabled", false)
     private var aiApiKey by prefOption("moments_auto_comment_ai_api_key", "")
@@ -79,11 +84,16 @@ object AutoCommentMoments : AutoMomentsBase() {
     private var savedAiCommentHistory by prefOption("moments_auto_comment_ai_history", "")
     private var savedAiCommentIds by prefOption("moments_auto_comment_ai_comment_ids", "")
     private var savedAnsweredReplies by prefOption("moments_auto_comment_ai_answered", emptySet<String>())
+    private var savedAiHistoryAt by prefOption("moments_auto_comment_ai_history_at", "")
 
     private val handledSnsIds = ConcurrentHashMap.newKeySet<String>()
+    private val handledAt = ConcurrentHashMap<String, Long>()
     private val lastAttemptAt = ConcurrentHashMap<String, Long>()
     private val lastScanAt = ConcurrentHashMap<String, Long>()
     private val actionLock = Any()
+
+    /** snsTableId -> 最近一次记录 AI 评论的时间, 用于按保留期清理 AI 回复状态。 */
+    private val aiHistoryAt = ConcurrentHashMap<String, Long>()
 
     /** snsTableId -> the exact text of the latest comment we posted, used to recognise our rows. */
     private val aiCommentTexts = ConcurrentHashMap<String, String>()
@@ -117,13 +127,24 @@ object AutoCommentMoments : AutoMomentsBase() {
     @Volatile
     private var lastActionSentAt = 0L
 
+    @Volatile
+    private var lastCacheCleanupAt = 0L
+
     override fun onEnable() {
         startAutomation()
         active = true
+        val now = System.currentTimeMillis()
         handledSnsIds.clear()
+        handledAt.clear()
         handledSnsIds.addAll(savedHandledIds)
+        val restoredTimes = runCatching {
+            DefaultJson.decodeFromString<Map<String, Long>>(savedHandledAt)
+        }.getOrNull().orEmpty()
+        handledSnsIds.forEach { handledAt[it] = restoredTimes[it] ?: now }
         lastAttemptAt.clear()
         loadAiReplyState()
+        lastCacheCleanupAt = now
+        cleanupExpiredCaches(now)
         WeMomentsApi.methodReplaceUserBySnsId.hookAfter {
             if (result != true) return@hookAfter
             val snsInfo = args[1]!!
@@ -158,11 +179,70 @@ object AutoCommentMoments : AutoMomentsBase() {
                 } catch (_: InterruptedException) {
                     return@thread
                 }
+                runCatching { maybeCleanupExpiredCaches() }
+                    .onFailure { WeLogger.w(TAG, "failed to clean up Moments caches", it) }
                 if (!active || !aiReplyToReplies) continue
                 runCatching { pollStoredReplies() }
                     .onFailure { WeLogger.w(TAG, "failed to poll stored Moments replies", it) }
             }
         }
+    }
+
+    private fun maybeCleanupExpiredCaches() {
+        val now = System.currentTimeMillis()
+        if (now - lastCacheCleanupAt < CACHE_CLEANUP_INTERVAL_MS) return
+        lastCacheCleanupAt = now
+        cleanupExpiredCaches(now)
+    }
+
+    /**
+     * 按「缓存保留天数」清理带时间戳的辅助缓存与去重记录。
+     *
+     * 自动评论只会处理保留期内的朋友圈 (见 [MomentsCacheRetention.isExpired])，因此删除更早的
+     * 去重记录和 AI 回复状态后，这些帖子也不会被再次评论；保留期内的记录一概不动。
+     */
+    private fun cleanupExpiredCaches(now: Long = System.currentTimeMillis()) {
+        val cutoff = MomentsCacheRetention.cutoffMillis(now)
+        var handledChanged = false
+        val handledIterator = handledAt.entries.iterator()
+        while (handledIterator.hasNext()) {
+            val entry = handledIterator.next()
+            if (entry.value < cutoff) {
+                handledSnsIds.remove(entry.key)
+                handledIterator.remove()
+                handledChanged = true
+            }
+        }
+        if (handledChanged) {
+            savedHandledIds = handledSnsIds.toSet()
+            savedHandledAt = DefaultJson.encodeToString(handledAt.toMap())
+        }
+        MomentsCacheRetention.prune(lastAttemptAt, { it }, now)
+        MomentsCacheRetention.prune(lastScanAt, { it }, now)
+
+        synchronized(aiReplyLock) {
+            var aiChanged = false
+            val historyIterator = aiHistoryAt.entries.iterator()
+            while (historyIterator.hasNext()) {
+                val entry = historyIterator.next()
+                if (entry.value >= cutoff) continue
+                val key = entry.key
+                aiCommentTexts.remove(key)
+                aiCommentHistory.remove(key)
+                aiCommentIds.remove(key)
+                historyIterator.remove()
+                aiChanged = true
+            }
+            if (aiChanged) {
+                savedAiCommentIds = DefaultJson.encodeToString(aiCommentIds.mapValues { it.value.toList() })
+                savedAiHistoryAt = DefaultJson.encodeToString(aiHistoryAt.toMap())
+                persistAiCommentState()
+            }
+        }
+
+        // 只前进不后退: 即使之后把保留天数调大，已经清理过缓存的旧帖子也不会被重新处理。
+        val cutoffSeconds = now / 1000L - MomentsCacheRetention.retentionSeconds()
+        if (cutoffSeconds > prunedBeforeSeconds) prunedBeforeSeconds = cutoffSeconds
     }
 
     private fun pollStoredReplies() {
@@ -241,6 +321,7 @@ object AutoCommentMoments : AutoMomentsBase() {
             var personaInput by remember { mutableStateOf(aiPersona) }
             var maxImagesInput by remember { mutableIntStateOf(aiMaxImages) }
             var replyRepliesInput by remember { mutableStateOf(aiReplyToReplies) }
+            var retentionInput by remember { mutableIntStateOf(MomentsCacheRetention.normalizedDays()) }
 
             AlertDialogContent(
                 title = { Text(stringResource(R.string.feature_auto_comment_moments_name)) },
@@ -390,6 +471,23 @@ object AutoCommentMoments : AutoMomentsBase() {
                             }
                         }
                         item {
+                            BaseItemContainer {
+                                IntNumberPickerWidget(
+                                    title = stringResource(R.string.moments_cache_retention_title),
+                                    description = stringResource(R.string.moments_cache_retention_description),
+                                    value = retentionInput,
+                                    startInt = MomentsCacheRetention.MIN_DAYS,
+                                    endInt = MomentsCacheRetention.MAX_DAYS,
+                                    stepSize = 1,
+                                    valueSuffix = stringResource(R.string.moments_cache_retention_unit),
+                                    onValueChange = {
+                                        retentionInput = it
+                                        MomentsCacheRetention.days = it
+                                    },
+                                )
+                            }
+                        }
+                        item {
                             SwitchWidget(
                                 title = stringResource(R.string.moments_auto_comment_browsing_title),
                                 description = stringResource(R.string.moments_auto_comment_browsing_description),
@@ -465,6 +563,9 @@ object AutoCommentMoments : AutoMomentsBase() {
         if (isOwnerFiltered(owner)) return
         val createTimeSeconds = WeMomentsApi.getCreateTimeSeconds(snsInfo)
         if (createTimeSeconds <= scope.publishedAfterSeconds) return
+        // 超出缓存保留期的旧帖子不再自动评论，清理去重记录后也不会被重新评论。
+        if (MomentsCacheRetention.isExpired(createTimeSeconds)) return
+        if (createTimeSeconds < prunedBeforeSeconds) return
         if (WeMomentsApi.isDeleted(snsInfo) || WeMomentsApi.isAd(snsInfo)) return
 
         val snsTableId = WeMomentsApi.getSnsTableId(snsInfo) ?: return
@@ -555,17 +656,24 @@ object AutoCommentMoments : AutoMomentsBase() {
             .toSet()
 
     private fun rememberHandled(vararg snsIds: String) {
-        var added = false
-        snsIds.forEach { if (it.isNotBlank() && handledSnsIds.add(it)) added = true }
-        if (!added) return
+        val now = System.currentTimeMillis()
+        var touched = false
+        snsIds.forEach {
+            if (it.isBlank()) return@forEach
+            handledSnsIds.add(it)
+            handledAt[it] = now
+            touched = true
+        }
+        if (!touched) return
         if (handledSnsIds.size > MAX_HANDLED_IDS) {
             val iterator = handledSnsIds.iterator()
             while (handledSnsIds.size > MAX_HANDLED_IDS && iterator.hasNext()) {
-                iterator.next()
+                handledAt.remove(iterator.next())
                 iterator.remove()
             }
         }
         savedHandledIds = handledSnsIds.toSet()
+        savedHandledAt = DefaultJson.encodeToString(handledAt.toMap())
     }
 
     /**
@@ -630,13 +738,17 @@ object AutoCommentMoments : AutoMomentsBase() {
             aiCommentHistory.clear()
             aiCommentIds.clear()
             answeredReplies.clear()
+            aiHistoryAt.clear()
             savedAiCommentIds = ""
             savedAnsweredReplies = emptySet()
+            savedAiHistoryAt = ""
             persistAiCommentState()
         }
         handledSnsIds.clear()
+        handledAt.clear()
         lastAttemptAt.clear()
         savedHandledIds = emptySet()
+        savedHandledAt = ""
         WeLogger.i(TAG, "cleared AI comment and reply caches")
     }
 
@@ -657,7 +769,9 @@ object AutoCommentMoments : AutoMomentsBase() {
                 iterator.remove()
             }
             trimAiCommentTexts()
+            aiHistoryAt[snsTableId] = System.currentTimeMillis()
             persistAiCommentState()
+            savedAiHistoryAt = DefaultJson.encodeToString(aiHistoryAt.toMap())
         }
     }
 
@@ -961,6 +1075,7 @@ object AutoCommentMoments : AutoMomentsBase() {
             aiCommentTexts.clear()
             aiCommentHistory.clear()
             aiCommentIds.clear()
+            aiHistoryAt.clear()
             answeredReplies.clear()
             runCatching { DefaultJson.decodeFromString<Map<String, String>>(savedAiCommentTexts) }
                 .getOrNull()?.let(aiCommentTexts::putAll)
@@ -981,6 +1096,12 @@ object AutoCommentMoments : AutoMomentsBase() {
                 ?: runCatching { DefaultJson.decodeFromString<Map<String, Long>>(savedAiCommentIds) }
                     .getOrNull()
                     ?.forEach { (key, id) -> aiCommentIds[key] = ConcurrentHashMap.newKeySet<Long>().apply { add(id) } }
+            runCatching { DefaultJson.decodeFromString<Map<String, Long>>(savedAiHistoryAt) }
+                .getOrNull()?.let(aiHistoryAt::putAll)
+            // 旧版本没有记录时间戳: 首次升级时以当前时间起算, 不会立即清掉仍可能需要的去重记录。
+            val now = System.currentTimeMillis()
+            aiCommentHistory.keys.forEach { aiHistoryAt.putIfAbsent(it, now) }
+            aiCommentIds.keys.forEach { aiHistoryAt.putIfAbsent(it, now) }
             answeredReplies.addAll(savedAnsweredReplies)
         }
     }

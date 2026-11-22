@@ -257,3 +257,44 @@ abstract class AutoMomentsBase : ClickableFeature() {
         const val WORKER_KEEP_ALIVE_SECONDS = 30L
     }
 }
+
+/**
+ * 朋友圈自动化缓存的保留策略。
+ *
+ * 只保留最近 [days] 天产生或刷新的缓存，更早的记录在清理时移除。自动评论只会处理保留期内
+ * 的朋友圈，因此删除更早的去重记录不会导致同一条帖子被重复评论。
+ */
+object MomentsCacheRetention {
+    const val KEY = "moments_cache_retention_days"
+    const val DEFAULT_DAYS = 7
+    const val MIN_DAYS = 1
+    const val MAX_DAYS = 365
+
+    var days: Int by KvStore.prefOption(KEY, DEFAULT_DAYS)
+
+    fun normalizedDays(): Int = days.coerceIn(MIN_DAYS, MAX_DAYS)
+
+    fun retentionSeconds(): Long = normalizedDays().toLong() * 24L * 60L * 60L
+
+    fun retentionMillis(): Long = retentionSeconds() * 1000L
+
+    fun cutoffMillis(nowMillis: Long = System.currentTimeMillis()): Long =
+        nowMillis - retentionMillis()
+
+    /** [seconds] 是朋友圈发布时间 (秒)；超出保留期后不再自动处理。 */
+    fun isExpired(seconds: Long, nowMillis: Long = System.currentTimeMillis()): Boolean =
+        seconds > 0L && nowMillis / 1000L - seconds > retentionSeconds()
+
+    /** 按时间戳移除 [map] 中过期的条目。 */
+    fun <K, V> prune(
+        map: MutableMap<K, V>,
+        timestamp: (V) -> Long,
+        nowMillis: Long = System.currentTimeMillis(),
+    ) {
+        val cutoff = cutoffMillis(nowMillis)
+        val iterator = map.entries.iterator()
+        while (iterator.hasNext()) {
+            if (timestamp(iterator.next().value) < cutoff) iterator.remove()
+        }
+    }
+}
