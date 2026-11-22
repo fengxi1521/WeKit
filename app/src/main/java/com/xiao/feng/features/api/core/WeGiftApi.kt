@@ -34,6 +34,7 @@ object WeGiftApi : ApiFeature(), IResolveDex {
     fun grab(msgInfo: Any): Boolean {
         return try {
             val service = resolveService()
+            WeLogger.i(TAG, "gift task service=${service.javaClass.name}")
             (ctorGiftTask.newInstance(service, msgInfo) as Runnable).run()
             true
         } catch (e: Throwable) {

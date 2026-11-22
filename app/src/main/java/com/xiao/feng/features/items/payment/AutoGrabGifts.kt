@@ -62,7 +62,12 @@ object AutoGrabGifts : ClickableFeature() {
         if (msgInfo.isSelfSender) return
 
         val content = msgInfo.content
-        if (!content.contains("<orderid>")) return
+        if (!content.contains("<orderid>")) {
+            if (content.contains("<ecsgift>")) {
+                WeLogger.w(TAG, "ecsgift message without orderid, typeCode=${msgInfo.typeCode}")
+            }
+            return
+        }
 
         val split = content.indexOf(":\n")
         val xml = if (split > 0 && content.indexOf('<') > split) {
@@ -71,12 +76,20 @@ object AutoGrabGifts : ClickableFeature() {
             content
         }
         val orderId = XmlUtils.extractXmlTag(xml, "orderid").trim()
-        if (orderId.isEmpty()) return
+        if (orderId.isEmpty()) {
+            WeLogger.w(TAG, "gift message but orderid is empty")
+            return
+        }
         if (!markHandled(orderId)) return
 
         val delayMillis = delaySeconds.coerceAtLeast(0) * 1000L
         WeLogger.i(TAG, "gift message detected, orderId=$orderId, delay=$delayMillis")
-        mainHandler.postDelayed({ if (isEnabled) WeGiftApi.grab(msgInfo.instance) }, delayMillis)
+        mainHandler.postDelayed({
+            if (isEnabled) {
+                val ok = WeGiftApi.grab(msgInfo.instance)
+                WeLogger.i(TAG, "gift grab finished, orderId=$orderId, success=$ok")
+            }
+        }, delayMillis)
     }
 
     private fun markHandled(orderId: String): Boolean {
