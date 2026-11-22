@@ -235,10 +235,6 @@ object AutoLikeMoments : AutoMomentsBase(),
 
     private fun canAttempt(snsTableId: String): Boolean = synchronized(lastAttemptAt) {
         val now = System.currentTimeMillis()
-        if (lastAttemptAt.size > 5_000) {
-            val cutoff = now - 7L * 24 * 3600 * 1000
-            lastAttemptAt.entries.removeAll { it.value < cutoff }
-        }
         val last = lastAttemptAt[snsTableId] ?: 0L
         if (now - last < RETRY_INTERVAL_MS) return@synchronized false
         lastAttemptAt[snsTableId] = now
@@ -248,9 +244,6 @@ object AutoLikeMoments : AutoMomentsBase(),
     /** 只有好友的朋友圈才有点赞权限; 查不到联系人 (陌生人/公众号) 一律按非好友处理。 */
     private fun isFriend(owner: String): Boolean {
         val now = System.currentTimeMillis()
-        if (friendStatus.size > 2_000) {
-            friendStatus.entries.removeAll { now - it.value.checkedAt > FRIEND_CACHE_TTL_MS }
-        }
         friendStatus[owner]?.let { cached ->
             if (now - cached.checkedAt < FRIEND_CACHE_TTL_MS) return cached.isFriend
         }

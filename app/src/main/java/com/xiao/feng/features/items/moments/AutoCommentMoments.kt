@@ -158,28 +158,11 @@ object AutoCommentMoments : AutoMomentsBase() {
                 } catch (_: InterruptedException) {
                     return@thread
                 }
-                if (!active) continue
-                trimAgedState()
-                if (!aiReplyToReplies) continue
+                if (!active || !aiReplyToReplies) continue
                 runCatching { pollStoredReplies() }
                     .onFailure { WeLogger.w(TAG, "failed to poll stored Moments replies", it) }
             }
         }
-    }
-
-    /**
-     * 长驻进程里只增不减的状态会拖慢微信: 已处理/已扫描记录和 AI 评论历史都随时间累积。
-     * 超过 7 天的朋友圈已经不在自动评论/回复的时间窗口内, 可以安全丢弃。
-     */
-    private fun trimAgedState() {
-        val cutoff = System.currentTimeMillis() - MAX_REPLY_AGE_SECONDS * 1000
-        lastAttemptAt.entries.removeAll { it.value < cutoff }
-        lastScanAt.entries.removeAll { it.value < cutoff }
-        val live = lastAttemptAt.keys
-        aiCommentTexts.keys.retainAll(live)
-        aiCommentHistory.keys.retainAll(live)
-        aiCommentIds.keys.retainAll(live)
-        if (answeredReplies.size > MAX_ANSWERED_REPLIES) answeredReplies.clear()
     }
 
     private fun pollStoredReplies() {
