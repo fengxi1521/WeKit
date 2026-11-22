@@ -217,7 +217,8 @@ object WeLogger {
             runLogEnabled = false
             return false
         }
-        runLogEnabled = runCatching { Preferences.runLog }.getOrDefault(true)
+        // 读取失败时按"关闭"处理: 辅助进程读不到偏好库时, 宁可少记日志, 也不能让用户关了还在写。
+        runLogEnabled = runCatching { Preferences.runLog }.getOrDefault(false)
         return runLogEnabled
     }
 
