@@ -2786,6 +2786,8 @@
     <string name="batch_add_label_existing_labels">或選擇已有標籤：</string>
     <string name="batch_add_label_create_and_apply">新建並應用</string>
     <string name="batch_add_label_create_failed">創建標籤“%1$s”失敗</string>
+    <string name="batch_add_label_all_skipped">所選好友都已在標籤“%1$s”中，無需重複新增</string>
+    <string name="batch_add_label_skipped">已跳過 %1$d 位已有此標籤的好友</string>
     <string name="batch_add_label_done_title">打標籤完成</string>
     <string name="batch_add_label_progress_title">正在打標籤</string>
     <plurals name="batch_add_label_done">

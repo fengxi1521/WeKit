@@ -2880,6 +2880,8 @@
     <string name="batch_add_label_existing_labels">Or select an existing label:</string>
     <string name="batch_add_label_create_and_apply">Create and apply</string>
     <string name="batch_add_label_create_failed">Failed to create label “%1$s”</string>
+    <string name="batch_add_label_all_skipped">All selected friends are already in “%1$s”; nothing to add</string>
+    <string name="batch_add_label_skipped">Skipped %1$d friends already in this label</string>
     <string name="batch_add_label_done_title">Labeling complete</string>
     <string name="batch_add_label_progress_title">Applying label</string>
     <plurals name="batch_add_label_done"><item quantity="one">Added label “%3$s” to %1$d of %2$d friend</item><item quantity="other">Added label “%3$s” to %1$d of %2$d friends</item></plurals>

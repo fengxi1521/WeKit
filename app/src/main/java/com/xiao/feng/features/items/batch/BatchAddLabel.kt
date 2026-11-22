@@ -143,8 +143,10 @@ object BatchAddLabel : ClickableFeature() {
     private fun applyLabel(context: Context, wxIds: Set<String>, labelName: String) {
         showComposeDialog(context, directlyDismissable = false) {
             val completed = remember { mutableIntStateOf(0) }
+            val skipped = remember { mutableIntStateOf(0) }
+            var total by remember { mutableIntStateOf(wxIds.size) }
             var done by remember { mutableStateOf(false) }
-            val total = wxIds.size
+            var allSkipped by remember { mutableStateOf(false) }
 
             LaunchedEffect(Unit) {
                 CoroutineScope(Dispatchers.IO).launch {
@@ -161,15 +163,29 @@ object BatchAddLabel : ClickableFeature() {
                         return@launch
                     }
 
-                    wxIds.forEachIndexed { index, wxId ->
+                    // 已经在该标签里的好友直接跳过，不重复打标签，也不占用间隔。
+                    val already = WeContactLabelApi.getContactsByLabelId(labelId).toSet()
+                    val pending = wxIds.filterNot { it in already }
+                    skipped.intValue = wxIds.size - pending.size
+                    total = pending.size
+                    if (skipped.intValue > 0) {
+                        WeLogger.i(TAG, "skipped ${skipped.intValue} contacts already in label $labelName")
+                    }
+                    if (pending.isEmpty()) {
+                        allSkipped = true
+                        done = true
+                        return@launch
+                    }
+
+                    pending.forEachIndexed { index, wxId ->
                         // additive: keep existing labels and append the target one
                         val existing = WeContactLabelApi.getLabelNamesForContact(wxId)
                         if (labelName !in existing) {
                             WeContactLabelApi.modifyLabel(wxId, existing + labelName)
                         }
-                        WeLogger.i(TAG, "labeled $wxId with $labelName (${index + 1}/$total)")
+                        WeLogger.i(TAG, "labeled $wxId with $labelName (${index + 1}/${pending.size})")
                         completed.intValue++
-                        if (index < total - 1) delay(MODIFY_INTERVAL_MS.milliseconds)
+                        if (index < pending.lastIndex) delay(MODIFY_INTERVAL_MS.milliseconds)
                     }
 
                     done = true
@@ -177,6 +193,7 @@ object BatchAddLabel : ClickableFeature() {
             }
 
             val completedValue by completed
+            val skippedValue by skipped
             AlertDialogContent(
                 title = {
                     Text(
@@ -188,26 +205,35 @@ object BatchAddLabel : ClickableFeature() {
                 },
                 text = {
                     DefaultColumn {
-                        Text(
-                            if (done) {
-                                pluralStringResource(
-                                    R.plurals.batch_add_label_done,
-                                    total,
-                                    completedValue,
-                                    total,
-                                    labelName,
-                                )
-                            } else {
-                                pluralStringResource(
-                                    R.plurals.batch_add_label_progress,
-                                    total,
-                                    labelName,
-                                    completedValue,
-                                    total,
-                                )
+                        if (done && allSkipped) {
+                            Text(stringResource(R.string.batch_add_label_all_skipped, labelName))
+                        } else {
+                            Text(
+                                if (done) {
+                                    pluralStringResource(
+                                        R.plurals.batch_add_label_done,
+                                        total,
+                                        completedValue,
+                                        total,
+                                        labelName,
+                                    )
+                                } else {
+                                    pluralStringResource(
+                                        R.plurals.batch_add_label_progress,
+                                        total,
+                                        labelName,
+                                        completedValue,
+                                        total,
+                                    )
+                                }
+                            )
+                            if (done && skippedValue > 0) {
+                                Text(stringResource(R.string.batch_add_label_skipped, skippedValue))
                             }
-                        )
-                        LinearWavyProgressIndicator(progress = { if (total == 0) 1f else completedValue.toFloat() / total })
+                            LinearWavyProgressIndicator(
+                                progress = { if (total == 0) 1f else completedValue.toFloat() / total }
+                            )
+                        }
                     }
                 },
                 confirmButton = if (done) {
