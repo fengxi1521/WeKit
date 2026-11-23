@@ -9,6 +9,7 @@ import android.net.Uri
 import android.os.Build
 import android.os.Environment
 import android.provider.MediaStore
+import androidx.activity.ComponentActivity
 import androidx.annotation.StringRes
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -42,13 +43,16 @@ import com.xiao.feng.R
 import com.xiao.feng.data.KvStore.prefOption
 import com.xiao.feng.features.api.core.WeApi
 import com.xiao.feng.features.api.core.WeDatabaseApi
+import com.xiao.feng.features.api.core.models.IWeContact
 import com.xiao.feng.features.api.core.models.MessageType
 import com.xiao.feng.features.api.ui.WeContactPrefsScreenApi
+import com.xiao.feng.features.core.ClickableFeature
 import com.xiao.feng.features.core.FeatureCategoryIds
 import com.xiao.feng.features.core.SwitchFeature
 import com.xiao.feng.features.items.contacts.localizedContactsString
 import com.xiao.feng.ui.content.AlertDialogContent
 import com.xiao.feng.ui.content.Button
+import com.xiao.feng.ui.content.SingleContactSelector
 import com.xiao.feng.ui.content.TextButton
 import com.xiao.feng.ui.content.m3.BaseSupportingWidget
 import com.xiao.feng.ui.content.m3.BaseWidget
@@ -200,7 +204,7 @@ private fun windowFor(preset: RangePreset, startDay: Long, endDay: Long): Export
 }
 
 /** Per-friend and per-group chat history export entry, shown on the respective settings screen. */
-object ChatHistoryExport : SwitchFeature(), WeContactPrefsScreenApi.IContactInfoProvider {
+object ChatHistoryExport : ClickableFeature(), WeContactPrefsScreenApi.IContactInfoProvider {
 
     override val technicalId = "聊天记录导出"
     override val nameRes = R.string.feature_chat_history_export_name
@@ -215,6 +219,25 @@ object ChatHistoryExport : SwitchFeature(), WeContactPrefsScreenApi.IContactInfo
 
     override fun onDisable() {
         WeContactPrefsScreenApi.removeProvider(this)
+    }
+
+    /** 功能入口直接选择一个好友或群聊，导出该会话的聊天记录。 */
+    override fun onClick(context: ComponentActivity) {
+        if (!WeDatabaseApi.isReady) return
+        showComposeDialog(context) {
+            val contacts = remember<List<IWeContact>> {
+                WeDatabaseApi.getFriends() + WeDatabaseApi.getGroups()
+            }
+            SingleContactSelector(
+                title = context.localizedChatString(R.string.feature_chat_history_export_name),
+                contacts = contacts,
+                initialSelectedWxId = null,
+                onDismiss = onDismiss,
+            ) { wxId ->
+                onDismiss()
+                showChatHistoryExportDialog(context, wxId)
+            }
+        }
     }
 
     override fun getContactInfoItem(activity: Activity): List<WeContactPrefsScreenApi.PreferenceItem> {

@@ -666,7 +666,7 @@
     <string name="feature_chat_statistics_name">聊天统计</string>
     <string name="feature_chat_statistics_description">在群聊设置中查看每个群的成员数、消息总数与活跃成员排行</string>
     <string name="feature_chat_history_export_name">聊天记录导出</string>
-    <string name="feature_chat_history_export_description">在好友或群聊资料页将该会话的聊天记录导出为文本文件</string>
+    <string name="feature_chat_history_export_description">在功能入口选择好友或群聊，或在资料页将该会话的聊天记录导出为文本文件</string>
     <string name="feature_chat_statistics_report_name">统计报表导出</string>
     <string name="feature_chat_statistics_report_description">在好友或群聊资料页生成日报或周报，并导出为文本文件</string>
 

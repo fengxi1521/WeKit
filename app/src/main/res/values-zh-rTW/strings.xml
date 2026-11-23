@@ -638,7 +638,7 @@
     <string name="feature_chat_statistics_name">聊天統計</string>
     <string name="feature_chat_statistics_description">在羣聊設定中查看每個羣的成員數、訊息總數與活躍成員排行</string>
     <string name="feature_chat_history_export_name">聊天記錄導出</string>
-    <string name="feature_chat_history_export_description">在好友或群組資料頁將該會話的聊天記錄導出爲文字檔</string>
+    <string name="feature_chat_history_export_description">在功能入口選擇好友或群組，或在資料頁將該會話的聊天記錄導出爲文字檔</string>
     <string name="feature_chat_statistics_report_name">統計報表導出</string>
     <string name="feature_chat_statistics_report_description">在好友或群組資料頁生成日報或週報，並導出爲文字檔</string>
 

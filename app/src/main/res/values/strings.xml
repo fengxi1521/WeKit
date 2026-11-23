@@ -704,7 +704,7 @@
     <string name="feature_chat_statistics_name">Chat statistics</string>
     <string name="feature_chat_statistics_description">View member count, message count and the most active members of each group in the group settings screen</string>
     <string name="feature_chat_history_export_name">Export chat history</string>
-    <string name="feature_chat_history_export_description">Export the chat history with a friend or a group as a text file from the profile screen</string>
+    <string name="feature_chat_history_export_description">Pick a friend or group from the feature entry, or export the conversation as a text file from the profile screen</string>
     <string name="feature_chat_statistics_report_name">Export statistics report</string>
     <string name="feature_chat_statistics_report_description">Build a daily or weekly chat statistics report and export it as a text file from the profile screen</string>
 
