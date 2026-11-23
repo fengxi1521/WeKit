@@ -6,24 +6,29 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.xiao.feng.R
 import com.xiao.feng.data.KvStore.prefOption
 import com.xiao.feng.features.api.core.WeApi
 import com.xiao.feng.features.api.core.WeDatabaseApi
+import com.xiao.feng.features.api.core.models.IWeContact
 import com.xiao.feng.features.api.net.models.protobuf.SnsCommentActionProto
 import com.xiao.feng.features.api.ui.WeMomentsApi
 import com.xiao.feng.features.core.FeatureCategoryIds
 import com.xiao.feng.ui.content.AlertDialogContent
+import com.xiao.feng.ui.content.ContactsSelector
 import com.xiao.feng.ui.content.TextButton
 import com.xiao.feng.ui.content.m3.BaseItemContainer
+import com.xiao.feng.ui.content.m3.BaseWidget
 import com.xiao.feng.ui.content.m3.IntNumberPickerWidget
 import com.xiao.feng.ui.content.m3.SegmentedColumn
 import com.xiao.feng.ui.content.m3.SwitchWidget
@@ -33,6 +38,8 @@ import com.xiao.feng.utils.WeLogger
 import com.xiao.feng.utils.serialization.DefaultJson
 import dev.ujhhgtg.reflekt.reflekt
 import java.util.concurrent.ConcurrentHashMap
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 /**
  * Posts a configured comment on newly published Moments.
@@ -322,6 +329,15 @@ object AutoCommentMoments : AutoMomentsBase() {
             var maxImagesInput by remember { mutableIntStateOf(aiMaxImages) }
             var replyRepliesInput by remember { mutableStateOf(aiReplyToReplies) }
             var retentionInput by remember { mutableIntStateOf(MomentsCacheRetention.normalizedDays()) }
+            var friends by remember { mutableStateOf<List<IWeContact>?>(null) }
+
+            LaunchedEffect(Unit) {
+                friends = withContext(Dispatchers.IO) {
+                    runCatching { WeDatabaseApi.getFriends().distinctBy(IWeContact::wxId) }
+                        .onFailure { WeLogger.w(TAG, "failed to load friends for Moments lists", it) }
+                        .getOrDefault(emptyList())
+                }
+            }
 
             AlertDialogContent(
                 title = { Text(stringResource(R.string.feature_auto_comment_moments_name)) },
@@ -499,31 +515,67 @@ object AutoCommentMoments : AutoMomentsBase() {
                             )
                         }
                         item {
-                            TextFieldDialogWidget(
+                            val selected = parseWxIds(whitelistInput).size
+                            BaseWidget(
                                 title = stringResource(R.string.moments_auto_comment_whitelist_title),
-                                value = whitelistInput,
-                                onValueChange = {
-                                    whitelistInput = it
-                                    whitelistRaw = it
+                                description = when {
+                                    selected > 0 -> pluralStringResource(
+                                        R.plurals.moments_auto_comment_list_selected,
+                                        selected,
+                                        selected,
+                                    )
+                                    else -> stringResource(R.string.moments_auto_comment_list_empty_whitelist)
                                 },
-                                dialogTitle = stringResource(R.string.moments_auto_comment_whitelist_title),
-                                confirmLabel = stringResource(R.string.dialog_confirm),
-                                dismissLabel = stringResource(R.string.dialog_cancel),
-                                valueHint = stringResource(R.string.moments_auto_comment_list_hint),
+                                enabled = friends != null,
+                                onClick = {
+                                    val contacts = friends ?: return@BaseWidget
+                                    showComposeDialog(context) {
+                                        ContactsSelector(
+                                            title = stringResource(R.string.moments_auto_comment_whitelist_title),
+                                            contacts = contacts,
+                                            initialSelectedWxIds = parseWxIds(whitelistInput),
+                                            onDismiss = onDismiss,
+                                            onConfirm = { ids ->
+                                                val joined = ids.joinToString(",")
+                                                whitelistInput = joined
+                                                whitelistRaw = joined
+                                                onDismiss()
+                                            },
+                                        )
+                                    }
+                                },
                             )
                         }
                         item {
-                            TextFieldDialogWidget(
+                            val selected = parseWxIds(blacklistInput).size
+                            BaseWidget(
                                 title = stringResource(R.string.moments_auto_comment_blacklist_title),
-                                value = blacklistInput,
-                                onValueChange = {
-                                    blacklistInput = it
-                                    blacklistRaw = it
+                                description = when {
+                                    selected > 0 -> pluralStringResource(
+                                        R.plurals.moments_auto_comment_list_selected,
+                                        selected,
+                                        selected,
+                                    )
+                                    else -> stringResource(R.string.moments_auto_comment_list_empty_blacklist)
                                 },
-                                dialogTitle = stringResource(R.string.moments_auto_comment_blacklist_title),
-                                confirmLabel = stringResource(R.string.dialog_confirm),
-                                dismissLabel = stringResource(R.string.dialog_cancel),
-                                valueHint = stringResource(R.string.moments_auto_comment_list_hint),
+                                enabled = friends != null,
+                                onClick = {
+                                    val contacts = friends ?: return@BaseWidget
+                                    showComposeDialog(context) {
+                                        ContactsSelector(
+                                            title = stringResource(R.string.moments_auto_comment_blacklist_title),
+                                            contacts = contacts,
+                                            initialSelectedWxIds = parseWxIds(blacklistInput),
+                                            onDismiss = onDismiss,
+                                            onConfirm = { ids ->
+                                                val joined = ids.joinToString(",")
+                                                blacklistInput = joined
+                                                blacklistRaw = joined
+                                                onDismiss()
+                                            },
+                                        )
+                                    }
+                                },
                             )
                         }
                     }

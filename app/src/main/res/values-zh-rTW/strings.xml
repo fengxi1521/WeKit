@@ -1014,6 +1014,11 @@
     <string name="moments_auto_comment_whitelist_title">白名單</string>
     <string name="moments_auto_comment_blacklist_title">黑名單</string>
     <string name="moments_auto_comment_list_hint">多個微信號用逗號或空格分隔。白名單非空時只評論名單內的好友；黑名單始終排除</string>
+    <string name="moments_auto_comment_list_empty_whitelist">未選擇（預設允許全部好友）</string>
+    <string name="moments_auto_comment_list_empty_blacklist">未選擇</string>
+    <plurals name="moments_auto_comment_list_selected">
+        <item quantity="other">已選擇 %1$d 位好友</item>
+    </plurals>
     <string name="moments_cache_retention_title">快取保留天數</string>
     <string name="moments_cache_retention_description">只保留最近幾天的朋友圈去重與 AI 回覆快取，更早的自動清理</string>
     <string name="moments_cache_retention_unit">天</string>
