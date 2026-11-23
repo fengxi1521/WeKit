@@ -549,6 +549,8 @@
     <string name="contact_collection_empty">沒有可用的目標, 請先在微信或模塊裏創建標籤、歸攏或分組</string>
     <string name="contact_collection_new_label_hint">新建標籤名稱</string>
     <string name="contact_collection_new_label_apply">新建並應用</string>
+    <string name="contact_collection_new_label_add">新增標籤</string>
+    <string name="contact_collection_multi_hint">可同時選擇多個目標，例如一個標籤加一個歸攏；取消勾選即可移除</string>
     <string name="contact_collection_prepare_failed">無法準備目標「%1$s」, 請檢查它是否仍然存在</string>
     <string name="contact_collection_done_title">操作完成</string>
     <string name="contact_collection_current_target">當前目標：%1$s</string>
@@ -2214,6 +2216,10 @@
     <string name="chat_history_export_senders_all">雙方訊息</string>
     <string name="chat_history_export_senders_friend">僅對方</string>
     <string name="chat_history_export_senders_self">僅我</string>
+    <string name="chat_history_export_senders_member">指定群成員</string>
+    <string name="chat_history_export_member">群成員</string>
+    <string name="chat_history_export_member_placeholder">點擊選擇要導出的群成員</string>
+    <string name="chat_history_export_header_member">群成員：%1$s</string>
     <string name="chat_history_export_group_by_date">依日期分組</string>
     <string name="chat_history_export_group_by_date_description">每天只顯示一個日期標題，不再逐則重複日期</string>
     <string name="chat_history_export_header_sender">傳送者：%1$s</string>

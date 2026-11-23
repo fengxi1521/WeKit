@@ -113,6 +113,7 @@ private enum class SenderFilter(@StringRes val labelRes: Int) {
     ALL(R.string.chat_history_export_senders_all),
     FRIEND(R.string.chat_history_export_senders_friend),
     SELF(R.string.chat_history_export_senders_self),
+    MEMBER(R.string.chat_history_export_senders_member),
 }
 
 /** Reporting window: today, the last seven days, or two days picked by the user. */
@@ -154,6 +155,8 @@ private fun rememberedPreset(): RangePreset =
 
 private fun rememberedSenderFilter(): SenderFilter =
     SenderFilter.entries.getOrElse(exportSenders) { SenderFilter.ALL }
+        // 指定成员只对当前群有效, 不跨会话记忆。
+        .takeUnless { it == SenderFilter.MEMBER } ?: SenderFilter.ALL
 
 /**
  * Selected export window. [startMillis] is inclusive and [endMillisExclusive] is exclusive; both
@@ -174,6 +177,9 @@ private data class ExportOptions(
     val senders: SenderFilter,
     val groupByDate: Boolean,
     val keyword: String,
+    /** 仅 [SenderFilter.MEMBER] 使用: 只导出该群成员发出的消息。 */
+    val senderMemberWxId: String? = null,
+    val senderMemberName: String? = null,
 )
 
 /** Row count plus the covered period in epoch milliseconds, for the dialog preview. */
@@ -302,6 +308,9 @@ fun showChatHistoryExportDialog(context: Context, wxId: String) {
             windowFor(preset, customStartDay, customEndDay)
         }
         var senders by remember { mutableStateOf(rememberedSenderFilter()) }
+        var memberWxId by remember { mutableStateOf<String?>(null) }
+        var memberName by remember { mutableStateOf("") }
+        var groupMembers by remember(wxId) { mutableStateOf<List<IWeContact>?>(null) }
         var textOnly by remember { mutableStateOf(exportTextOnly) }
         var groupByDate by remember { mutableStateOf(exportGroupByDate) }
         var keyword by remember { mutableStateOf("") }
@@ -326,12 +335,26 @@ fun showChatHistoryExportDialog(context: Context, wxId: String) {
         LaunchedEffect(wxId) {
             displayName = withContext(Dispatchers.IO) { WeDatabaseApi.getDisplayName(wxId) }
         }
-        LaunchedEffect(wxId, window, senders, textOnly, keyword) {
+        LaunchedEffect(wxId, isGroupChat) {
+            if (isGroupChat) {
+                groupMembers = withContext(Dispatchers.IO) {
+                    WeDatabaseApi.getGroupMembers(wxId).filter { it.wxId != WeApi.selfWxId }
+                }
+            }
+        }
+        LaunchedEffect(wxId, window, senders, memberWxId, textOnly, keyword) {
             preview = null
             // Typing in the keyword field should not run one query per keystroke.
             if (keyword.isNotEmpty()) delay(300)
             preview = withContext(Dispatchers.IO) {
-                loadPreview(wxId, window, senders, textOnly, keyword.trim())
+                loadPreview(
+                    wxId = wxId,
+                    window = window,
+                    senders = senders,
+                    textOnly = textOnly,
+                    keyword = keyword.trim(),
+                    senderMemberWxId = if (senders == SenderFilter.MEMBER) memberWxId else null,
+                )
             }
         }
         // Dismissing mid-export would leave a partially written file behind.
@@ -398,16 +421,47 @@ fun showChatHistoryExportDialog(context: Context, wxId: String) {
                                 title = stringResource(R.string.chat_history_export_senders),
                                 description = null,
                                 value = senders,
-                                options = SenderFilter.entries.map {
-                                    DropdownOption(it, stringResource(it.labelRes))
-                                },
+                                options = SenderFilter.entries
+                                    .filter { isGroupChat || it != SenderFilter.MEMBER }
+                                    .map { DropdownOption(it, stringResource(it.labelRes)) },
                                 enabled = !exporting,
                                 onValueChange = {
                                     senders = it
-                                    exportSenders = it.ordinal
+                                    // 指定成员只对当前群有效, 不写入跨会话记忆。
+                                    if (it != SenderFilter.MEMBER) exportSenders = it.ordinal
                                     result = null
                                 },
                             )
+                        }
+                        if (isGroupChat && senders == SenderFilter.MEMBER) {
+                            item {
+                                BaseWidget(
+                                    icon = MaterialSymbols.Outlined.Person,
+                                    title = stringResource(R.string.chat_history_export_member),
+                                    description = memberName.ifBlank {
+                                        stringResource(R.string.chat_history_export_member_placeholder)
+                                    },
+                                    enabled = !exporting && groupMembers != null,
+                                    onClick = {
+                                        val members = groupMembers ?: return@BaseWidget
+                                        showComposeDialog(context) {
+                                            SingleContactSelector(
+                                                title = context.localizedChatString(R.string.chat_history_export_member),
+                                                contacts = members,
+                                                initialSelectedWxId = memberWxId,
+                                                onDismiss = onDismiss,
+                                            ) { pickedWxId ->
+                                                val picked = members.firstOrNull { it.wxId == pickedWxId }
+                                                memberWxId = pickedWxId
+                                                memberName = picked?.displayName.orEmpty()
+                                                    .ifBlank { pickedWxId }
+                                                result = null
+                                                onDismiss()
+                                            }
+                                        }
+                                    },
+                                )
+                            }
                         }
                         item {
                             SwitchWidget(
@@ -513,7 +567,8 @@ fun showChatHistoryExportDialog(context: Context, wxId: String) {
             confirmButton = {
                 Button(
                     enabled = !exporting && window.isValid &&
-                            preview?.count != null && preview?.count != 0L,
+                            preview?.count != null && preview?.count != 0L &&
+                            (senders != SenderFilter.MEMBER || memberWxId != null),
                     onClick = {
                         exporting = true
                         progress = 0
@@ -525,6 +580,8 @@ fun showChatHistoryExportDialog(context: Context, wxId: String) {
                             senders = senders,
                             groupByDate = groupByDate,
                             keyword = keyword.trim(),
+                            senderMemberWxId = if (senders == SenderFilter.MEMBER) memberWxId else null,
+                            senderMemberName = if (senders == SenderFilter.MEMBER) memberName else null,
                         )
                         scope.launch {
                             val exported = withContext(Dispatchers.IO) {
@@ -641,12 +698,13 @@ private fun loadPreview(
     senders: SenderFilter,
     textOnly: Boolean,
     keyword: String,
+    senderMemberWxId: String? = null,
 ): ExportPreview {
     val scale = createTimeScale(wxId)
     val (since, until) = window.bounds(scale)
     val sql = buildString {
         append("SELECT COUNT(*), MIN(createTime), MAX(createTime) FROM message WHERE talker = ?")
-        appendExportConditions(since, until, senders, textOnly, keyword)
+        appendExportConditions(since, until, senders, textOnly, keyword, senderMemberWxId)
     }
     // Only a single row is read here; going through rawQuery avoids building a result map.
     return WeDatabaseApi.rawQuery(sql, arrayOf<Any>(wxId)).use { cursor ->
@@ -663,6 +721,13 @@ private fun loadPreview(
     }
 }
 
+/** Escapes LIKE wildcards and the SQL string quote for inline `content LIKE` conditions. */
+private fun escapeSqlLike(value: String): String =
+    value.replace("\\", "\\\\")
+        .replace("%", "\\%")
+        .replace("_", "\\_")
+        .replace("'", "''")
+
 /**
  * Conditions shared by the count preview and the export so both always select the same rows.
  * [since] and [until] are computed values in the database's time unit, so they are written
@@ -675,6 +740,7 @@ private fun StringBuilder.appendExportConditions(
     senders: SenderFilter,
     textOnly: Boolean,
     keyword: String,
+    senderMemberWxId: String? = null,
 ) {
     if (since != null) append(" AND createTime >= $since")
     if (until != null) append(" AND createTime < $until")
@@ -682,6 +748,14 @@ private fun StringBuilder.appendExportConditions(
         SenderFilter.ALL -> Unit
         SenderFilter.FRIEND -> append(" AND isSend = 0")
         SenderFilter.SELF -> append(" AND isSend = 1")
+        // 群消息的发送者写在 content 的 `wxid:\n` 前缀里, 只能按前缀过滤。
+        SenderFilter.MEMBER -> {
+            if (senderMemberWxId.isNullOrBlank()) {
+                append(" AND 0")
+            } else {
+                append(" AND isSend = 0 AND content LIKE '${escapeSqlLike(senderMemberWxId)}:%' ESCAPE '\\'")
+            }
+        }
     }
     if (textOnly) append(" AND type IN (${TEXT_MESSAGE_TYPES.joinToString(",")})")
     if (keyword.isNotEmpty()) {
@@ -754,7 +828,14 @@ private fun exportChatHistory(
 
     val sql = buildString {
         append("SELECT type, content, createTime, isSend FROM message WHERE talker = ?")
-        appendExportConditions(since, until, options.senders, options.textOnly, options.keyword)
+        appendExportConditions(
+            since = since,
+            until = until,
+            senders = options.senders,
+            textOnly = options.textOnly,
+            keyword = options.keyword,
+            senderMemberWxId = options.senderMemberWxId,
+        )
         append(" ORDER BY createTime ASC")
     }
 
@@ -798,7 +879,15 @@ private fun exportChatHistory(
                             exportWindowLabel(context, options),
                         )
                     )
-                    if (options.senders != SenderFilter.ALL) {
+                    if (options.senders == SenderFilter.MEMBER) {
+                        appendLine(
+                            context.localizedChatString(
+                                R.string.chat_history_export_header_member,
+                                options.senderMemberName
+                                    ?: options.senderMemberWxId.orEmpty(),
+                            )
+                        )
+                    } else if (options.senders != SenderFilter.ALL) {
                         appendLine(
                             context.localizedChatString(
                                 R.string.chat_history_export_header_sender,

@@ -577,6 +577,8 @@
     <string name="contact_collection_empty">没有可用的目标, 请先在微信或模块里创建标签、归拢或分组</string>
     <string name="contact_collection_new_label_hint">新建标签名称</string>
     <string name="contact_collection_new_label_apply">新建并应用</string>
+    <string name="contact_collection_new_label_add">添加标签</string>
+    <string name="contact_collection_multi_hint">可同时选择多个目标，例如一个标签加一个归拢；取消勾选即可移除</string>
     <string name="contact_collection_prepare_failed">无法准备目标“%1$s”, 请检查它是否仍然存在</string>
     <string name="contact_collection_done_title">操作完成</string>
     <string name="contact_collection_current_target">当前目标：%1$s</string>
@@ -2270,6 +2272,10 @@
     <string name="chat_history_export_senders_all">双方消息</string>
     <string name="chat_history_export_senders_friend">仅对方</string>
     <string name="chat_history_export_senders_self">仅我</string>
+    <string name="chat_history_export_senders_member">指定群成员</string>
+    <string name="chat_history_export_member">群成员</string>
+    <string name="chat_history_export_member_placeholder">点击选择要导出的群成员</string>
+    <string name="chat_history_export_header_member">群成员：%1$s</string>
     <string name="chat_history_export_group_by_date">按日期分组</string>
     <string name="chat_history_export_group_by_date_description">每天只显示一个日期标题，不再逐条重复日期</string>
     <string name="chat_history_export_header_sender">发送者：%1$s</string>

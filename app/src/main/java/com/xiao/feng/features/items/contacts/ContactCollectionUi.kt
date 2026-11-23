@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.LinearWavyProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -91,13 +92,22 @@ fun ContactCollectionTargetList(
     }
 }
 
-/** 按类别分组的已有目标列表, 不带任何额外输入项。 */
+/**
+ * 按类别分组的已有目标列表, 不带任何额外输入项。
+ *
+ * [selectedTargets] 非空时切换为多选模式: 每行显示勾选框, 点击行交给 [onToggle]。
+ */
 @Composable
 fun ContactTargetsList(
     targets: List<ContactCollector.Target>,
     onPick: (ContactCollector.Target) -> Unit,
     leadingContent: (@Composable () -> Unit)? = null,
+    selectedTargets: Set<ContactCollector.Target>? = null,
+    onToggle: ((ContactCollector.Target) -> Unit)? = null,
 ) {
+    val chosen = selectedTargets
+    val toggle = onToggle
+    val multiSelect = chosen != null && toggle != null
     LazyColumn {
         leadingContent?.let { content -> item(key = "leading") { content() } }
         ContactCollector.TargetKind.entries.forEach { kind ->
@@ -112,7 +122,19 @@ fun ContactTargetsList(
             }
             items(group, key = { "${it.kind.name}_${it.id}_${it.name}" }) { target ->
                 ListItem(
-                    modifier = Modifier.clickable { onPick(target) },
+                    modifier = Modifier.clickable {
+                        if (toggle != null) toggle(target) else onPick(target)
+                    },
+                    leadingContent = if (multiSelect) {
+                        {
+                            Checkbox(
+                                checked = target in chosen.orEmpty(),
+                                onCheckedChange = null,
+                            )
+                        }
+                    } else {
+                        null
+                    },
                     content = { Text(target.name) },
                 )
             }

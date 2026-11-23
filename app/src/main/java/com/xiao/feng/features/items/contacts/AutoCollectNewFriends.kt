@@ -3,14 +3,19 @@ package com.xiao.feng.features.items.contacts
 import android.content.ContentValues
 import android.content.Context
 import androidx.activity.ComponentActivity
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.LinearWavyProgressIndicator
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.input.KeyboardType
 import com.xiao.feng.R
 import com.xiao.feng.data.KvStore
 import com.xiao.feng.features.api.core.WeApi
@@ -19,11 +24,13 @@ import com.xiao.feng.features.api.core.WeDatabaseListenerApi
 import com.xiao.feng.features.core.ClickableFeature
 import com.xiao.feng.features.core.FeatureCategoryIds
 import com.xiao.feng.ui.content.AlertDialogContent
+import com.xiao.feng.ui.content.Button
 import com.xiao.feng.ui.content.DefaultColumn
 import com.xiao.feng.ui.content.TextButton
 import com.xiao.feng.ui.utils.showComposeDialog
 import com.xiao.feng.utils.WeLogger
 import com.xiao.feng.utils.android.showToast
+import com.xiao.feng.utils.serialization.DefaultJson
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -33,6 +40,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
+import kotlinx.serialization.Serializable
 
 /**
  * 加好友自动归拢: 检测到新好友后, 自动把他加入预先选好的标签 / 归拢 / 分组。
@@ -47,6 +55,7 @@ object AutoCollectNewFriends : ClickableFeature(), WeDatabaseListenerApi.IInsert
     private const val KEY_TARGET_KIND = "auto_collect_new_friends_target_kind"
     private const val KEY_TARGET_ID = "auto_collect_new_friends_target_id"
     private const val KEY_TARGET_NAME = "auto_collect_new_friends_target_name"
+    private const val KEY_TARGETS = "auto_collect_new_friends_targets"
     private const val KEY_INTERVAL = "auto_collect_new_friends_interval_seconds"
     private const val KEY_KNOWN_FRIENDS = "auto_collect_new_friends_known"
     private const val KEY_BASELINE_DONE = "auto_collect_new_friends_baseline_done"
@@ -56,9 +65,11 @@ object AutoCollectNewFriends : ClickableFeature(), WeDatabaseListenerApi.IInsert
     override val categoryIds = listOf(FeatureCategoryIds.CONTACTS_GROUPS)
     override val descriptionRes = R.string.feature_auto_collect_new_friends_description
 
+    // 旧版只能配置一个目标, 保留这几个键仅用于迁移。
     private var targetKindValue by KvStore.prefOption(KEY_TARGET_KIND, "")
     private var targetId by KvStore.prefOption(KEY_TARGET_ID, "")
     private var targetName by KvStore.prefOption(KEY_TARGET_NAME, "")
+    private var targetsJson by KvStore.prefOption(KEY_TARGETS, "")
     private var intervalSeconds by KvStore.prefOption(KEY_INTERVAL, "1")
     private var knownFriends by KvStore.prefOption(KEY_KNOWN_FRIENDS, emptySet<String>())
     private var baselineDone by KvStore.prefOption(KEY_BASELINE_DONE, false)
@@ -112,16 +123,25 @@ object AutoCollectNewFriends : ClickableFeature(), WeDatabaseListenerApi.IInsert
     override fun onClick(context: ComponentActivity) {
         showComposeDialog(context) {
             var targets by remember { mutableStateOf<List<ContactCollector.Target>?>(null) }
+            var extraTargets by remember { mutableStateOf<List<ContactCollector.Target>>(emptyList()) }
+            var selected by remember { mutableStateOf<Set<ContactCollector.Target>>(emptySet()) }
             var intervalInput by remember { mutableStateOf(intervalSeconds) }
+            var newLabelName by remember { mutableStateOf("") }
 
             LaunchedEffect(Unit) {
-                withContext(Dispatchers.IO) {
-                    targets = ContactCollector.loadTargets(
+                val loaded = withContext(Dispatchers.IO) {
+                    ContactCollector.loadTargets(
                         context = context,
                         includeLabels = true,
                         includeCollections = true,
                     )
                 }
+                val saved = withContext(Dispatchers.IO) { savedTargets() }
+                targets = loaded
+                // 只保留仍然存在的目标, 已删除的标签 / 归拢 / 分组不再显示。
+                selected = saved.filter { savedTarget ->
+                    loaded.any { live -> live.matches(savedTarget) }
+                }.toSet()
             }
 
             AlertDialogContent(
@@ -129,32 +149,80 @@ object AutoCollectNewFriends : ClickableFeature(), WeDatabaseListenerApi.IInsert
                 text = {
                     val loaded = targets
                     DefaultColumn {
-                        Text(currentTargetSummary(context))
                         if (loaded == null) {
                             LinearWavyProgressIndicator()
                         } else {
-                            ContactCollectionTargetList(
-                                targets = loaded,
-                                allowNewLabel = true,
-                                intervalInput = intervalInput,
-                                onIntervalChange = { intervalInput = it },
-                                onPick = { target ->
-                                    targetKindValue = target.kind.name
-                                    targetId = target.id
-                                    targetName = target.name
-                                    intervalSeconds = intervalInput
-                                    showToast(
-                                        context,
-                                        context.localizedContactsString(
-                                            R.string.contact_collection_saved,
-                                            target.name,
-                                        ),
-                                    )
-                                    onDismiss()
-                                },
+                            Text(targetSummary(context, selected))
+                            Text(stringResource(R.string.contact_collection_multi_hint))
+                            OutlinedTextField(
+                                value = intervalInput,
+                                onValueChange = { intervalInput = sanitizeDecimalInput(it) },
+                                modifier = Modifier.fillMaxWidth(),
+                                label = { Text(stringResource(R.string.contact_collection_interval)) },
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                                singleLine = true,
                             )
+                            OutlinedTextField(
+                                value = newLabelName,
+                                onValueChange = { newLabelName = it },
+                                modifier = Modifier.fillMaxWidth(),
+                                label = { Text(stringResource(R.string.contact_collection_new_label_hint)) },
+                                singleLine = true,
+                            )
+                            Button(
+                                enabled = newLabelName.isNotBlank(),
+                                onClick = {
+                                    val name = newLabelName.trim()
+                                    // 已有同名标签时直接选中它, 避免重复创建。
+                                    val target = loaded.firstOrNull {
+                                        it.kind == ContactCollector.TargetKind.LABEL && it.name == name
+                                    } ?: ContactCollector.Target(
+                                        kind = ContactCollector.TargetKind.LABEL,
+                                        id = "",
+                                        name = name,
+                                    )
+                                    if (target.id.isEmpty() && target !in extraTargets) {
+                                        extraTargets = extraTargets + target
+                                    }
+                                    selected = selected + target
+                                    newLabelName = ""
+                                },
+                            ) { Text(stringResource(R.string.contact_collection_new_label_add)) }
+                            val displayTargets = loaded + extraTargets
+                            if (displayTargets.isEmpty()) {
+                                Text(stringResource(R.string.contact_collection_empty))
+                            } else {
+                                ContactTargetsList(
+                                    targets = displayTargets,
+                                    onPick = {},
+                                    selectedTargets = selected,
+                                    onToggle = { target ->
+                                        selected = if (target in selected) selected - target else selected + target
+                                    },
+                                )
+                            }
                         }
                     }
+                },
+                confirmButton = {
+                    Button(
+                        enabled = targets != null,
+                        onClick = {
+                            val chosen = selected.toList()
+                            targetsJson = encodeTargets(chosen)
+                            intervalSeconds = intervalInput
+                            val message = if (chosen.isEmpty()) {
+                                context.localizedContactsString(R.string.contact_collection_no_target)
+                            } else {
+                                context.localizedContactsString(
+                                    R.string.contact_collection_saved,
+                                    chosen.joinToString("、") { it.name },
+                                )
+                            }
+                            showToast(context, message)
+                            onDismiss()
+                        },
+                    ) { Text(stringResource(R.string.action_save)) }
                 },
                 dismissButton = {
                     TextButton(onDismiss) { Text(stringResource(R.string.dialog_cancel)) }
@@ -178,14 +246,21 @@ object AutoCollectNewFriends : ClickableFeature(), WeDatabaseListenerApi.IInsert
 
         // 串行执行, 保证多个新好友同时到达时也按配置的间隔逐个处理。
         applyLock.withLock {
-            val target = currentTarget() ?: return@withLock
-            delay(ContactCollector.intervalMillis(intervalSeconds))
-            if (!ContactCollector.prepare(target)) {
-                WeLogger.w(TAG, "failed to prepare target ${target.name} for new friend $wxId")
-                return@withLock
+            val targets = savedTargets()
+            if (targets.isEmpty()) return@withLock
+            val interval = ContactCollector.intervalMillis(intervalSeconds)
+            targets.forEach { target ->
+                delay(interval)
+                if (!ContactCollector.prepare(target)) {
+                    WeLogger.w(TAG, "failed to prepare target ${target.name} for new friend $wxId")
+                    return@forEach
+                }
+                if (ContactCollector.apply(target, wxId)) {
+                    WeLogger.i(TAG, "collected new friend $wxId into ${target.name}")
+                } else {
+                    WeLogger.w(TAG, "target ${target.name} rejected new friend $wxId")
+                }
             }
-            ContactCollector.apply(target, wxId)
-            WeLogger.i(TAG, "collected new friend $wxId into ${target.name}")
         }
     }
 
@@ -207,18 +282,40 @@ object AutoCollectNewFriends : ClickableFeature(), WeDatabaseListenerApi.IInsert
         return true
     }
 
-    private fun currentTarget(): ContactCollector.Target? {
+    /** 读取全部目标; 旧版单目标配置会在第一次读取时迁移成列表。 */
+    private fun savedTargets(): List<ContactCollector.Target> {
+        val decoded = runCatching {
+            DefaultJson.decodeFromString<List<SavedCollectTarget>>(targetsJson)
+        }.getOrNull().orEmpty()
+        val restored = decoded.mapNotNull { it.toTarget() }
+        if (restored.isNotEmpty()) return restored
+        // 空字符串表示从未配置过; "[]" 表示用户主动清空, 不再回退到旧配置。
+        if (targetsJson.isNotBlank()) return emptyList()
+        val legacy = legacyTarget() ?: return emptyList()
+        targetsJson = encodeTargets(listOf(legacy))
+        return listOf(legacy)
+    }
+
+    private fun legacyTarget(): ContactCollector.Target? {
         val kind = ContactCollector.TargetKind.entries.firstOrNull { it.name == targetKindValue } ?: return null
         if (targetName.isBlank()) return null
         if (kind != ContactCollector.TargetKind.LABEL && targetId.isBlank()) return null
         return ContactCollector.Target(kind, targetId, targetName)
     }
 
-    private fun currentTargetSummary(context: Context): String =
-        if (targetName.isBlank()) {
+    private fun encodeTargets(targets: List<ContactCollector.Target>): String =
+        DefaultJson.encodeToString(
+            targets.map { SavedCollectTarget(it.kind.name, it.id, it.name) }
+        )
+
+    private fun targetSummary(context: Context, targets: Set<ContactCollector.Target>): String =
+        if (targets.isEmpty()) {
             context.localizedContactsString(R.string.contact_collection_no_target)
         } else {
-            context.localizedContactsString(R.string.contact_collection_current_target, targetName)
+            context.localizedContactsString(
+                R.string.contact_collection_current_target,
+                targets.joinToString("、") { it.name },
+            )
         }
 
     private fun looksLikeFriend(username: String, values: ContentValues): Boolean {
@@ -232,3 +329,21 @@ object AutoCollectNewFriends : ClickableFeature(), WeDatabaseListenerApi.IInsert
     private const val UPDATE_SETTLE_MS = 800L
     private const val BASELINE_RETRY_MS = 5_000L
 }
+
+@Serializable
+private data class SavedCollectTarget(val kind: String, val id: String, val name: String)
+
+private fun SavedCollectTarget.toTarget(): ContactCollector.Target? {
+    val kind = ContactCollector.TargetKind.entries.firstOrNull { it.name == this.kind } ?: return null
+    if (name.isBlank()) return null
+    if (kind != ContactCollector.TargetKind.LABEL && id.isBlank()) return null
+    return ContactCollector.Target(kind, id, name)
+}
+
+/** 已保存的目标是否仍对应一个现存目标。标签按名称匹配, 因为新建标签在创建前没有 id。 */
+private fun ContactCollector.Target.matches(saved: ContactCollector.Target): Boolean =
+    kind == saved.kind && if (kind == ContactCollector.TargetKind.LABEL) {
+        name == saved.name
+    } else {
+        id == saved.id
+    }

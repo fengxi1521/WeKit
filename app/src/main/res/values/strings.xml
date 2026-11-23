@@ -613,6 +613,8 @@
     <string name="contact_collection_empty">No target available. Create a label, folder or group first.</string>
     <string name="contact_collection_new_label_hint">New label name</string>
     <string name="contact_collection_new_label_apply">Create and apply</string>
+    <string name="contact_collection_new_label_add">Add label</string>
+    <string name="contact_collection_multi_hint">Choose multiple targets at once, for example one label and one collection; untick a row to remove it</string>
     <string name="contact_collection_prepare_failed">Cannot prepare target \"%1$s\". Check that it still exists.</string>
     <string name="contact_collection_done_title">Finished</string>
     <string name="contact_collection_current_target">Current target: %1$s</string>
@@ -2314,6 +2316,10 @@
     <string name="chat_history_export_senders_all">Both sides</string>
     <string name="chat_history_export_senders_friend">This friend only</string>
     <string name="chat_history_export_senders_self">Me only</string>
+    <string name="chat_history_export_senders_member">Specific member</string>
+    <string name="chat_history_export_member">Group member</string>
+    <string name="chat_history_export_member_placeholder">Tap to choose the group member to export</string>
+    <string name="chat_history_export_header_member">Group member: %1$s</string>
     <string name="chat_history_export_group_by_date">Group by date</string>
     <string name="chat_history_export_group_by_date_description">Show one date heading instead of repeating the date on every message</string>
     <string name="chat_history_export_header_sender">Sender: %1$s</string>
