@@ -628,6 +628,16 @@ object ConversationAggregation : ClickableFeature(),
                 configureFolderActivity(activity)
             }
 
+            firstMethod("onPause").hookAfter {
+                val activity = thisObject as BaseConversationUI
+                // Android resumes the homepage before destroying the finishing folder activity.
+                // Stop rewriting homepage queries before that first resume, but keep the folder
+                // active when onPause is only caused by opening one of its chats.
+                if (activity.isFinishing && readFolderIdFromIntent(activity.intent) == activeFolderId) {
+                    activeFolderId = null
+                }
+            }
+
             firstMethod("onDestroy").hookAfter {
                 activeFolderId = null
             }
@@ -974,7 +984,8 @@ object ConversationAggregation : ClickableFeature(),
         if (!WeDatabaseApi.isReady) return
         lastReconcileAt = SystemClock.uptimeMillis()
         val startedAt = SystemClock.elapsedRealtime()
-        var databaseChanged = false
+        var listStructureChanged = false
+        var changedSummaryIds = emptySet<String>()
         runCatching {
             withQueryRewriteSuppressed {
                 if (!isFolderSchemaReady()) return@withQueryRewriteSuppressed
@@ -1011,10 +1022,12 @@ object ConversationAggregation : ClickableFeature(),
                         null
                     }
                 }
-                databaseChanged = changedBindings.isNotEmpty() || changedSummaries.isNotEmpty() ||
+                changedSummaryIds = changedSummaries.mapTo(linkedSetOf()) { it.first }
+                listStructureChanged = changedBindings.isNotEmpty() ||
                         removedMembers.isNotEmpty() || removedFolderIds.isNotEmpty() ||
                         folders.any { it.id !in storedRows || existingContacts[it.id] != it.name } ||
                         desiredFolderIds.any { it !in existingAvatarRows }
+                val databaseChanged = listStructureChanged || changedSummaryIds.isNotEmpty()
 
                 if (databaseChanged) {
                     WeDatabaseApi.transaction {
@@ -1056,7 +1069,11 @@ object ConversationAggregation : ClickableFeature(),
                             "elapsed=${SystemClock.elapsedRealtime() - startedAt}ms"
                 )
             }
-            if (databaseChanged) WeConversationApi.reloadConversations()
+            if (listStructureChanged) {
+                WeConversationApi.reloadConversations()
+            } else {
+                changedSummaryIds.forEach(WeConversationApi::refreshConversation)
+            }
         }.onFailure {
             WeLogger.e(TAG, "failed to sync folders", it)
         }

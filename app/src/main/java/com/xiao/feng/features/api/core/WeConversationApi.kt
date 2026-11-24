@@ -380,6 +380,17 @@ object WeConversationApi : ApiFeature(), IResolveDex {
         }
     }
 
+    /** Refreshes one existing row without re-querying and rebuilding the whole conversation list. */
+    fun refreshConversation(talker: String) {
+        runOnUiThread {
+            try {
+                notifyConversationChanged(talker)
+            } catch (ex: Exception) {
+                WeLogger.w(TAG, "exception while notifying conversation refresh for $talker", ex)
+            }
+        }
+    }
+
     private fun notifyConversationChanged(talker: String, eventType: Int = 3) {
         if (methodNotifyConversationChanged.isPlaceholder) return
         methodNotifyConversationChanged.method.invoke(conversationStorage, eventType, conversationStorage, talker)
