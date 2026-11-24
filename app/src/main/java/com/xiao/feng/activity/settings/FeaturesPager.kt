@@ -36,7 +36,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.composables.icons.materialsymbols.MaterialSymbols
 import com.composables.icons.materialsymbols.outlined.Check_circle
-import com.composables.icons.materialsymbols.outlined.Chevron_right
 import com.composables.icons.materialsymbols.outlined.Expand_more
 import com.composables.icons.materialsymbols.outlined.Search
 import com.composables.icons.materialsymbols.outlined.Wand_stars
@@ -265,7 +264,7 @@ private fun MoreFeaturesEntry(count: Int, onClick: () -> Unit, modifier: Modifie
         }
         Spacer(Modifier.width(6.dp))
         Icon(
-            imageVector = Chevron_right,
+            imageVector = MaterialSymbols.Outlined.Chevron_right,
             contentDescription = null,
             tint = scheme.onSurfaceVariant,
             modifier = Modifier.size(18.dp),
