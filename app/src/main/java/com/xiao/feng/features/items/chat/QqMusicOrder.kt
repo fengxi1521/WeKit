@@ -17,7 +17,6 @@ import com.xiao.feng.features.api.ui.WeChatInputBarMenuApi
 import com.xiao.feng.features.api.ui.WeCurrentConversationApi
 import com.xiao.feng.features.core.ClickableFeature
 import com.xiao.feng.features.core.FeatureCategoryIds
-import com.xiao.feng.features.items.system.keepalive.WeChatKeepAlive
 import com.xiao.feng.i18n.HostLocalizedStrings
 import com.xiao.feng.utils.AudioUtils
 import com.xiao.feng.utils.HostInfo
@@ -177,7 +176,6 @@ object QqMusicOrder : ClickableFeature(), WeDatabaseListenerApi.IInsertListener 
     override fun onEnable() {
         WeDatabaseListenerApi.removeListener(this)
         WeDatabaseListenerApi.addListener(this)
-        if (TargetProcesses.isInMain) WeChatKeepAlive.ensureEnabled()
 
         // 输入栏开关指令只属于有 UI 的主进程。
         if (!TargetProcesses.isInMain) return

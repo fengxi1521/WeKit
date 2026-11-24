@@ -6,7 +6,6 @@ import com.xiao.feng.featurepoints.abc.IResolveDex
 import com.xiao.feng.featurepoints.dsl.dexMethod
 import com.xiao.feng.features.core.FeatureCategoryIds
 import com.xiao.feng.features.core.SwitchFeature
-import com.xiao.feng.features.items.system.keepalive.WeChatKeepAlive
 import com.xiao.feng.utils.TargetProcess
 import com.xiao.feng.utils.TargetProcesses
 
@@ -49,12 +48,6 @@ object BackgroundMessageRefresh : SwitchFeature(), IResolveDex {
     private val methodShouldLaunchToMain by dexMethod()
 
     override fun onEnable() {
-        if (TargetProcesses.currentType == TargetProcess.MAIN) {
-            // 免打扰会话在后台可能根本收不到推送, 靠 :push 回落无法刷新; 主进程被划掉后更是
-            // 完全停摆。和自动化功能一样, 开启后台刷新时顺带启用微信强保活, 让主进程尽量常驻。
-            WeChatKeepAlive.ensureEnabled()
-            return
-        }
         if (TargetProcesses.currentType != TargetProcess.PUSH) return
 
         methodShouldUseLightPush.hookBefore {

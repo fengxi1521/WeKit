@@ -42,16 +42,6 @@ object WeChatKeepAlive : ClickableFeature() {
     override fun onDisable() = WeChatKeepAliveRuntime.stop()
 
     /**
-     * Background automations (red packets, mention replies, music orders) stop working the moment
-     * the host is frozen, so they turn keep-alive on themselves instead of relying on the user.
-     */
-    fun ensureEnabled() {
-        if (isEnabled) return
-        KvStore.putBool(technicalId, true)
-        isEnabled = true
-    }
-
-    /**
      * Root whitelists used to default to off, which left doze free to cut the network. Enable them
      * once for existing installs; afterwards the user's own choice is respected.
      */

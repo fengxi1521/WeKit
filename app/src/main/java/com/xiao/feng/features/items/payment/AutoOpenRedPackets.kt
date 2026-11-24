@@ -26,7 +26,6 @@ import com.xiao.feng.features.api.core.models.MessageType
 import com.xiao.feng.features.api.net.WeNetSceneApi
 import com.xiao.feng.features.items.chat.LocalStickerFiles
 import com.xiao.feng.features.items.payment.RedPacketSettings.ReceiveMode
-import com.xiao.feng.features.items.system.keepalive.WeChatKeepAlive
 import com.xiao.feng.features.core.ClickableFeature
 import com.xiao.feng.features.core.FeatureCategoryIds
 import com.xiao.feng.ui.content.AlertDialogContent
@@ -147,7 +146,6 @@ object AutoOpenRedPackets : ClickableFeature(), WeDatabaseListenerApi.IInsertLis
                 RedPacketSettings.requireReady()
                 RedPacketSettings.ensureGroupBaseline()
             }.onFailure { WeLogger.w(TAG, "red packet settings not ready; will retry on first packet", it) }
-            if (TargetProcesses.isInMain) WeChatKeepAlive.ensureEnabled()
         }
         if (scope.coroutineContext[Job]?.isActive != true) scope = newScope()
         // 重复开启时先摘掉旧监听, 避免同一条消息被分发多次。
