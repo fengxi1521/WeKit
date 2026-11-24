@@ -6,7 +6,6 @@ import com.xiao.feng.BuildConfig
 import com.xiao.feng.features.api.core.WeMessageApi
 import com.xiao.feng.features.items.scripting_java.JavaEngine
 import com.xiao.feng.features.items.scripting_java.JavaPlugin
-import com.xiao.feng.features.items.scripting_java.JavaScriptingHook
 import com.xiao.feng.loader.startup.StartupInfo
 import com.xiao.feng.utils.HostInfo
 import com.xiao.feng.utils.WeLogger
@@ -145,11 +144,6 @@ object BundledBotRuntime {
      */
     private fun cleanupLegacyCopies(ids: List<String>) {
         ids.forEach { id ->
-            if (JavaScriptingHook.isActive) {
-                JavaScriptingHook.scripts.remove(id)?.let { plugin ->
-                    JavaEngine.executeAllOnUnload(mapOf(id to plugin))
-                }
-            }
             val legacyDir = KnownPaths.moduleRoot / "scripts_java" / id
             if (legacyDir.isDirectory()) {
                 runCatching { legacyDir.toFile().deleteRecursively() }

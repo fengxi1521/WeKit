@@ -14,8 +14,6 @@ object FeatureCategoryIds {
     const val CHANNELS = "channels"
     const val PROFILE = "profile"
     const val DEBUG = "debug"
-    const val SCRIPTING_JAVA = "scripting_java"
-    const val SCRIPTING_PYTHON = "scripting_python"
     const val ENTERTAIN = "entertain"
     const val BOT = "bot"
     const val BATCH = "batch"
@@ -37,8 +35,6 @@ object FeatureCategoryIds {
         CHANNELS,
         PROFILE,
         DEBUG,
-        SCRIPTING_JAVA,
-        SCRIPTING_PYTHON,
         ENTERTAIN,
         BOT,
         BATCH,

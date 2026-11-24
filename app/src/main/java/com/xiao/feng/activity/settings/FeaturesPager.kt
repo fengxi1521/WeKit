@@ -14,6 +14,8 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyListScope
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -35,6 +37,7 @@ import androidx.compose.ui.unit.sp
 import com.composables.icons.materialsymbols.MaterialSymbols
 import com.composables.icons.materialsymbols.outlined.Check_circle
 import com.composables.icons.materialsymbols.outlined.Chevron_right
+import com.composables.icons.materialsymbols.outlined.Expand_more
 import com.composables.icons.materialsymbols.outlined.Search
 import com.composables.icons.materialsymbols.outlined.Wand_stars
 import com.xiao.feng.R
@@ -64,7 +67,7 @@ private fun featureChecked(item: BaseFeature): Boolean = FeatureCategoryState.is
 // ---------------------------------------------------------------------------
 
 @Composable
-fun FeaturesPager(onOpenCategory: (String) -> Unit) {
+fun FeaturesPager(onOpenCategory: (String) -> Unit, onOpenMore: () -> Unit) {
     val context = LocalXiaoFengLocalizedContext.current
     val resolvedLocale = XiaoFengLocaleController.resolvedLocale
     val revision = FeatureCategoryState.revision
@@ -151,42 +154,122 @@ fun FeaturesPager(onOpenCategory: (String) -> Unit) {
                 }
             }
             item {
+                MoreFeaturesEntry(
+                    count = MORE_FEATURE_CATEGORIES.sumOf { categoryCounts[it.id] ?: 0 },
+                    onClick = onOpenMore,
+                    modifier = Modifier.padding(horizontal = 20.dp).padding(top = 10.dp),
+                )
+            }
+            item {
                 SectionLabel(
                     text = stringResource(R.string.home_stat_categories),
                     modifier = Modifier.padding(horizontal = 20.dp).padding(top = 14.dp),
                 )
             }
-            items(
-                count = (FEATURE_CATEGORIES.size + 1) / 2,
-                key = { index -> "category_row_$index" },
-            ) { index ->
-                val rowItems = FEATURE_CATEGORIES.subList(
-                    index * 2,
-                    minOf(index * 2 + 2, FEATURE_CATEGORIES.size),
-                )
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 20.dp)
-                        .padding(bottom = 10.dp),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp),
-                ) {
-                    rowItems.forEach { category ->
-                        CategoryTile(
-                            category = category,
-                            count = categoryCounts[category.id] ?: 0,
-                            onClick = { onOpenCategory(category.id) },
-                            modifier = Modifier.weight(1f),
-                        )
-                    }
-                    if (rowItems.size == 1) {
-                        Spacer(Modifier.weight(1f))
-                    }
-                }
-            }
+            featuresCategoryGrid(
+                categories = MAIN_FEATURE_CATEGORIES,
+                categoryCounts = categoryCounts,
+                onOpenCategory = onOpenCategory,
+            )
         }
 
         item { Spacer(Modifier.height(CONTENT_BOTTOM_INSET)) }
+    }
+}
+
+/** Reusable two-column category grid, shared by the feature home page and the 更多功能 page. */
+fun LazyListScope.featuresCategoryGrid(
+    categories: List<FeatureCategory>,
+    categoryCounts: Map<String, Int>,
+    onOpenCategory: (String) -> Unit,
+) {
+    items(
+        count = (categories.size + 1) / 2,
+        key = { index -> "category_row_$index" },
+    ) { index ->
+        val rowItems = categories.subList(
+            index * 2,
+            minOf(index * 2 + 2, categories.size),
+        )
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp)
+                .padding(bottom = 10.dp),
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            rowItems.forEach { category ->
+                CategoryTile(
+                    category = category,
+                    count = categoryCounts[category.id] ?: 0,
+                    onClick = { onOpenCategory(category.id) },
+                    modifier = Modifier.weight(1f),
+                )
+            }
+            if (rowItems.size == 1) {
+                Spacer(Modifier.weight(1f))
+            }
+        }
+    }
+}
+
+/** Full-width entry at the top of the feature page that opens the 更多功能 secondary page. */
+@Composable
+private fun MoreFeaturesEntry(count: Int, onClick: () -> Unit, modifier: Modifier = Modifier) {
+    val scheme = MaterialTheme.colorScheme
+    val shape = RoundedCornerShape(20.dp)
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .clip(shape)
+            .background(scheme.surface.copy(alpha = 0.68f))
+            .border(1.dp, scheme.primary.copy(alpha = 0.16f), shape)
+            .clickable(onClick = onClick)
+            .padding(horizontal = 14.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Box(
+            modifier = Modifier
+                .size(34.dp)
+                .clip(RoundedCornerShape(50))
+                .background(scheme.primary.copy(alpha = 0.13f)),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(
+                imageVector = MaterialSymbols.Outlined.Expand_more,
+                contentDescription = null,
+                tint = scheme.primary,
+                modifier = Modifier.size(19.dp),
+            )
+        }
+        Spacer(Modifier.width(12.dp))
+        Text(
+            text = stringResource(R.string.features_more_title),
+            style = MaterialTheme.typography.titleSmall,
+            fontWeight = FontWeight.SemiBold,
+            color = scheme.onSurface,
+            modifier = Modifier.weight(1f),
+        )
+        Box(
+            modifier = Modifier
+                .clip(RoundedCornerShape(50))
+                .background(scheme.primary.copy(alpha = 0.10f))
+                .padding(horizontal = 9.dp, vertical = 3.dp),
+        ) {
+            Text(
+                text = count.toString(),
+                style = MaterialTheme.typography.labelMedium,
+                fontWeight = FontWeight.Bold,
+                color = scheme.primary,
+            )
+        }
+        Spacer(Modifier.width(6.dp))
+        Icon(
+            imageVector = Chevron_right,
+            contentDescription = null,
+            tint = scheme.onSurfaceVariant,
+            modifier = Modifier.size(18.dp),
+        )
     }
 }
 
@@ -412,6 +495,31 @@ fun CategoryDetailScreen(categoryId: String, onBack: () -> Unit) {
             }
         }
 
+        item { Spacer(Modifier.height(CONTENT_BOTTOM_INSET)) }
+    }
+}
+
+@Composable
+fun MoreFeaturesScreen(onBack: () -> Unit, onOpenCategory: (String) -> Unit) {
+    val categoryCounts = remember {
+        FEATURE_CATEGORIES.associate { category ->
+            category.id to FeaturesProvider.ALL_FEATURES.count { category.id in it.categoryIds }
+        }
+    }
+    val total = remember(categoryCounts) {
+        MORE_FEATURE_CATEGORIES.sumOf { categoryCounts[it.id] ?: 0 }
+    }
+    M3ListScaffold(
+        title = stringResource(R.string.features_more_title),
+        navigationIcon = { ExpressiveBackButton(onClick = onBack) },
+        subtitle = stringResource(R.string.features_category_count, total),
+    ) {
+        item { Spacer(Modifier.height(14.dp)) }
+        featuresCategoryGrid(
+            categories = MORE_FEATURE_CATEGORIES,
+            categoryCounts = categoryCounts,
+            onOpenCategory = onOpenCategory,
+        )
         item { Spacer(Modifier.height(CONTENT_BOTTOM_INSET)) }
     }
 }

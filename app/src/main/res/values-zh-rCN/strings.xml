@@ -207,6 +207,7 @@
     <string name="features_no_results">未匹配到任何相关功能</string>
     <string name="features_category_empty">当前分类没有可显示的功能</string>
     <string name="features_category_count">共 %1$d 项</string>
+    <string name="features_more_title">更多功能</string>
     <string name="features_new_summary">最近 %1$d 天新增 %2$d 个功能</string>
     <string name="home_module_activated">模块已激活</string>
     <string name="home_brand_tagline">微信增强模块</string>
@@ -459,8 +460,6 @@
     <string name="feature_category_channels_title">视频号</string>
     <string name="feature_category_profile_title">个人资料</string>
     <string name="feature_category_debug_title">调试</string>
-    <string name="feature_category_scripting_java_title">脚本 (Java)</string>
-    <string name="feature_category_scripting_python_title">脚本 (Python)</string>
     <string name="feature_category_entertain_title">娱乐</string>
     <string name="feature_category_bot_title">机器人</string>
     <string name="feature_bot_games_name">娱乐游戏</string>

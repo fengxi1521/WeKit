@@ -232,6 +232,7 @@
     <string name="features_no_results">No matching features</string>
     <string name="features_category_empty">There are no features to show in this category</string>
     <string name="features_category_count">%1$d features</string>
+    <string name="features_more_title">More features</string>
     <string name="features_new_summary">%2$d features added in the last %1$d days</string>
     <string name="home_module_activated">Module activated</string>
     <string name="home_brand_tagline">WeChat enhancement module</string>
@@ -494,8 +495,6 @@
     <string name="feature_category_channels_title">Channels</string>
     <string name="feature_category_profile_title">Profile</string>
     <string name="feature_category_debug_title">Debugging</string>
-    <string name="feature_category_scripting_java_title">Java scripting</string>
-    <string name="feature_category_scripting_python_title">Python scripting</string>
     <string name="feature_category_entertain_title">Entertainment</string>
     <string name="feature_category_bot_title">Chat bots</string>
     <string name="feature_bot_games_name">Entertainment games</string>

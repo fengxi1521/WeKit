@@ -99,6 +99,9 @@ object AutoCommentMoments : AutoMomentsBase() {
     private val lastScanAt = ConcurrentHashMap<String, Long>()
     private val actionLock = Any()
 
+    /** owner wxId -> 是否好友, 避免同一作者的多条朋友圈反复查库。 */
+    private val friendCache = ConcurrentHashMap<String, Boolean>()
+
     /** snsTableId -> 最近一次记录 AI 评论的时间, 用于按保留期清理 AI 回复状态。 */
     private val aiHistoryAt = ConcurrentHashMap<String, Long>()
 
@@ -612,6 +615,8 @@ object AutoCommentMoments : AutoMomentsBase() {
         val owner = WeMomentsApi.getOwnerWxId(snsInfo)?.trim().orEmpty()
         if (owner.isBlank() || owner == WeApi.selfWxId) return
         if (!aiEnabled && commentText.isBlank()) return
+        // 只评论好友的朋友圈: 非好友(陌生人、公众号、已删除好友)直接跳过。
+        if (!isOwnerFriend(owner)) return
         if (isOwnerFiltered(owner)) return
         val createTimeSeconds = WeMomentsApi.getCreateTimeSeconds(snsInfo)
         if (createTimeSeconds <= scope.publishedAfterSeconds) return
@@ -664,17 +669,14 @@ object AutoCommentMoments : AutoMomentsBase() {
                     success = true, sent = false, message = "automation stopped",
                 )
             }
-            // 开启 AI 后生成失败(例如视频/图片无法识别)说明这条内容不适合评论,
-            // 此时不再退回固定文案, 否则同一帖子会被反复刷上同一句固定评论。
-            if (aiEnabled && aiApiKey.isNotBlank() && generated.isNullOrBlank()) {
-                return@sendWithDelay WeMomentsApi.ActionResult(
-                    success = true, sent = false, message = "AI comment generation failed",
-                )
-            }
+            // AI 生成失败(例如视频无法识别)时退回固定文案, 保证这类朋友圈也能被评论;
+            // rememberHandled 会在发送前记账, 所以不会因生成失败而反复刷同一句固定评论。
             val text = generated?.takeIf { it.isNotBlank() } ?: template
             if (text.isBlank()) {
+                // AI 没生成内容且没配置固定文案, 没有内容可发, 记为已处理避免反复重试。
+                rememberHandled(handledKey, postKey)
                 return@sendWithDelay WeMomentsApi.ActionResult(
-                    success = false, sent = false, message = "empty AI comment",
+                    success = true, sent = false, message = "no comment text available",
                 )
             }
             // 先记账再发送: 宿主即使在发送后抛出异常(评论其实已经发出), 也不会在下一轮扫描
@@ -699,6 +701,17 @@ object AutoCommentMoments : AutoMomentsBase() {
         if (owner in parseWxIds(blacklistRaw)) return true
         val whitelist = parseWxIds(whitelistRaw)
         return whitelist.isNotEmpty() && owner !in whitelist
+    }
+
+    private fun isOwnerFriend(owner: String): Boolean {
+        if (owner.isBlank()) return false
+        friendCache[owner]?.let { return it }
+        val isFriend = runCatching { WeDatabaseApi.getFriend(owner) != null }
+            .onFailure { WeLogger.w(TAG, "friend check failed for $owner", it) }
+            .getOrDefault(false)
+        if (friendCache.size > 2000) friendCache.clear()
+        friendCache[owner] = isFriend
+        return isFriend
     }
 
     private fun parseWxIds(raw: String): Set<String> =

@@ -131,28 +131,30 @@ data class FeatureCategory(
     val icon: ImageVector,
 )
 
-val FEATURE_CATEGORIES = listOf(
+// 常用分类直接展示在功能主页; 其余收进「更多功能」二级页, 避免主页分类过于拥挤。
+val MAIN_FEATURE_CATEGORIES = listOf(
     FeatureCategory(FeatureCategoryIds.CHAT, R.string.feature_category_chat_title, MaterialSymbols.Outlined.Chat),
     FeatureCategory(FeatureCategoryIds.CONTACTS_GROUPS, R.string.feature_category_contacts_groups_title, MaterialSymbols.Outlined.Contacts),
-    FeatureCategory(FeatureCategoryIds.PAYMENT, R.string.feature_category_payment_title, MaterialSymbols.Outlined.Payments),
     FeatureCategory(FeatureCategoryIds.MOMENTS, R.string.feature_category_moments_title, MaterialSymbols.Outlined.Camera),
     FeatureCategory(FeatureCategoryIds.SYSTEM_PRIVACY, R.string.feature_category_system_privacy_title, MaterialSymbols.Outlined.Wand_stars),
-    FeatureCategory(FeatureCategoryIds.VOIP, R.string.feature_category_voip_title, MaterialSymbols.Outlined.Call),
     FeatureCategory(FeatureCategoryIds.NOTIFICATIONS, R.string.feature_category_notifications_title, MaterialSymbols.Outlined.Notifications),
     FeatureCategory(FeatureCategoryIds.BEAUTIFY, R.string.feature_category_beautify_title, MaterialSymbols.Outlined.Imagesearch_roller),
+    FeatureCategory(FeatureCategoryIds.BOT, R.string.feature_category_bot_title, MaterialSymbols.Outlined.Smart_toy),
+    FeatureCategory(FeatureCategoryIds.PAYMENT, R.string.feature_category_payment_title, MaterialSymbols.Outlined.Payments),
+)
+val MORE_FEATURE_CATEGORIES = listOf(
+    FeatureCategory(FeatureCategoryIds.VOIP, R.string.feature_category_voip_title, MaterialSymbols.Outlined.Call),
     FeatureCategory(FeatureCategoryIds.OFFICIAL_ACCOUNTS, R.string.feature_category_official_accounts_title, MaterialSymbols.Outlined.Newspaper),
     FeatureCategory(FeatureCategoryIds.MINIAPPS, R.string.feature_category_miniapps_title, MaterialSymbols.Outlined.Package_2),
     FeatureCategory(FeatureCategoryIds.CHANNELS, R.string.feature_category_channels_title, MaterialSymbols.Outlined.Movie),
     FeatureCategory(FeatureCategoryIds.PROFILE, R.string.feature_category_profile_title, MaterialSymbols.Outlined.Account_circle),
     FeatureCategory(FeatureCategoryIds.DEBUG, R.string.feature_category_debug_title, MaterialSymbols.Outlined.Bug_report),
-    FeatureCategory(FeatureCategoryIds.SCRIPTING_JAVA, R.string.feature_category_scripting_java_title, MaterialSymbols.Outlined.Terminal),
-    FeatureCategory(FeatureCategoryIds.SCRIPTING_PYTHON, R.string.feature_category_scripting_python_title, MaterialSymbols.Outlined.Code),
     FeatureCategory(FeatureCategoryIds.ENTERTAIN, R.string.feature_category_entertain_title, MaterialSymbols.Outlined.Comedy_mask),
-    FeatureCategory(FeatureCategoryIds.BOT, R.string.feature_category_bot_title, MaterialSymbols.Outlined.Smart_toy),
     FeatureCategory(FeatureCategoryIds.BATCH, R.string.feature_category_batch_title, MaterialSymbols.Outlined.Checklist),
     FeatureCategory(FeatureCategoryIds.HOME_SCREEN_MENU, R.string.feature_category_home_screen_menu_title, MaterialSymbols.Outlined.Add_circle),
     FeatureCategory(FeatureCategoryIds.CONTACT_DETAILS, R.string.feature_category_contact_details_title, MaterialSymbols.Outlined.Contact_page),
 )
+val FEATURE_CATEGORIES = MAIN_FEATURE_CATEGORIES + MORE_FEATURE_CATEGORIES
 
 // Category icons are looked up for every feature row; build the map once instead of scanning
 // FEATURE_CATEGORIES per composition.
@@ -196,6 +198,8 @@ sealed interface SettingsRoute : NavKey {
     @Serializable
     data class Category(val id: String) : SettingsRoute
     @Serializable
+    data object MoreFeatures : SettingsRoute
+    @Serializable
     data object License : SettingsRoute
 }
 
@@ -219,11 +223,18 @@ private fun SettingsRoot(onFinish: () -> Unit) {
                 MainPagerScreen(
                     pagerState = pagerState,
                     onOpenCategory = { navigator.push(SettingsRoute.Category(it)) },
+                    onOpenMoreFeatures = { navigator.push(SettingsRoute.MoreFeatures) },
                     onOpenLicense = { navigator.push(SettingsRoute.License) },
                 )
             }
             entry<SettingsRoute.Category>(swipeDismiss = NavSwipeDirection.LeftToRight) { key ->
                 CategoryDetailScreen(categoryId = key.id, onBack = { navigator.pop() })
+            }
+            entry<SettingsRoute.MoreFeatures>(swipeDismiss = NavSwipeDirection.LeftToRight) {
+                MoreFeaturesScreen(
+                    onBack = { navigator.pop() },
+                    onOpenCategory = { navigator.push(SettingsRoute.Category(it)) },
+                )
             }
             entry<SettingsRoute.License>(swipeDismiss = NavSwipeDirection.LeftToRight) {
                 LicenseScreen(onBack = { navigator.pop() })
@@ -241,6 +252,7 @@ private fun SettingsRoot(onFinish: () -> Unit) {
 private fun MainPagerScreen(
     pagerState: PagerState,
     onOpenCategory: (String) -> Unit,
+    onOpenMoreFeatures: () -> Unit,
     onOpenLicense: () -> Unit,
 ) {
     val scope = rememberCoroutineScope()
@@ -262,7 +274,7 @@ private fun MainPagerScreen(
                 0 -> HomePager(
                     onOpenFeatures = { scope.launch { pagerState.animateScrollToPage(1) } },
                 )
-                1 -> FeaturesPager(onOpenCategory = onOpenCategory)
+                1 -> FeaturesPager(onOpenCategory = onOpenCategory, onOpenMore = onOpenMoreFeatures)
                 2 -> LogsPager()
                 else -> SettingsPager(onOpenLicense = onOpenLicense)
             }

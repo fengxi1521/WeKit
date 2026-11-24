@@ -51,10 +51,12 @@ object XiaoFengLocaleController : ComponentCallbacks {
         if (initialized) return
         this.application = application
         hostPreferencesAvailable = useHostPreferences
-        selection = if (useHostPreferences) {
-            LanguageSelection.fromStored(KvStore.getString(Preferences.UI_LANGUAGE))
-        } else {
-            LanguageSelection.SYSTEM
+        // 手动语言选择已下线, 模块始终跟随系统; 把存量用户保存的手动语言重置掉。
+        selection = LanguageSelection.SYSTEM
+        if (useHostPreferences &&
+            KvStore.getString(Preferences.UI_LANGUAGE) != LanguageSelection.SYSTEM.storedValue
+        ) {
+            KvStore.putString(Preferences.UI_LANGUAGE, LanguageSelection.SYSTEM.storedValue)
         }
         refreshSystemLocales()
         application.registerComponentCallbacks(this)

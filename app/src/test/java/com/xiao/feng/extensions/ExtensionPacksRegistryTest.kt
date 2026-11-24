@@ -14,7 +14,6 @@ class ExtensionPacksRegistryTest {
         assertEquals(
             listOf(
                 "script-deps",
-                "python-runtime",
                 "archlinux-arm64",
             ),
             ExtensionPacksProvider.ALL_PACKS.map(ExtensionPack::id),

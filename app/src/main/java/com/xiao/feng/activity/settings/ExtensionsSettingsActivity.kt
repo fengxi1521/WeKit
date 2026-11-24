@@ -41,7 +41,6 @@ import com.xiao.feng.extensions.ExtensionPackState.NotInstalled
 import com.xiao.feng.extensions.ExtensionPackState.UpdateAvailable
 import com.xiao.feng.extensions.ExtensionPackState.Verifying
 import com.xiao.feng.extensions.ExtensionPacks
-import com.xiao.feng.extensions.PythonRuntimePack
 import com.xiao.feng.i18n.LocaleResourceMode
 import com.xiao.feng.i18n.LocalXiaoFengLocalizedContext
 import com.xiao.feng.i18n.XiaoFengLocaleProvider
@@ -226,11 +225,7 @@ private fun descriptionLine(pack: ExtensionPack, state: ExtensionPackState): Str
         is UpdateAvailable -> stringResource(R.string.extensions_pack_state_update_available, state.installedVersion, state.latestVersion)
         is Failed -> stringResource(R.string.extensions_pack_state_failed, state.reason)
     }
-    val mountedVersion = if (pack === PythonRuntimePack) PythonRuntimePack.mounted()?.manifest?.version else null
-    val restart = if (
-        mountedVersion != null && mountedVersion != PythonRuntimePack.installedManifest()?.version
-    ) "\n${stringResource(R.string.extensions_pack_python_restart_required)}" else ""
-    return "$base\n$status$restart"
+    return "$base\n$status"
 }
 
 private fun formatBytes(bytes: Long): String {
