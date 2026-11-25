@@ -630,20 +630,24 @@ fun FavoritesScreen(onBack: () -> Unit) {
                 },
                 onDrag = { change, amount ->
                     change.consume()
-                    val id = draggingId ?: return@detectDragGesturesAfterLongPress
-                    draggedDelta += amount.y
-                    val info = listState.layoutInfo.visibleItemsInfo
-                    val cur = info.firstOrNull { it.key == id } ?: return@detectDragGesturesAfterLongPress
-                    val center = cur.offset + offsetForId(id) + cur.size / 2f
-                    val target = info.firstOrNull { other ->
-                        other.key != id && isFavoriteKey(other.key) &&
-                            center in other.offset.toFloat()..(other.offset + other.size).toFloat()
-                    }
-                    if (target != null) {
-                        val from = workingFeatures.indexOfFirst { it.technicalId == id }
-                        val to = workingFeatures.indexOfFirst { it.technicalId == target.key }
-                        if (from >= 0 && to >= 0 && from != to) {
-                            workingFeatures.add(to, workingFeatures.removeAt(from))
+                    val id = draggingId
+                    if (id != null) {
+                        draggedDelta += amount.y
+                        val info = listState.layoutInfo.visibleItemsInfo
+                        val cur = info.firstOrNull { it.key == id }
+                        if (cur != null) {
+                            val center = cur.offset + offsetForId(id) + cur.size / 2f
+                            val target = info.firstOrNull { other ->
+                                other.key != id && isFavoriteKey(other.key) &&
+                                    center in other.offset.toFloat()..(other.offset + other.size).toFloat()
+                            }
+                            if (target != null) {
+                                val from = workingFeatures.indexOfFirst { it.technicalId == id }
+                                val to = workingFeatures.indexOfFirst { it.technicalId == target.key }
+                                if (from >= 0 && to >= 0 && from != to) {
+                                    workingFeatures.add(to, workingFeatures.removeAt(from))
+                                }
+                            }
                         }
                     }
                 },
