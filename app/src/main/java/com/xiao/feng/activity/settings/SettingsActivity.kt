@@ -200,6 +200,8 @@ sealed interface SettingsRoute : NavKey {
     @Serializable
     data object MoreFeatures : SettingsRoute
     @Serializable
+    data object Favorites : SettingsRoute
+    @Serializable
     data object License : SettingsRoute
 }
 
@@ -224,6 +226,7 @@ private fun SettingsRoot(onFinish: () -> Unit) {
                     pagerState = pagerState,
                     onOpenCategory = { navigator.push(SettingsRoute.Category(it)) },
                     onOpenMoreFeatures = { navigator.push(SettingsRoute.MoreFeatures) },
+                    onOpenFavorites = { navigator.push(SettingsRoute.Favorites) },
                     onOpenLicense = { navigator.push(SettingsRoute.License) },
                 )
             }
@@ -235,6 +238,9 @@ private fun SettingsRoot(onFinish: () -> Unit) {
                     onBack = { navigator.pop() },
                     onOpenCategory = { navigator.push(SettingsRoute.Category(it)) },
                 )
+            }
+            entry<SettingsRoute.Favorites>(swipeDismiss = NavSwipeDirection.LeftToRight) {
+                FavoritesScreen(onBack = { navigator.pop() })
             }
             entry<SettingsRoute.License>(swipeDismiss = NavSwipeDirection.LeftToRight) {
                 LicenseScreen(onBack = { navigator.pop() })
@@ -253,6 +259,7 @@ private fun MainPagerScreen(
     pagerState: PagerState,
     onOpenCategory: (String) -> Unit,
     onOpenMoreFeatures: () -> Unit,
+    onOpenFavorites: () -> Unit,
     onOpenLicense: () -> Unit,
 ) {
     val scope = rememberCoroutineScope()
@@ -274,7 +281,11 @@ private fun MainPagerScreen(
                 0 -> HomePager(
                     onOpenFeatures = { scope.launch { pagerState.animateScrollToPage(1) } },
                 )
-                1 -> FeaturesPager(onOpenCategory = onOpenCategory, onOpenMore = onOpenMoreFeatures)
+                1 -> FeaturesPager(
+                    onOpenCategory = onOpenCategory,
+                    onOpenMore = onOpenMoreFeatures,
+                    onOpenFavorites = onOpenFavorites,
+                )
                 2 -> LogsPager()
                 else -> SettingsPager(onOpenLicense = onOpenLicense)
             }

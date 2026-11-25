@@ -208,6 +208,15 @@
     <string name="features_category_empty">当前分类没有可显示的功能</string>
     <string name="features_category_count">共 %1$d 项</string>
     <string name="features_more_title">更多功能</string>
+    <string name="features_favorites_title">收藏</string>
+    <string name="features_favorites_add">添加功能</string>
+    <string name="features_favorites_sort">排序</string>
+    <string name="features_favorites_done">完成</string>
+    <string name="features_favorites_empty">还没有收藏功能，点击「添加功能」添加</string>
+    <string name="features_favorites_all_added">已添加全部功能</string>
+    <string name="features_favorites_remove">移除</string>
+    <string name="features_favorites_move_up">上移</string>
+    <string name="features_favorites_move_down">下移</string>
     <string name="features_new_summary">最近 %1$d 天新增 %2$d 个功能</string>
     <string name="home_module_activated">模块已激活</string>
     <string name="home_brand_tagline">微信增强模块</string>

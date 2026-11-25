@@ -18,6 +18,7 @@ import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -28,6 +29,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -35,10 +37,14 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.composables.icons.materialsymbols.MaterialSymbols
+import com.composables.icons.materialsymbols.outlined.Add
 import com.composables.icons.materialsymbols.outlined.Check_circle
 import com.composables.icons.materialsymbols.outlined.Chevron_right
+import com.composables.icons.materialsymbols.outlined.Close
 import com.composables.icons.materialsymbols.outlined.Expand_more
 import com.composables.icons.materialsymbols.outlined.Search
+import com.composables.icons.materialsymbols.outlined.Sort
+import com.composables.icons.materialsymbols.outlined.Star
 import com.composables.icons.materialsymbols.outlined.Wand_stars
 import com.xiao.feng.R
 import com.xiao.feng.features.core.BaseFeature
@@ -47,6 +53,7 @@ import com.xiao.feng.features.core.SwitchFeature
 import com.xiao.feng.features.core.featureCategoryComparator
 import com.xiao.feng.i18n.LocalXiaoFengLocalizedContext
 import com.xiao.feng.i18n.XiaoFengLocaleController
+import com.xiao.feng.ui.content.m3.BaseWidget
 import com.xiao.feng.ui.content.m3.ExpressiveBackButton
 import com.xiao.feng.ui.content.m3.SectionLabel
 import com.xiao.feng.ui.content.m3.XfSearchBar
@@ -67,10 +74,16 @@ private fun featureChecked(item: BaseFeature): Boolean = FeatureCategoryState.is
 // ---------------------------------------------------------------------------
 
 @Composable
-fun FeaturesPager(onOpenCategory: (String) -> Unit, onOpenMore: () -> Unit) {
+fun FeaturesPager(
+    onOpenCategory: (String) -> Unit,
+    onOpenMore: () -> Unit,
+    onOpenFavorites: () -> Unit,
+) {
     val context = LocalXiaoFengLocalizedContext.current
     val resolvedLocale = XiaoFengLocaleController.resolvedLocale
     val revision = FeatureCategoryState.revision
+    val favoritesRevision = FeatureFavorites.revision
+    val favoritesCount = remember(favoritesRevision) { FeatureFavorites.ids().size }
     var query by remember { mutableStateOf("") }
     val searching = query.isNotBlank()
 
@@ -130,11 +143,22 @@ fun FeaturesPager(onOpenCategory: (String) -> Unit, onOpenMore: () -> Unit) {
             }
         } else {
             item { Spacer(Modifier.height(14.dp)) }
+            // 收藏入口固定在功能页最顶部, 用户可把常用功能收进来并自由排序。
+            item {
+                FeaturesNavEntry(
+                    icon = MaterialSymbols.Outlined.Star,
+                    title = stringResource(R.string.features_favorites_title),
+                    count = favoritesCount,
+                    onClick = onOpenFavorites,
+                    modifier = Modifier.padding(horizontal = 20.dp),
+                )
+            }
             item {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 20.dp),
+                        .padding(horizontal = 20.dp)
+                        .padding(top = 10.dp),
                     horizontalArrangement = Arrangement.spacedBy(10.dp),
                 ) {
                     QuickChip(
@@ -154,7 +178,9 @@ fun FeaturesPager(onOpenCategory: (String) -> Unit, onOpenMore: () -> Unit) {
                 }
             }
             item {
-                MoreFeaturesEntry(
+                FeaturesNavEntry(
+                    icon = MaterialSymbols.Outlined.Expand_more,
+                    title = stringResource(R.string.features_more_title),
                     count = MORE_FEATURE_CATEGORIES.sumOf { categoryCounts[it.id] ?: 0 },
                     onClick = onOpenMore,
                     modifier = Modifier.padding(horizontal = 20.dp).padding(top = 10.dp),
@@ -213,9 +239,15 @@ fun LazyListScope.featuresCategoryGrid(
     }
 }
 
-/** Full-width entry at the top of the feature page that opens the 更多功能 secondary page. */
+/** Full-width entry row that opens a secondary feature page (收藏 / 更多功能). */
 @Composable
-private fun MoreFeaturesEntry(count: Int, onClick: () -> Unit, modifier: Modifier = Modifier) {
+private fun FeaturesNavEntry(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    title: String,
+    count: Int,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
     val scheme = MaterialTheme.colorScheme
     val shape = RoundedCornerShape(20.dp)
     Row(
@@ -236,7 +268,7 @@ private fun MoreFeaturesEntry(count: Int, onClick: () -> Unit, modifier: Modifie
             contentAlignment = Alignment.Center,
         ) {
             Icon(
-                imageVector = MaterialSymbols.Outlined.Expand_more,
+                imageVector = icon,
                 contentDescription = null,
                 tint = scheme.primary,
                 modifier = Modifier.size(19.dp),
@@ -244,7 +276,7 @@ private fun MoreFeaturesEntry(count: Int, onClick: () -> Unit, modifier: Modifie
         }
         Spacer(Modifier.width(12.dp))
         Text(
-            text = stringResource(R.string.features_more_title),
+            text = title,
             style = MaterialTheme.typography.titleSmall,
             fontWeight = FontWeight.SemiBold,
             color = scheme.onSurface,
@@ -496,6 +528,274 @@ fun CategoryDetailScreen(categoryId: String, onBack: () -> Unit) {
         }
 
         item { Spacer(Modifier.height(CONTENT_BOTTOM_INSET)) }
+    }
+}
+
+// ---------------------------------------------------------------------------
+//  Favorites — user-curated list of frequently used features
+// ---------------------------------------------------------------------------
+
+@Composable
+fun FavoritesScreen(onBack: () -> Unit) {
+    val context = LocalXiaoFengLocalizedContext.current
+    val revision = FeatureCategoryState.revision
+    val favoritesRevision = FeatureFavorites.revision
+    var adding by remember { mutableStateOf(false) }
+    var editMode by remember { mutableStateOf(false) }
+    var query by remember { mutableStateOf("") }
+
+    val favorites = remember(revision, favoritesRevision) { FeatureFavorites.features() }
+    val allSwitchFeatures = remember { FeaturesProvider.ALL_FEATURES.filterIsInstance<SwitchFeature>() }
+    val candidates = remember(adding, query, favoritesRevision) {
+        if (!adding) {
+            emptyList()
+        } else {
+            allSwitchFeatures
+                .filter { !FeatureFavorites.contains(it.technicalId) }
+                .filter {
+                    query.isBlank() ||
+                        it.localizedName(context).contains(query, ignoreCase = true) ||
+                        it.localizedDescription(context).contains(query, ignoreCase = true)
+                }
+                .sortedBy { it.localizedName(context) }
+        }
+    }
+
+    M3ListScaffold(
+        title = stringResource(R.string.features_favorites_title),
+        navigationIcon = { ExpressiveBackButton(onClick = onBack) },
+        subtitle = stringResource(R.string.features_category_count, favorites.size),
+    ) {
+        item { Spacer(Modifier.height(14.dp)) }
+
+        if (adding) {
+            item {
+                XfSearchBar(
+                    query = query,
+                    onQueryChange = { query = it },
+                    placeholder = stringResource(R.string.features_search_hint),
+                    clearContentDescription = stringResource(R.string.features_clear_search),
+                    modifier = Modifier.padding(horizontal = 20.dp),
+                )
+            }
+            if (candidates.isEmpty()) {
+                item {
+                    FavoritesEmptyState(
+                        stringResource(
+                            if (query.isBlank()) R.string.features_favorites_all_added
+                            else R.string.features_no_results,
+                        ),
+                    )
+                }
+            } else {
+                lazySegmentedItems(candidates, key = { it.technicalId }) { feature ->
+                    Column(Modifier.padding(horizontal = 16.dp)) {
+                        val icon = feature.categoryIds.firstNotNullOfOrNull { FEATURE_ICON_BY_CATEGORY[it] }
+                        BaseWidget(
+                            icon = icon,
+                            title = feature.localizedName(context),
+                            description = feature.localizedDescription(context).ifBlank { null },
+                            onClick = { FeatureFavorites.add(feature) },
+                            trailingContent = {
+                                Icon(
+                                    imageVector = MaterialSymbols.Outlined.Add,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(20.dp),
+                                )
+                            },
+                        )
+                    }
+                }
+            }
+            item { Spacer(Modifier.height(12.dp)) }
+            item {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 20.dp),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                ) {
+                    FavoritesActionChip(
+                        icon = MaterialSymbols.Outlined.Check_circle,
+                        label = stringResource(R.string.features_favorites_done),
+                        onClick = {
+                            adding = false
+                            query = ""
+                        },
+                        modifier = Modifier.weight(1f),
+                        active = true,
+                    )
+                }
+            }
+        } else {
+            item {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 20.dp),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                ) {
+                    FavoritesActionChip(
+                        icon = MaterialSymbols.Outlined.Add,
+                        label = stringResource(R.string.features_favorites_add),
+                        onClick = {
+                            adding = true
+                            editMode = false
+                            query = ""
+                        },
+                        modifier = Modifier.weight(1f),
+                    )
+                    if (favorites.isNotEmpty()) {
+                        FavoritesActionChip(
+                            icon = MaterialSymbols.Outlined.Sort,
+                            label = stringResource(
+                                if (editMode) R.string.features_favorites_done
+                                else R.string.features_favorites_sort,
+                            ),
+                            onClick = { editMode = !editMode },
+                            modifier = Modifier.weight(1f),
+                            active = editMode,
+                        )
+                    }
+                }
+            }
+            item { Spacer(Modifier.height(12.dp)) }
+
+            when {
+                favorites.isEmpty() -> item {
+                    FavoritesEmptyState(stringResource(R.string.features_favorites_empty))
+                }
+
+                editMode -> lazySegmentedItems(
+                    favorites.withIndex().toList(),
+                    key = { it.value.technicalId },
+                ) { indexed ->
+                    Column(Modifier.padding(horizontal = 16.dp)) {
+                        FavoriteEditRow(
+                            feature = indexed.value,
+                            index = indexed.index,
+                            lastIndex = favorites.lastIndex,
+                            onMoveUp = { FeatureFavorites.move(indexed.index, -1) },
+                            onMoveDown = { FeatureFavorites.move(indexed.index, +1) },
+                            onRemove = { FeatureFavorites.remove(indexed.value) },
+                        )
+                    }
+                }
+
+                else -> lazySegmentedItems(favorites, key = { it.technicalId }) { feature ->
+                    Column(Modifier.padding(horizontal = 16.dp)) {
+                        FeatureRow(
+                            item = feature,
+                            checked = featureChecked(feature),
+                            onCheckedChange = {},
+                        )
+                    }
+                }
+            }
+        }
+
+        item { Spacer(Modifier.height(CONTENT_BOTTOM_INSET)) }
+    }
+}
+
+/** Reorder/remove row shown in the favorites sort mode. */
+@Composable
+private fun FavoriteEditRow(
+    feature: SwitchFeature,
+    index: Int,
+    lastIndex: Int,
+    onMoveUp: () -> Unit,
+    onMoveDown: () -> Unit,
+    onRemove: () -> Unit,
+) {
+    val context = LocalXiaoFengLocalizedContext.current
+    val icon = feature.categoryIds.firstNotNullOfOrNull { FEATURE_ICON_BY_CATEGORY[it] }
+    BaseWidget(
+        icon = icon,
+        title = feature.localizedName(context),
+        description = feature.localizedDescription(context).ifBlank { null },
+        trailingContent = {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                IconButton(onClick = onMoveUp, enabled = index > 0) {
+                    Icon(
+                        imageVector = MaterialSymbols.Outlined.Expand_more,
+                        contentDescription = stringResource(R.string.features_favorites_move_up),
+                        modifier = Modifier.size(20.dp).rotate(180f),
+                    )
+                }
+                IconButton(onClick = onMoveDown, enabled = index < lastIndex) {
+                    Icon(
+                        imageVector = MaterialSymbols.Outlined.Expand_more,
+                        contentDescription = stringResource(R.string.features_favorites_move_down),
+                        modifier = Modifier.size(20.dp),
+                    )
+                }
+                IconButton(onClick = onRemove) {
+                    Icon(
+                        imageVector = MaterialSymbols.Outlined.Close,
+                        contentDescription = stringResource(R.string.features_favorites_remove),
+                        modifier = Modifier.size(18.dp),
+                    )
+                }
+            }
+        },
+    )
+}
+
+/** Small pill action used on the favorites page (添加功能 / 排序 / 完成). */
+@Composable
+private fun FavoritesActionChip(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    label: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    active: Boolean = false,
+) {
+    val scheme = MaterialTheme.colorScheme
+    val shape = RoundedCornerShape(50)
+    Row(
+        modifier = modifier
+            .clip(shape)
+            .background(
+                if (active) scheme.primary.copy(alpha = 0.16f) else scheme.surface.copy(alpha = 0.68f),
+            )
+            .border(1.dp, scheme.primary.copy(alpha = 0.16f), shape)
+            .clickable(onClick = onClick)
+            .padding(horizontal = 10.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.Center,
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = null,
+            tint = scheme.primary,
+            modifier = Modifier.size(18.dp),
+        )
+        Spacer(Modifier.width(6.dp))
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelLarge,
+            color = scheme.onSurface,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+    }
+}
+
+@Composable
+private fun FavoritesEmptyState(text: String) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(top = 40.dp, start = 32.dp, end = 32.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(
+            text = text,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
     }
 }
 

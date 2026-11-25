@@ -233,6 +233,15 @@
     <string name="features_category_empty">There are no features to show in this category</string>
     <string name="features_category_count">%1$d features</string>
     <string name="features_more_title">More features</string>
+    <string name="features_favorites_title">Favorites</string>
+    <string name="features_favorites_add">Add feature</string>
+    <string name="features_favorites_sort">Reorder</string>
+    <string name="features_favorites_done">Done</string>
+    <string name="features_favorites_empty">No favorites yet. Tap \"Add feature\" to add some.</string>
+    <string name="features_favorites_all_added">All features have been added.</string>
+    <string name="features_favorites_remove">Remove</string>
+    <string name="features_favorites_move_up">Move up</string>
+    <string name="features_favorites_move_down">Move down</string>
     <string name="features_new_summary">%2$d features added in the last %1$d days</string>
     <string name="home_module_activated">Module activated</string>
     <string name="home_brand_tagline">WeChat enhancement module</string>
