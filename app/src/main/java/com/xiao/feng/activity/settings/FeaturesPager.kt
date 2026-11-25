@@ -603,8 +603,11 @@ fun FavoritesScreen(onBack: () -> Unit) {
         return initialOffset + draggedDelta - item.offset
     }
 
-    fun isFavoriteKey(key: Any?): Boolean =
-        key is String && workingFeatures.any { it.technicalId == key }
+    fun isFavoriteKey(key: Any?): Boolean {
+        if (key !is String) return false
+        val id: String = key
+        return workingFeatures.any { it.technicalId == id }
+    }
 
     val dragModifier = if (editMode) {
         Modifier.pointerInput(editMode) {
