@@ -16,6 +16,11 @@ import com.xiao.feng.features.core.SwitchFeature
 object FeatureFavorites {
     private const val KEY = "feature_favorites_order"
 
+    /** Static id → feature lookup shared by every caller, built once instead of per read. */
+    private val featuresById: Map<String, SwitchFeature> by lazy {
+        FeaturesProvider.ALL_FEATURES.filterIsInstance<SwitchFeature>().associateBy { it.technicalId }
+    }
+
     var revision by mutableIntStateOf(0)
         private set
 
@@ -25,12 +30,7 @@ object FeatureFavorites {
 
     fun contains(id: String): Boolean = id in ids()
 
-    fun features(): List<SwitchFeature> {
-        val byId = FeaturesProvider.ALL_FEATURES
-            .filterIsInstance<SwitchFeature>()
-            .associateBy { it.technicalId }
-        return ids().mapNotNull { byId[it] }
-    }
+    fun features(): List<SwitchFeature> = ids().mapNotNull { featuresById[it] }
 
     fun add(item: SwitchFeature) {
         if (contains(item.technicalId)) return
@@ -38,19 +38,11 @@ object FeatureFavorites {
         revision++
     }
 
-    fun remove(item: SwitchFeature) {
-        raw = ids().filterNot { it == item.technicalId }.joinToString("\n")
-        revision++
-    }
-
-    /** Swaps the favorite at [index] with its neighbour [delta] positions away. */
-    fun move(index: Int, delta: Int) {
-        val list = ids().toMutableList()
-        val target = index + delta
-        if (index !in list.indices || target !in list.indices) return
-        val moved = list.removeAt(index)
-        list.add(target, moved)
-        raw = list.joinToString("\n")
+    /** Persists a fully reordered list in one write, so drag gestures do not hit the store per swap. */
+    fun setOrder(order: List<String>) {
+        val cleaned = order.filter { it.isNotBlank() }.distinct()
+        if (cleaned == ids()) return
+        raw = cleaned.joinToString("\n")
         revision++
     }
 }

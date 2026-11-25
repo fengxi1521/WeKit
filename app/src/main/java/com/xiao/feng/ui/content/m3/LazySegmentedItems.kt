@@ -22,6 +22,7 @@ import androidx.compose.ui.unit.dp
 fun <T> LazyListScope.lazySegmentedItems(
     items: List<T>,
     key: (T) -> Any,
+    itemModifier: ((T) -> Modifier)? = null,
     itemContent: @Composable (T) -> Unit,
 ) {
     itemsIndexed(
@@ -40,8 +41,7 @@ fun <T> LazyListScope.lazySegmentedItems(
         )
 
         Box(
-            Modifier
-                .animateItem(),
+            Modifier.then(itemModifier?.invoke(item) ?: Modifier.animateItem()),
         ) {
             Column {
                 if (index > 0) {

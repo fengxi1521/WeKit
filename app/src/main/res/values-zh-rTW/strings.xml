@@ -215,8 +215,7 @@
     <string name="features_favorites_empty">尚無收藏功能，點擊「新增功能」新增</string>
     <string name="features_favorites_all_added">已新增全部功能</string>
     <string name="features_favorites_remove">移除</string>
-    <string name="features_favorites_move_up">上移</string>
-    <string name="features_favorites_move_down">下移</string>
+    <string name="features_favorites_drag_hint">長按並拖動進行排序</string>
     <string name="features_new_summary">最近 %1$d 天新增 %2$d 個功能</string>
     <string name="home_module_activated">模塊已激活</string>
     <string name="home_brand_tagline">微信增強模組</string>

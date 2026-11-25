@@ -14,6 +14,8 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
+import androidx.compose.foundation.lazy.LazyListState
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.PagerState
 import androidx.compose.foundation.pager.rememberPagerState
@@ -326,16 +328,23 @@ fun M3ListScaffold(
     navigationIcon: @Composable (() -> Unit)? = null,
     subtitle: String? = null,
     eyebrow: String? = null,
+    state: LazyListState? = null,
+    userScrollEnabled: Boolean = true,
+    listModifier: Modifier = Modifier,
     content: LazyListScope.() -> Unit,
 ) {
+    val listState = state ?: rememberLazyListState()
     Scaffold(
         modifier = Modifier.fillMaxSize(),
         containerColor = MaterialTheme.colorScheme.surfaceContainer,
     ) { innerPadding ->
         LazyColumn(
+            state = listState,
+            userScrollEnabled = userScrollEnabled,
             modifier = Modifier
                 .fillMaxSize()
-                .xfPageBackground(),
+                .xfPageBackground()
+                .then(listModifier),
             contentPadding = PaddingValues(top = innerPadding.calculateTopPadding()),
         ) {
             item(key = "masthead") {

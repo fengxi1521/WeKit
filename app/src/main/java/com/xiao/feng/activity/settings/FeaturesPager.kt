@@ -4,6 +4,7 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -16,31 +17,40 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.zIndex
 import com.composables.icons.materialsymbols.MaterialSymbols
 import com.composables.icons.materialsymbols.outlined.Add
 import com.composables.icons.materialsymbols.outlined.Check_circle
 import com.composables.icons.materialsymbols.outlined.Chevron_right
 import com.composables.icons.materialsymbols.outlined.Close
+import com.composables.icons.materialsymbols.outlined.Drag_handle
 import com.composables.icons.materialsymbols.outlined.Expand_more
 import com.composables.icons.materialsymbols.outlined.Search
 import com.composables.icons.materialsymbols.outlined.Sort
@@ -69,6 +79,11 @@ import java.util.Locale
 @Composable
 private fun featureChecked(item: BaseFeature): Boolean = FeatureCategoryState.isEnabled(item)
 
+/** Toggleable features, filtered once and shared by search + favorites instead of per screen. */
+private val ALL_SWITCH_FEATURES: List<SwitchFeature> by lazy {
+    FeaturesProvider.ALL_FEATURES.filterIsInstance<SwitchFeature>()
+}
+
 // ---------------------------------------------------------------------------
 //  Page 1 — Features (command search + category grid)
 // ---------------------------------------------------------------------------
@@ -91,11 +106,9 @@ fun FeaturesPager(
         Collator.getInstance(Locale.forLanguageTag(resolvedLocale.androidTag))
     }
     val searchableItems = remember(resolvedLocale) {
-        FeaturesProvider.ALL_FEATURES
-            .filterIsInstance<SwitchFeature>()
-            .sortedWith { first, second ->
-                featureNameCollator.compare(first.localizedName(context), second.localizedName(context))
-            }
+        ALL_SWITCH_FEATURES.sortedWith { first, second ->
+            featureNameCollator.compare(first.localizedName(context), second.localizedName(context))
+        }
     }
     val filteredItems = remember(query, resolvedLocale, revision) {
         if (!searching) emptyList()
@@ -143,22 +156,12 @@ fun FeaturesPager(
             }
         } else {
             item { Spacer(Modifier.height(14.dp)) }
-            // 收藏入口固定在功能页最顶部, 用户可把常用功能收进来并自由排序。
-            item {
-                FeaturesNavEntry(
-                    icon = MaterialSymbols.Outlined.Star,
-                    title = stringResource(R.string.features_favorites_title),
-                    count = favoritesCount,
-                    onClick = onOpenFavorites,
-                    modifier = Modifier.padding(horizontal = 20.dp),
-                )
-            }
+            // 顶部顺序：新功能 / 已启用 → 收藏 → 更多功能。
             item {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 20.dp)
-                        .padding(top = 10.dp),
+                        .padding(horizontal = 20.dp),
                     horizontalArrangement = Arrangement.spacedBy(10.dp),
                 ) {
                     QuickChip(
@@ -176,6 +179,15 @@ fun FeaturesPager(
                         modifier = Modifier.weight(1f),
                     )
                 }
+            }
+            item {
+                FeaturesNavEntry(
+                    icon = MaterialSymbols.Outlined.Star,
+                    title = stringResource(R.string.features_favorites_title),
+                    count = favoritesCount,
+                    onClick = onOpenFavorites,
+                    modifier = Modifier.padding(horizontal = 20.dp).padding(top = 10.dp),
+                )
             }
             item {
                 FeaturesNavEntry(
@@ -545,12 +557,11 @@ fun FavoritesScreen(onBack: () -> Unit) {
     var query by remember { mutableStateOf("") }
 
     val favorites = remember(revision, favoritesRevision) { FeatureFavorites.features() }
-    val allSwitchFeatures = remember { FeaturesProvider.ALL_FEATURES.filterIsInstance<SwitchFeature>() }
     val candidates = remember(adding, query, favoritesRevision) {
         if (!adding) {
             emptyList()
         } else {
-            allSwitchFeatures
+            ALL_SWITCH_FEATURES
                 .filter { !FeatureFavorites.contains(it.technicalId) }
                 .filter {
                     query.isBlank() ||
@@ -561,10 +572,93 @@ fun FavoritesScreen(onBack: () -> Unit) {
         }
     }
 
+    // Drag-sort working state. The order is held in memory while dragging and written back once per
+    // gesture, so a swap never touches KvStore or invalidates the whole feature page.
+    val workingFeatures = remember { mutableStateListOf<SwitchFeature>() }
+    val listState = rememberLazyListState()
+    var draggingId by remember { mutableStateOf<String?>(null) }
+    var initialOffset by remember { mutableIntStateOf(0) }
+    var draggedDelta by remember { mutableFloatStateOf(0f) }
+
+    fun persistWorking() {
+        FeatureFavorites.setOrder(workingFeatures.map { it.technicalId })
+    }
+
+    LaunchedEffect(editMode, favoritesRevision) {
+        if (editMode) {
+            workingFeatures.clear()
+            workingFeatures.addAll(FeatureFavorites.features())
+        }
+    }
+
+    // Guarantee the in-memory drag order is written when sort mode ends or the screen closes.
+    DisposableEffect(editMode) {
+        val wasSorting = editMode
+        onDispose { if (wasSorting) persistWorking() }
+    }
+
+    fun offsetForId(id: String?): Float {
+        if (id == null) return 0f
+        val item = listState.layoutInfo.visibleItemsInfo.firstOrNull { it.key == id } ?: return 0f
+        return initialOffset + draggedDelta - item.offset
+    }
+
+    fun isFavoriteKey(key: Any?): Boolean =
+        key is String && workingFeatures.any { it.technicalId == key }
+
+    val dragModifier = if (editMode) {
+        Modifier.pointerInput(editMode) {
+            detectDragGesturesAfterLongPress(
+                onDragStart = { offset ->
+                    val hit = listState.layoutInfo.visibleItemsInfo.firstOrNull { info ->
+                        offset.y.toInt() in info.offset..(info.offset + info.size) && isFavoriteKey(info.key)
+                    }
+                    if (hit != null) {
+                        draggingId = hit.key as String
+                        initialOffset = hit.offset
+                        draggedDelta = 0f
+                    }
+                },
+                onDragEnd = {
+                    if (draggingId != null) persistWorking()
+                    draggingId = null
+                    draggedDelta = 0f
+                },
+                onDragCancel = {
+                    draggingId = null
+                    draggedDelta = 0f
+                },
+                onDrag = { change, amount ->
+                    change.consume()
+                    val id = draggingId ?: return@detectDragGesturesAfterLongPress
+                    draggedDelta += amount.y
+                    val info = listState.layoutInfo.visibleItemsInfo
+                    val cur = info.firstOrNull { it.key == id } ?: return@detectDragGesturesAfterLongPress
+                    val center = cur.offset + offsetForId(id) + cur.size / 2f
+                    val target = info.firstOrNull { other ->
+                        other.key != id && isFavoriteKey(other.key) &&
+                            center in other.offset.toFloat()..(other.offset + other.size).toFloat()
+                    }
+                    if (target != null) {
+                        val from = workingFeatures.indexOfFirst { it.technicalId == id }
+                        val to = workingFeatures.indexOfFirst { it.technicalId == target.key }
+                        if (from >= 0 && to >= 0 && from != to) {
+                            workingFeatures.add(to, workingFeatures.removeAt(from))
+                        }
+                    }
+                },
+            )
+        }
+    } else {
+        Modifier
+    }
+
     M3ListScaffold(
         title = stringResource(R.string.features_favorites_title),
         navigationIcon = { ExpressiveBackButton(onClick = onBack) },
         subtitle = stringResource(R.string.features_category_count, favorites.size),
+        state = listState,
+        listModifier = dragModifier,
     ) {
         item { Spacer(Modifier.height(14.dp)) }
 
@@ -667,19 +761,37 @@ fun FavoritesScreen(onBack: () -> Unit) {
                     FavoritesEmptyState(stringResource(R.string.features_favorites_empty))
                 }
 
-                editMode -> lazySegmentedItems(
-                    favorites.withIndex().toList(),
-                    key = { it.value.technicalId },
-                ) { indexed ->
-                    Column(Modifier.padding(horizontal = 16.dp)) {
-                        FavoriteEditRow(
-                            feature = indexed.value,
-                            index = indexed.index,
-                            lastIndex = favorites.lastIndex,
-                            onMoveUp = { FeatureFavorites.move(indexed.index, -1) },
-                            onMoveDown = { FeatureFavorites.move(indexed.index, +1) },
-                            onRemove = { FeatureFavorites.remove(indexed.value) },
+                editMode -> {
+                    item {
+                        Text(
+                            text = stringResource(R.string.features_favorites_drag_hint),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(horizontal = 20.dp).padding(bottom = 8.dp),
                         )
+                    }
+                    lazySegmentedItems(
+                        workingFeatures,
+                        key = { it.technicalId },
+                        itemModifier = { feature ->
+                            if (feature.technicalId == draggingId) {
+                                Modifier
+                                    .zIndex(1f)
+                                    .graphicsLayer { translationY = offsetForId(feature.technicalId) }
+                            } else {
+                                Modifier
+                            }
+                        },
+                    ) { feature ->
+                        Column(Modifier.padding(horizontal = 16.dp)) {
+                            FavoriteEditRow(
+                                feature = feature,
+                                onRemove = {
+                                    workingFeatures.remove(feature)
+                                    persistWorking()
+                                },
+                            )
+                        }
                     }
                 }
 
@@ -699,14 +811,10 @@ fun FavoritesScreen(onBack: () -> Unit) {
     }
 }
 
-/** Reorder/remove row shown in the favorites sort mode. */
+/** Draggable row shown in the favorites sort mode; grab anywhere and drag to reorder. */
 @Composable
 private fun FavoriteEditRow(
     feature: SwitchFeature,
-    index: Int,
-    lastIndex: Int,
-    onMoveUp: () -> Unit,
-    onMoveDown: () -> Unit,
     onRemove: () -> Unit,
 ) {
     val context = LocalXiaoFengLocalizedContext.current
@@ -717,20 +825,13 @@ private fun FavoriteEditRow(
         description = feature.localizedDescription(context).ifBlank { null },
         trailingContent = {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                IconButton(onClick = onMoveUp, enabled = index > 0) {
-                    Icon(
-                        imageVector = MaterialSymbols.Outlined.Expand_more,
-                        contentDescription = stringResource(R.string.features_favorites_move_up),
-                        modifier = Modifier.size(20.dp).rotate(180f),
-                    )
-                }
-                IconButton(onClick = onMoveDown, enabled = index < lastIndex) {
-                    Icon(
-                        imageVector = MaterialSymbols.Outlined.Expand_more,
-                        contentDescription = stringResource(R.string.features_favorites_move_down),
-                        modifier = Modifier.size(20.dp),
-                    )
-                }
+                Icon(
+                    imageVector = MaterialSymbols.Outlined.Drag_handle,
+                    contentDescription = stringResource(R.string.features_favorites_drag_hint),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(20.dp),
+                )
+                Spacer(Modifier.width(4.dp))
                 IconButton(onClick = onRemove) {
                     Icon(
                         imageVector = MaterialSymbols.Outlined.Close,
