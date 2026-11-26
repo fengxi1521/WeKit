@@ -547,6 +547,59 @@ object ConversationAggregation : ClickableFeature(),
         }
     }
 
+    /**
+     * Re-binds a folder's members right before its container opens.
+     *
+     * WeChat rewrites conversation rows on incoming messages — while the app is in the background
+     * that happens in the `:push` process, where this feature is not loaded, so the rows come back
+     * with `parentRef` reset to '' and the folder loses its members. The homepage reconcile repairs
+     * this asynchronously on resume, but a user who opens the folder before that reconcile finishes
+     * queries zero rows and sees a blank "暂无聊天" screen. Binding here, before the container reads
+     * its list, closes that race.
+     *
+     * The common case (rows still bound) costs a single indexed `LIMIT 1` probe; the full repair
+     * only runs when the folder actually came up empty.
+     */
+    private fun ensureFolderRowsBound(folderId: String) {
+        if (!WeDatabaseApi.isReady) return
+        val folder = folderById(folderId) ?: return
+        runCatching {
+            withQueryRewriteSuppressed {
+                if (hasBoundRows(folderId)) return@withQueryRewriteSuppressed
+                val members = getFolderMembers(folder).filterNot(::isFolderId).distinct()
+                if (members.isEmpty()) return@withQueryRewriteSuppressed
+                WeDatabaseApi.transaction {
+                    ensureManualMemberRows(listOf(folder), members)
+                    members.chunked(SQLITE_BIND_CHUNK_SIZE - 1).forEach { chunk ->
+                        WeDatabaseApi.execStatement(
+                            """
+                            UPDATE ${ConversationTable.NAME}
+                            SET ${ConversationTable.PARENT_REF}=?
+                            WHERE ${ConversationTable.USERNAME} IN (${placeholders(chunk.size)})
+                              AND (${ConversationTable.PARENT_REF} IS NULL OR ${ConversationTable.PARENT_REF}=''
+                                   OR ${ConversationTable.PARENT_REF}=? OR ${ConversationTable.PARENT_REF}=?)
+                            """.trimIndent(),
+                            arrayOf(
+                                folderId, *chunk.toTypedArray(),
+                                WeChatFolderPlaceholder.CONVERSATION_BOX,
+                                WeChatFolderPlaceholder.MESSAGE_FOLD,
+                            )
+                        )
+                    }
+                }
+                WeLogger.i(TAG, "re-bound ${members.size} rows of folder $folderId before opening it")
+            }
+        }.onFailure {
+            WeLogger.w(TAG, "failed to re-bind folder $folderId before opening", it)
+        }
+    }
+
+    private fun hasBoundRows(folderId: String): Boolean =
+        WeDatabaseApi.rawQuery(
+            "SELECT 1 FROM ${ConversationTable.NAME} WHERE ${ConversationTable.PARENT_REF}=? LIMIT 1",
+            arrayOf(folderId)
+        ).use { it.moveToFirst() }
+
     private fun startRefreshThread() {
         val thread = HandlerThread("xfeng-folder-refresh").also {
             it.start()
@@ -578,6 +631,7 @@ object ConversationAggregation : ClickableFeature(),
             activeFolderId = folderId
             intent.setClassName(param.thisObject as? Context ?: return, CONTAINER_UI_NAME)
         }
+        ensureFolderRowsBound(folderId)
         applyFolderContainerIntent(intent, folderId)
     }
 
@@ -611,6 +665,7 @@ object ConversationAggregation : ClickableFeature(),
     ) {
         if (username == null || !isFolderId(username)) return
         activeFolderId = username
+        ensureFolderRowsBound(username)
         launchFolderContainer(source, username)
         cancelOriginal()
     }
@@ -618,7 +673,12 @@ object ConversationAggregation : ClickableFeature(),
     private fun hookConversationPages() {
         ConvBoxServiceConversationUI::class.hookBeforeOnCreate {
             val activity = thisObject as? Activity ?: return@hookBeforeOnCreate
-            activeFolderId = readFolderIdFromIntent(activity.intent) ?: activeFolderId
+            val fromIntent = readFolderIdFromIntent(activity.intent)
+            activeFolderId = fromIntent ?: activeFolderId
+            // Last chance before the container reads its list: WeChat may have reset the members'
+            // parentRef (the :push process rewrites conversation rows for background messages and
+            // drops our folder id), which would make the folder open completely blank.
+            fromIntent?.let { ensureFolderRowsBound(it) }
         }
 
         BaseConversationUI::class.reflekt().apply {
