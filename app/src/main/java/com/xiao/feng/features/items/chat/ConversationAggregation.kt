@@ -986,6 +986,7 @@ object ConversationAggregation : ClickableFeature(),
         val startedAt = SystemClock.elapsedRealtime()
         var listStructureChanged = false
         var changedSummaryIds = emptySet<String>()
+        var changedRowIds = emptySet<String>()
         runCatching {
             withQueryRewriteSuppressed {
                 if (!isFolderSchemaReady()) return@withQueryRewriteSuppressed
@@ -1023,11 +1024,26 @@ object ConversationAggregation : ClickableFeature(),
                     }
                 }
                 changedSummaryIds = changedSummaries.mapTo(linkedSetOf()) { it.first }
+                // WeChat periodically drops img_flag avatar rows and rewrites rcontact nicknames even
+                // for untouched folders. Repairing those only affects that single row, so it must not
+                // escalate into a full-list reload: reloadConversations() clears and rebuilds every
+                // row, which is what produced the intermittent white flash on every homepage resume
+                // (every chat exit / return from background runs MainUI.onResume -> this reconcile).
+                val repairedRowIds = folders.mapNotNull { folder ->
+                    if (folder.id in storedRows &&
+                        (existingContacts[folder.id] != folder.name || folder.id !in existingAvatarRows)
+                    ) {
+                        folder.id
+                    } else {
+                        null
+                    }
+                }.toSet()
+                // Only genuine membership / row-set changes need the whole list rebuilt.
                 listStructureChanged = changedBindings.isNotEmpty() ||
                         removedMembers.isNotEmpty() || removedFolderIds.isNotEmpty() ||
-                        folders.any { it.id !in storedRows || existingContacts[it.id] != it.name } ||
-                        desiredFolderIds.any { it !in existingAvatarRows }
-                val databaseChanged = listStructureChanged || changedSummaryIds.isNotEmpty()
+                        folders.any { it.id !in storedRows }
+                changedRowIds = changedSummaryIds + repairedRowIds
+                val databaseChanged = listStructureChanged || changedRowIds.isNotEmpty()
 
                 if (databaseChanged) {
                     WeDatabaseApi.transaction {
@@ -1072,7 +1088,7 @@ object ConversationAggregation : ClickableFeature(),
             if (listStructureChanged) {
                 WeConversationApi.reloadConversations()
             } else {
-                changedSummaryIds.forEach(WeConversationApi::refreshConversation)
+                changedRowIds.forEach(WeConversationApi::refreshConversation)
             }
         }.onFailure {
             WeLogger.e(TAG, "failed to sync folders", it)
