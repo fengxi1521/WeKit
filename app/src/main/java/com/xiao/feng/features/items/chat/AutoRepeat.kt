@@ -1,6 +1,7 @@
 package com.xiao.feng.features.items.chat
 
 import android.content.ContentValues
+import android.content.Context
 import androidx.activity.ComponentActivity
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -168,7 +169,7 @@ object AutoRepeat : ClickableFeature(), WeDatabaseListenerApi.IInsertListener {
     private fun newScope() = CoroutineScope(Dispatchers.IO + SupervisorJob())
 }
 
-private fun showAutoRepeatDialog(context: ComponentActivity) {
+fun showAutoRepeatDialog(context: Context) {
     showComposeDialog(context) {
         var targets by remember { mutableStateOf(AutoRepeat.targets) }
         var threshold by remember {

@@ -4396,6 +4396,16 @@
     <string name="feature_auto_pat_back_description">别人拍你时自动拍回去，可指定生效的群聊或好友</string>
     <string name="feature_auto_repeat_name">自动复读</string>
     <string name="feature_auto_repeat_description">会话中连续出现相同消息达到设定条数时自动复读，可指定生效的群聊或好友</string>
+    <string name="auto_repeat_menu_enable">开启自动复读</string>
+    <string name="auto_repeat_menu_disable">关闭自动复读</string>
+    <string name="auto_repeat_toast_enabled">已开启自动复读</string>
+    <string name="auto_repeat_toast_disabled">已关闭自动复读</string>
+    <string name="feature_follow_repeat_name">跟发复读</string>
+    <string name="feature_follow_repeat_description">指定一个人，他在哪个聊天里发什么，你就紧跟着发一样的：文字、图片、语音、视频、表情等都支持</string>
+    <string name="follow_repeat_targets_title">跟发对象</string>
+    <string name="follow_repeat_targets_empty">未指定</string>
+    <string name="follow_repeat_targets_count">已选 %1$d 人</string>
+    <string name="follow_repeat_targets_select">选择要跟发的人</string>
     <string name="auto_repeat_threshold_title">触发条数</string>
     <string name="auto_repeat_threshold_description">连续相同消息达到该条数后自动复读</string>
     <string name="auto_repeat_threshold_suffix">条</string>

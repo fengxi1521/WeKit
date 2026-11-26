@@ -1,6 +1,8 @@
 package com.xiao.feng.features.items.chat_input_bar_menu
 
 import com.composables.icons.materialsymbols.MaterialSymbols
+import com.composables.icons.materialsymbols.outlined.Content_copy
+import com.composables.icons.materialsymbols.outlined.Format_quote
 import com.composables.icons.materialsymbols.outlined.Redeem
 import com.composables.icons.materialsymbols.outlined.Settings
 import com.composables.icons.materialsymbols.outlined.Smart_toy
@@ -10,9 +12,13 @@ import com.xiao.feng.features.api.ui.WeCurrentConversationApi
 import com.xiao.feng.features.api.ui.WeSettingsInjector
 import com.xiao.feng.features.core.ApiFeature
 import com.xiao.feng.features.core.FeatureCategoryIds
+import com.xiao.feng.features.items.chat.AutoRepeat
+import com.xiao.feng.features.items.chat.showAutoRepeatDialog
+import com.xiao.feng.features.items.chat.showFollowRepeatDialog
 import com.xiao.feng.features.items.chat.ai.showAtReplyDialog
 import com.xiao.feng.features.items.chat.ai.showAtReplyGroupDialog
 import com.xiao.feng.features.items.payment.RedPacketSettings
+import com.xiao.feng.utils.android.showToast
 
 /**
  * 长按聊天输入栏 "+" 弹出的菜单里的设置入口：抢红包配置（全局 / 单独会话）和艾特回复。
@@ -34,6 +40,37 @@ object ChatAutomationMenu : ApiFeature(), WeChatInputBarMenuApi.IActionItemsProv
             label = localizedChatInputString(R.string.xfeng_module_menu_entry),
             onClick = { context, _ -> WeSettingsInjector.openSettingsDialog(context) },
             order = 0,
+        ),
+        WeChatInputBarMenuApi.ActionItem(
+            id = "follow_repeat",
+            icon = MaterialSymbols.Outlined.Content_copy,
+            label = localizedChatInputString(R.string.feature_follow_repeat_name),
+            onClick = { context, _ -> showFollowRepeatDialog(context) },
+            order = 1,
+        ),
+        WeChatInputBarMenuApi.ActionItem(
+            id = "auto_repeat_toggle",
+            icon = MaterialSymbols.Outlined.Format_quote,
+            label = localizedChatInputString(
+                if (AutoRepeat.isEnabled) {
+                    R.string.auto_repeat_menu_disable
+                } else {
+                    R.string.auto_repeat_menu_enable
+                }
+            ),
+            // 单击直接开关, 长按进入完整的会话范围 / 阈值设置。
+            onClick = { context, _ ->
+                val next = !AutoRepeat.isEnabled
+                AutoRepeat.applyToggle(next)
+                showToast(
+                    context,
+                    localizedChatInputString(
+                        if (next) R.string.auto_repeat_toast_enabled else R.string.auto_repeat_toast_disabled
+                    )
+                )
+            },
+            onLongClick = { context, _ -> showAutoRepeatDialog(context) },
+            order = 2,
         ),
         WeChatInputBarMenuApi.ActionItem(
             id = "red_packet_settings",
