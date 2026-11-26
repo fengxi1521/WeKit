@@ -166,6 +166,10 @@ fun showFollowRepeatDialog(context: Context) {
                                     onConfirm = { selected ->
                                         followers = selected
                                         FollowRepeat.followers = selected
+                                        // 从菜单里选了人就直接启用, 否则功能开关没开时监听根本没注册。
+                                        if (selected.isNotEmpty() && !FollowRepeat.isEnabled) {
+                                            FollowRepeat.applyToggle(true)
+                                        }
                                         this.onDismiss()
                                     },
                                 )
