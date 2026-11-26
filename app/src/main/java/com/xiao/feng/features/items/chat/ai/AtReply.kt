@@ -107,6 +107,15 @@ object AtReply : ClickableFeature(), WeDatabaseListenerApi.IInsertListener {
         }
     }
 
+    /** 「进群自动启用」入口: 复用聊天菜单长按的 per-group 生效语义。 */
+    fun addToGroup(groupId: String) = setGroupEnabled(groupId, true)
+
+    /** 「退群清理」入口: 从 targets / excludedTargets 同时移除该群。 */
+    fun removeFromGroup(groupId: String) {
+        if (targets.isNotEmpty() && groupId in targets) targets = targets - groupId
+        if (groupId in excludedTargets) excludedTargets = excludedTargets - groupId
+    }
+
     /** 把当前已有的群记为已知; 开启「新群自动加入」时调用, 避免把老群当成新群。 */
     fun markGroupsKnown(groupIds: Collection<String>) {
         if (groupIds.isEmpty()) return

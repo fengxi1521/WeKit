@@ -129,6 +129,19 @@ object AutoPatBack : ClickableFeature(), WeDatabaseListenerApi.IInsertListener {
 
     override fun onClick(context: ComponentActivity) = showAutoPatBackDialog(context)
 
+    /** 「进群自动启用」入口: 把新群加入生效集合。 */
+    fun addToGroup(groupId: String) {
+        if (targets.isEmpty()) return  // 全部模式, 无需追加
+        if (groupId in targets) return
+        targets = targets + groupId
+    }
+
+    /** 「退群清理」入口: 从生效集合移除。 */
+    fun removeFromGroup(groupId: String) {
+        if (groupId !in targets) return
+        targets = targets - groupId
+    }
+
     private fun newScope() = CoroutineScope(Dispatchers.IO + SupervisorJob())
 }
 

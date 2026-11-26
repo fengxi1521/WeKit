@@ -298,6 +298,32 @@ object ScheduledMessageSchedule {
         return messages
     }
 
+    /**
+     * 「退群清理」入口: 遍历所有定时消息, 从每条的 targets 里移除 [groupId]。
+     * 某条消息移除后如果没有 target 了就整条删掉 (留着也没法发)。
+     */
+    @Synchronized
+    fun removeGroupFromAll(groupId: String) {
+        val before = messages.size
+        val after = mutate { list ->
+            list.mapNotNull { message ->
+                val remaining = message.targets.filterNot { it.talker == groupId }
+                when {
+                    remaining.isEmpty() -> null
+                    remaining.size == message.targets.size -> message
+                    else -> message.copy(targets = remaining)
+                }
+            }
+        }
+        val dropped = before - after.size
+        if (dropped > 0 || before != after.size) {
+            WeLogger.i(
+                TAG,
+                "removed group $groupId from scheduled messages: before=$before after=${after.size} dropped=$dropped",
+            )
+        }
+    }
+
     @Synchronized
     fun install() {
         if (!TargetProcesses.isInMain) return

@@ -675,6 +675,18 @@ object AiChat : ClickableFeature(), WeDatabaseListenerApi.IInsertListener {
 
     override fun onClick(context: ComponentActivity) = showAiChatDialog(context)
 
+    /** 「进群自动启用」入口: AiChat targets 为空时没有任何会话生效, 所以直接追加。 */
+    fun addToGroup(groupId: String) {
+        if (groupId in targets) return
+        targets = targets + groupId
+    }
+
+    /** 「退群清理」入口: 从生效集合移除。 */
+    fun removeFromGroup(groupId: String) {
+        if (groupId !in targets) return
+        targets = targets - groupId
+    }
+
     private val GROUP_SENDER_REGEX = Regex("""^([^:\n]+):\n""")
 
     /** 「艾特回复」在上下文里标出被 @ 的那条消息, 让模型分清要回哪一句。 */

@@ -4450,6 +4450,10 @@
     <string name="at_reply_auto_add_description">When you join a new group, add it to the target list automatically. Has no effect while the list is empty (all groups).</string>
     <string name="at_reply_switch_title">Enable mention reply</string>
     <string name="at_reply_switch_description">Reply automatically when mentioned; turn off to stop responding entirely</string>
+
+    <string name="feature_group_auto_manager_name">Auto-enable on group join</string>
+    <string name="feature_group_auto_manager_description">Pick which features you want activated automatically whenever you join a new group. When you leave or get kicked out, those features\u2019 scopes are cleaned up.</string>
+    <string name="group_auto_pool_title">Features to auto-enable</string>
     <string name="at_reply_group_settings_title">@-reply · this group</string>
     <string name="at_reply_group_switch_title">Enabled in this group</string>
     <string name="at_reply_group_switch_description">Only affects this group; the master switch above must stay on</string>

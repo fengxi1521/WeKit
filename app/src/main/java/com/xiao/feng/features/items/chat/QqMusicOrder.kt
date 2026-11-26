@@ -491,5 +491,19 @@ object QqMusicOrder : ClickableFeature(), WeDatabaseListenerApi.IInsertListener 
 
     override fun onClick(context: ComponentActivity) = showQqMusicOrderDialog(context)
 
+    /** 「进群自动启用」入口: 让新群允许其他人点歌 (加入 targets)。 */
+    fun addToGroup(groupId: String) {
+        if (groupId in targets) return
+        targets = targets + groupId
+        // 顺便把显式关闭也解除 —— 如果用户之前单独关了, 重新进群后应该恢复
+        if (groupId in disabledTargets) disabledTargets = disabledTargets - groupId
+    }
+
+    /** 「退群清理」入口: 从 targets 和 disabledTargets 同时移除。 */
+    fun removeFromGroup(groupId: String) {
+        if (groupId in targets) targets = targets - groupId
+        if (groupId in disabledTargets) disabledTargets = disabledTargets - groupId
+    }
+
     private data class MusicCommand(val keyword: String, val customSinger: String?)
 }
