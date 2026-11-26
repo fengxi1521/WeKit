@@ -4361,6 +4361,14 @@
     <string name="keyword_auto_reply_targets_empty">All chats</string>
     <string name="keyword_auto_reply_targets_count">%1$d chats selected</string>
     <string name="keyword_auto_reply_targets_select">Select chats</string>
+    <string name="xfeng_module_menu_entry">XiaoFeng</string>
+    <string name="feature_auto_pat_back_name">Auto pat back</string>
+    <string name="feature_auto_pat_back_description">Automatically pat back when someone pats you. Choose the chats or groups where it applies.</string>
+    <string name="feature_auto_repeat_name">Auto repeat</string>
+    <string name="feature_auto_repeat_description">Automatically repeat the message when the same text arrives several times in a row. Choose the chats or groups where it applies.</string>
+    <string name="auto_repeat_threshold_title">Trigger count</string>
+    <string name="auto_repeat_threshold_description">Repeat after this many identical messages in a row</string>
+    <string name="auto_repeat_threshold_suffix">messages</string>
     <string name="feature_we_gift_api_name">Gift service</string>
     <string name="feature_we_gift_api_description">Host gift claiming service used by Auto claim gifts</string>
     <string name="feature_auto_grab_gifts_name">Auto claim gifts</string>

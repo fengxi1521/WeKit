@@ -4391,6 +4391,14 @@
     <string name="keyword_auto_reply_targets_empty">全部聊天</string>
     <string name="keyword_auto_reply_targets_count">已选择 %1$d 个会话</string>
     <string name="keyword_auto_reply_targets_select">选择会话</string>
+    <string name="xfeng_module_menu_entry">小枫模块</string>
+    <string name="feature_auto_pat_back_name">自动回拍</string>
+    <string name="feature_auto_pat_back_description">别人拍你时自动拍回去，可指定生效的群聊或好友</string>
+    <string name="feature_auto_repeat_name">自动复读</string>
+    <string name="feature_auto_repeat_description">会话中连续出现相同消息达到设定条数时自动复读，可指定生效的群聊或好友</string>
+    <string name="auto_repeat_threshold_title">触发条数</string>
+    <string name="auto_repeat_threshold_description">连续相同消息达到该条数后自动复读</string>
+    <string name="auto_repeat_threshold_suffix">条</string>
     <string name="feature_we_gift_api_name">礼物领取服务</string>
     <string name="feature_we_gift_api_description">自动抢礼物使用的宿主礼物领取服务</string>
     <string name="feature_auto_grab_gifts_name">自动抢礼物</string>

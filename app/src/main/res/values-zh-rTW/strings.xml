@@ -4281,6 +4281,14 @@
     <string name="keyword_auto_reply_targets_empty">全部聊天</string>
     <string name="keyword_auto_reply_targets_count">已選擇 %1$d 個會話</string>
     <string name="keyword_auto_reply_targets_select">選擇會話</string>
+    <string name="xfeng_module_menu_entry">小楓模組</string>
+    <string name="feature_auto_pat_back_name">自動回拍</string>
+    <string name="feature_auto_pat_back_description">別人拍你時自動拍回去，可指定生效的群聊或好友</string>
+    <string name="feature_auto_repeat_name">自動複讀</string>
+    <string name="feature_auto_repeat_description">會話中連續出現相同訊息達到設定條數時自動複讀，可指定生效的群聊或好友</string>
+    <string name="auto_repeat_threshold_title">觸發條數</string>
+    <string name="auto_repeat_threshold_description">連續相同訊息達到該條數後自動複讀</string>
+    <string name="auto_repeat_threshold_suffix">條</string>
     <string name="feature_we_gift_api_name">禮物領取服務</string>
     <string name="feature_we_gift_api_description">自動搶禮物使用的宿主禮物領取服務</string>
     <string name="feature_auto_grab_gifts_name">自動搶禮物</string>

@@ -2,10 +2,12 @@ package com.xiao.feng.features.items.chat_input_bar_menu
 
 import com.composables.icons.materialsymbols.MaterialSymbols
 import com.composables.icons.materialsymbols.outlined.Redeem
+import com.composables.icons.materialsymbols.outlined.Settings
 import com.composables.icons.materialsymbols.outlined.Smart_toy
 import com.xiao.feng.R
 import com.xiao.feng.features.api.ui.WeChatInputBarMenuApi
 import com.xiao.feng.features.api.ui.WeCurrentConversationApi
+import com.xiao.feng.features.api.ui.WeSettingsInjector
 import com.xiao.feng.features.core.ApiFeature
 import com.xiao.feng.features.core.FeatureCategoryIds
 import com.xiao.feng.features.items.chat.ai.showAtReplyDialog
@@ -25,6 +27,14 @@ object ChatAutomationMenu : ApiFeature(), WeChatInputBarMenuApi.IActionItemsProv
     override val descriptionRes = R.string.feature_chat_automation_menu_description
 
     override fun getActionItems(): List<WeChatInputBarMenuApi.ActionItem> = listOf(
+        // 模块入口常驻最顶部, 点击直接进入小枫设置主页。
+        WeChatInputBarMenuApi.ActionItem(
+            id = "xfeng_module_settings",
+            icon = MaterialSymbols.Outlined.Settings,
+            label = localizedChatInputString(R.string.xfeng_module_menu_entry),
+            onClick = { context, _ -> WeSettingsInjector.openSettingsDialog(context) },
+            order = 0,
+        ),
         WeChatInputBarMenuApi.ActionItem(
             id = "red_packet_settings",
             icon = MaterialSymbols.Outlined.Redeem,

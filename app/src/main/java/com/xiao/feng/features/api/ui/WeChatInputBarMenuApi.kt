@@ -48,7 +48,9 @@ object WeChatInputBarMenuApi : ApiFeature(), IResolveDex {
         val label: String,
         val isSupported: (Context, ChatFooter) -> Boolean = { _, _ -> true },
         val onClick: (Context, ChatFooter) -> Unit,
-        val onLongClick: ((Context, ChatFooter) -> Unit)? = null
+        val onLongClick: ((Context, ChatFooter) -> Unit)? = null,
+        /** 菜单排序, 数值越小越靠前; 相同值保持 provider 的注册顺序。 */
+        val order: Int = 100
     )
 
     private const val TAG = "WeChatInputBarMenuApi"
@@ -99,6 +101,7 @@ object WeChatInputBarMenuApi : ApiFeature(), IResolveDex {
         val applicableItems = providers
             .flatMap { it.getActionItems() }
             .filter { it.isSupported(context, chatFooter) }
+            .sortedBy { it.order }
 
         showComposeDialog(context) {
             AlertDialogContent(
