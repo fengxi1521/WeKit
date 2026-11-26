@@ -220,13 +220,15 @@ fun showKeywordAutoReplyDialog(context: ComponentActivity) {
 private fun ruleContentSummary(rule: AutoReplyRule): String {
     val items = rule.effectiveItems()
     if (items.isEmpty()) return "-"
-    return items.joinToString(" / ") { item ->
-        if (item.type == ScheduledMessageContentType.TEXT) {
+    val parts = mutableListOf<String>()
+    for (item in items) {
+        parts += if (item.type == ScheduledMessageContentType.TEXT) {
             item.value
         } else {
             contentItemTypeLabel(item.type)
         }
     }
+    return parts.joinToString(" / ")
 }
 
 private fun showAutoReplyRuleEditor(
