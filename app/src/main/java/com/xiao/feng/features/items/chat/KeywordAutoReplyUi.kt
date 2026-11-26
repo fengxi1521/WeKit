@@ -12,6 +12,8 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -27,6 +29,7 @@ import androidx.compose.runtime.toMutableStateList
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.composables.icons.materialsymbols.MaterialSymbols
 import com.composables.icons.materialsymbols.outlined.Add
@@ -34,15 +37,28 @@ import com.composables.icons.materialsymbols.outlined.Delete
 import com.xiao.feng.R
 import com.xiao.feng.features.api.core.WeDatabaseApi
 import com.xiao.feng.features.api.core.models.IWeContact
+import com.xiao.feng.features.items.chat.panel.pickPanelFile
+import com.xiao.feng.features.items.chat.scheduledmessages.ScheduledMessageContent
+import com.xiao.feng.features.items.chat.scheduledmessages.ScheduledMessageContentType
+import com.xiao.feng.features.items.chat.scheduledmessages.contentItemTypeLabel
+import com.xiao.feng.features.items.chat.scheduledmessages.importScheduledFile
+import com.xiao.feng.features.items.chat.scheduledmessages.pickMimeTypes
+import com.xiao.feng.features.items.chat.scheduledmessages.usesTextField
+import com.xiao.feng.i18n.LocalXiaoFengLocalizedContext
 import com.xiao.feng.ui.content.AlertDialogContent
 import com.xiao.feng.ui.content.Button
 import com.xiao.feng.ui.content.ContactsSelector
 import com.xiao.feng.ui.content.DefaultColumn
 import com.xiao.feng.ui.content.IconButton
 import com.xiao.feng.ui.content.TextButton
+import com.xiao.feng.ui.content.m3.DropDownMenuWidget
+import com.xiao.feng.ui.content.m3.DropdownOption
 import com.xiao.feng.ui.utils.ListItem
 import com.xiao.feng.ui.utils.showComposeDialog
+import com.xiao.feng.utils.android.showToast
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 fun showKeywordAutoReplyDialog(context: ComponentActivity) {
@@ -84,6 +100,7 @@ fun showKeywordAutoReplyDialog(context: ComponentActivity) {
                                     context = context,
                                     titleRes = R.string.keyword_auto_reply_add_title,
                                     initial = AutoReplyRule(id = newAutoReplyRuleId()),
+                                    contacts = contacts,
                                 ) { added -> rules.add(added) }
                             }
                         ) {
@@ -139,6 +156,7 @@ fun showKeywordAutoReplyDialog(context: ComponentActivity) {
                                             context = context,
                                             titleRes = R.string.keyword_auto_reply_edit_title,
                                             initial = rule,
+                                            contacts = contacts,
                                         ) { edited ->
                                             val index = rules.indexOfFirst { it.id == edited.id }
                                             if (index >= 0) rules[index] = edited
@@ -147,7 +165,7 @@ fun showKeywordAutoReplyDialog(context: ComponentActivity) {
                                     content = {
                                         Text(rule.keywords.joinToString(" / "))
                                     },
-                                    supportingContent = { Text(rule.reply) },
+                                    supportingContent = { Text(ruleContentSummary(rule)) },
                                     trailingContent = {
                                         Row(verticalAlignment = Alignment.CenterVertically) {
                                             Switch(
@@ -197,74 +215,237 @@ fun showKeywordAutoReplyDialog(context: ComponentActivity) {
     }
 }
 
+/** 列表里的回复预览: 文字直接展示, 媒体类显示类型名。 */
+@Composable
+private fun ruleContentSummary(rule: AutoReplyRule): String {
+    val items = rule.effectiveItems()
+    if (items.isEmpty()) return "-"
+    return items.joinToString(" / ") { item ->
+        if (item.type == ScheduledMessageContentType.TEXT) {
+            item.value
+        } else {
+            contentItemTypeLabel(item.type)
+        }
+    }
+}
+
 private fun showAutoReplyRuleEditor(
     context: Context,
     @StringRes titleRes: Int,
     initial: AutoReplyRule,
+    contacts: List<IWeContact>,
     onSave: (AutoReplyRule) -> Unit,
 ) {
     showComposeDialog(context) {
+        val localizedContext = LocalXiaoFengLocalizedContext.current
         var keywordsText by remember { mutableStateOf(initial.keywords.joinToString("\n")) }
-        var reply by remember { mutableStateOf(initial.reply) }
+        val items = remember {
+            initial.effectiveItems()
+                .ifEmpty { listOf(ScheduledMessageContent()) }
+                .toMutableStateList()
+        }
         var matchExact by remember { mutableStateOf(initial.matchExact) }
         var enabled by remember { mutableStateOf(initial.enabled) }
+        var ruleTargets by remember { mutableStateOf(initial.targets) }
+
+        fun updateItem(index: Int, value: ScheduledMessageContent) {
+            items[index] = value
+        }
+
+        fun removeItem(index: Int) {
+            items.removeAt(index)
+            if (items.isEmpty()) items.add(ScheduledMessageContent())
+        }
 
         val keywords = keywordsText.lines().map { it.trim() }.filter { it.isNotEmpty() }.distinct()
-        val canSave = keywords.isNotEmpty() && reply.isNotBlank()
+        val hasContent = items.any { it.value.isNotBlank() }
+        val canSave = keywords.isNotEmpty() && hasContent
 
         AlertDialogContent(
             modifier = Modifier.fillMaxWidth(),
             title = { Text(stringResource(titleRes)) },
             text = {
-                DefaultColumn {
-                    OutlinedTextField(
-                        modifier = Modifier.fillMaxWidth(),
-                        value = keywordsText,
-                        onValueChange = { keywordsText = it },
-                        label = { Text(stringResource(R.string.keyword_auto_reply_keywords)) },
-                        placeholder = {
-                            Text(stringResource(R.string.keyword_auto_reply_keywords_hint))
-                        },
-                        minLines = 2,
-                    )
-
-                    OutlinedTextField(
-                        modifier = Modifier.fillMaxWidth(),
-                        value = reply,
-                        onValueChange = { reply = it },
-                        label = { Text(stringResource(R.string.keyword_auto_reply_reply)) },
-                        placeholder = {
-                            Text(stringResource(R.string.keyword_auto_reply_reply_hint))
-                        },
-                        minLines = 2,
-                    )
-
-                    ListItem(
-                        content = { Text(stringResource(R.string.keyword_auto_reply_exact)) },
-                        supportingContent = {
-                            Text(stringResource(R.string.keyword_auto_reply_exact_description))
-                        },
-                        trailingContent = {
-                            Switch(checked = matchExact, onCheckedChange = { matchExact = it })
-                        },
-                    )
-
-                    ListItem(
-                        content = { Text(stringResource(R.string.keyword_auto_reply_enabled)) },
-                        trailingContent = {
-                            Switch(checked = enabled, onCheckedChange = { enabled = it })
-                        },
-                    )
-
-                    if (!canSave) {
-                        Text(
-                            stringResource(
-                                if (keywords.isEmpty()) R.string.keyword_auto_reply_need_keywords
-                                else R.string.keyword_auto_reply_need_reply
-                            ),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.error,
+                Column(Modifier.verticalScroll(rememberScrollState())) {
+                    DefaultColumn {
+                        OutlinedTextField(
+                            modifier = Modifier.fillMaxWidth(),
+                            value = keywordsText,
+                            onValueChange = { keywordsText = it },
+                            label = { Text(stringResource(R.string.keyword_auto_reply_keywords)) },
+                            placeholder = {
+                                Text(stringResource(R.string.keyword_auto_reply_keywords_hint))
+                            },
+                            minLines = 2,
                         )
+
+                        Text(
+                            stringResource(R.string.keyword_auto_reply_items_title),
+                            style = MaterialTheme.typography.labelLarge,
+                        )
+
+                        items.forEachIndexed { index, item ->
+                            Column(modifier = Modifier.fillMaxWidth()) {
+                                DropDownMenuWidget(
+                                    iconPlaceholder = false,
+                                    title = stringResource(R.string.scheduled_messages_item_type),
+                                    description = null,
+                                    value = item.type,
+                                    options = ScheduledMessageContentType.entries.map {
+                                        DropdownOption(it, contentItemTypeLabel(it))
+                                    },
+                                    onValueChange = { updateItem(index, item.copy(type = it)) },
+                                )
+
+                                if (item.usesTextField()) {
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                    ) {
+                                        OutlinedTextField(
+                                            modifier = Modifier.weight(1f),
+                                            value = item.value,
+                                            onValueChange = {
+                                                updateItem(index, item.copy(value = it))
+                                            },
+                                            label = {
+                                                Text(
+                                                    if (item.type == ScheduledMessageContentType.TEXT) {
+                                                        stringResource(R.string.scheduled_messages_content)
+                                                    } else {
+                                                        stringResource(R.string.scheduled_messages_item_xml)
+                                                    }
+                                                )
+                                            },
+                                            minLines = 2,
+                                        )
+                                        IconButton(onClick = { removeItem(index) }) {
+                                            Icon(
+                                                MaterialSymbols.Outlined.Delete,
+                                                contentDescription = stringResource(
+                                                    R.string.scheduled_messages_remove_item
+                                                ),
+                                                tint = MaterialTheme.colorScheme.error,
+                                            )
+                                        }
+                                    }
+                                } else {
+                                    ListItem(
+                                        modifier = Modifier.clickable {
+                                            pickPanelFile(
+                                                context,
+                                                item.pickMimeTypes()
+                                            ) { name, uri, activity ->
+                                                CoroutineScope(Dispatchers.IO).launch {
+                                                    val path = importScheduledFile(activity, uri, name)
+                                                    withContext(Dispatchers.Main) {
+                                                        activity.finish()
+                                                        if (path == null) {
+                                                            showToast(
+                                                                activity,
+                                                                localizedContext.getString(
+                                                                    R.string.scheduled_messages_import_failed
+                                                                ),
+                                                            )
+                                                        } else {
+                                                            updateItem(
+                                                                index,
+                                                                item.copy(value = path)
+                                                            )
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        },
+                                        content = {
+                                            Text(stringResource(R.string.scheduled_messages_pick_file))
+                                        },
+                                        supportingContent = {
+                                            Text(
+                                                text = item.value.ifBlank { "-" },
+                                                maxLines = 1,
+                                                overflow = TextOverflow.Ellipsis,
+                                            )
+                                        },
+                                        trailingContent = {
+                                            IconButton(onClick = { removeItem(index) }) {
+                                                Icon(
+                                                    MaterialSymbols.Outlined.Delete,
+                                                    contentDescription = stringResource(
+                                                        R.string.scheduled_messages_remove_item
+                                                    ),
+                                                    tint = MaterialTheme.colorScheme.error,
+                                                )
+                                            }
+                                        },
+                                    )
+                                }
+                            }
+                        }
+
+                        TextButton(onClick = { items.add(ScheduledMessageContent()) }) {
+                            Icon(MaterialSymbols.Outlined.Add, contentDescription = null)
+                            Text(stringResource(R.string.keyword_auto_reply_add_item))
+                        }
+
+                        ListItem(
+                            modifier = Modifier.clickable {
+                                showComposeDialog(context) {
+                                    ContactsSelector(
+                                        title = stringResource(R.string.keyword_auto_reply_rule_targets_title),
+                                        contacts = contacts,
+                                        initialSelectedWxIds = ruleTargets,
+                                        onDismiss = this.onDismiss,
+                                        onConfirm = { selected ->
+                                            ruleTargets = selected
+                                            this.onDismiss()
+                                        },
+                                    )
+                                }
+                            },
+                            content = {
+                                Text(stringResource(R.string.keyword_auto_reply_rule_targets_title))
+                            },
+                            supportingContent = {
+                                Text(
+                                    if (ruleTargets.isEmpty()) {
+                                        stringResource(R.string.keyword_auto_reply_rule_targets_follow_global)
+                                    } else {
+                                        stringResource(
+                                            R.string.keyword_auto_reply_rule_targets_count,
+                                            ruleTargets.size,
+                                        )
+                                    }
+                                )
+                            },
+                        )
+
+                        ListItem(
+                            content = { Text(stringResource(R.string.keyword_auto_reply_exact)) },
+                            supportingContent = {
+                                Text(stringResource(R.string.keyword_auto_reply_exact_description))
+                            },
+                            trailingContent = {
+                                Switch(checked = matchExact, onCheckedChange = { matchExact = it })
+                            },
+                        )
+
+                        ListItem(
+                            content = { Text(stringResource(R.string.keyword_auto_reply_enabled)) },
+                            trailingContent = {
+                                Switch(checked = enabled, onCheckedChange = { enabled = it })
+                            },
+                        )
+
+                        if (!canSave) {
+                            Text(
+                                stringResource(
+                                    if (keywords.isEmpty()) R.string.keyword_auto_reply_need_keywords
+                                    else R.string.keyword_auto_reply_need_reply
+                                ),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.error,
+                            )
+                        }
                     }
                 }
             },
@@ -275,9 +456,11 @@ private fun showAutoReplyRuleEditor(
                         onSave(
                             initial.copy(
                                 keywords = keywords,
-                                reply = reply.trim(),
+                                reply = "",
+                                items = items.filter { it.value.isNotBlank() },
                                 matchExact = matchExact,
                                 enabled = enabled,
+                                targets = ruleTargets,
                             )
                         )
                         onDismiss()

@@ -334,7 +334,7 @@ fun showScheduledMessagesDialog(context: ComponentActivity) {
 }
 
 @Composable
-private fun contentItemTypeLabel(type: ScheduledMessageContentType): String = stringResource(
+fun contentItemTypeLabel(type: ScheduledMessageContentType): String = stringResource(
     when (type) {
         ScheduledMessageContentType.TEXT -> R.string.scheduled_messages_item_text
         ScheduledMessageContentType.XML -> R.string.scheduled_messages_item_xml
@@ -346,10 +346,10 @@ private fun contentItemTypeLabel(type: ScheduledMessageContentType): String = st
     }
 )
 
-private fun ScheduledMessageContent.usesTextField(): Boolean =
+fun ScheduledMessageContent.usesTextField(): Boolean =
     type == ScheduledMessageContentType.TEXT || type == ScheduledMessageContentType.XML
 
-private fun ScheduledMessageContent.pickMimeTypes(): Array<String> = when (type) {
+fun ScheduledMessageContent.pickMimeTypes(): Array<String> = when (type) {
     ScheduledMessageContentType.IMAGE, ScheduledMessageContentType.EMOJI -> arrayOf("image/*")
     ScheduledMessageContentType.VIDEO -> arrayOf("video/*")
     ScheduledMessageContentType.VOICE -> arrayOf("audio/*")
@@ -357,7 +357,7 @@ private fun ScheduledMessageContent.pickMimeTypes(): Array<String> = when (type)
 }
 
 /** Copies a picked document into the module's files dir so the alarm can still read it later. */
-private fun importScheduledFile(activity: FragmentActivity, uri: Uri, name: String): String? =
+fun importScheduledFile(activity: FragmentActivity, uri: Uri, name: String): String? =
     runCatching {
         val dir = File(HostInfo.application.filesDir, "scheduled_messages").apply { mkdirs() }
         val safeName = name.substringAfterLast('/').ifBlank { "imported_file" }

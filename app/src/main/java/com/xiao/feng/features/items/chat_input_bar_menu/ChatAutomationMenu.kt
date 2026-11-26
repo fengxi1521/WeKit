@@ -1,7 +1,6 @@
 package com.xiao.feng.features.items.chat_input_bar_menu
 
 import com.composables.icons.materialsymbols.MaterialSymbols
-import com.composables.icons.materialsymbols.outlined.Content_copy
 import com.composables.icons.materialsymbols.outlined.Format_quote
 import com.composables.icons.materialsymbols.outlined.Redeem
 import com.composables.icons.materialsymbols.outlined.Settings
@@ -14,7 +13,6 @@ import com.xiao.feng.features.core.ApiFeature
 import com.xiao.feng.features.core.FeatureCategoryIds
 import com.xiao.feng.features.items.chat.AutoRepeat
 import com.xiao.feng.features.items.chat.showAutoRepeatDialog
-import com.xiao.feng.features.items.chat.showFollowRepeatDialog
 import com.xiao.feng.features.items.chat.ai.showAtReplyDialog
 import com.xiao.feng.features.items.chat.ai.showAtReplyGroupDialog
 import com.xiao.feng.features.items.payment.RedPacketSettings
@@ -40,13 +38,6 @@ object ChatAutomationMenu : ApiFeature(), WeChatInputBarMenuApi.IActionItemsProv
             label = localizedChatInputString(R.string.xfeng_module_menu_entry),
             onClick = { context, _ -> WeSettingsInjector.openSettingsDialog(context) },
             order = 0,
-        ),
-        WeChatInputBarMenuApi.ActionItem(
-            id = "follow_repeat",
-            icon = MaterialSymbols.Outlined.Content_copy,
-            label = localizedChatInputString(R.string.feature_follow_repeat_name),
-            onClick = { context, _ -> showFollowRepeatDialog(context) },
-            order = 1,
         ),
         WeChatInputBarMenuApi.ActionItem(
             id = "auto_repeat_toggle",

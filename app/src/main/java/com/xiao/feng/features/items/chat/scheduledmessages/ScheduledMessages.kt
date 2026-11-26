@@ -593,36 +593,7 @@ object ScheduledMessageSchedule {
         talker: String,
         displayName: String,
         randomizeLines: Boolean,
-    ): Boolean {
-        val value = item.value.replace("%friendName%", displayName)
-        return when (item.type) {
-            ScheduledMessageContentType.TEXT -> {
-                val text = if (randomizeLines) {
-                    value.lines().map { it.trim() }.filter { it.isNotEmpty() }
-                        .randomOrNull() ?: value
-                } else {
-                    value
-                }
-                WeMessageApi.sendText(talker, text)
-            }
-
-            ScheduledMessageContentType.XML -> WeMessageApi.sendXmlAppMsg(talker, value)
-            ScheduledMessageContentType.IMAGE -> WeMessageApi.sendImage(talker, item.value)
-            ScheduledMessageContentType.VIDEO -> WeMessageApi.sendVideo(talker, item.value)
-            ScheduledMessageContentType.FILE ->
-                WeMessageApi.sendFile(talker, item.value, File(item.value).name)
-
-            ScheduledMessageContentType.EMOJI -> WeMessageApi.sendEmoji(talker, item.value)
-            ScheduledMessageContentType.VOICE ->
-                WeMessageApi.sendVoice(talker, item.value, voiceDurationMs(item.value))
-        }
-    }
-
-    /** 语音时长取自模块的音频工具; 读不到时按 1 秒发送, 避免被微信拒收。 */
-    private fun voiceDurationMs(path: String): Int {
-        val duration = runCatching { AudioUtils.getDurationMs(path) }.getOrDefault(0L)
-        return (duration.takeIf { it > 0L } ?: 1000L).coerceAtMost(60_000L).toInt()
-    }
+    ): Boolean = sendScheduledContentItem(item, talker, displayName, randomizeLines)
 
     /** 把内容按朋友圈规则发布; 图片取前 9 张, 视频取第一个。 */
     private fun postToMoments(message: ScheduledMessage): Boolean {
@@ -743,4 +714,45 @@ private data class LegacyScheduledMessage(
         daysOfWeek = daysOfWeek,
         atEpochMillis = atEpochMillis,
     )
+}
+
+/**
+ * 发送一条内容项 (文字 / XML / 图片 / 视频 / 文件 / 表情 / 语音)。
+ *
+ * 定时消息和关键词回复共用同一套内容模型, 抽取到这里避免两处重复实现发送逻辑。
+ */
+fun sendScheduledContentItem(
+    item: ScheduledMessageContent,
+    talker: String,
+    displayName: String = "",
+    randomizeLines: Boolean = false,
+): Boolean {
+    val value = item.value.replace("%friendName%", displayName)
+    return when (item.type) {
+        ScheduledMessageContentType.TEXT -> {
+            val text = if (randomizeLines) {
+                value.lines().map { it.trim() }.filter { it.isNotEmpty() }
+                    .randomOrNull() ?: value
+            } else {
+                value
+            }
+            WeMessageApi.sendText(talker, text)
+        }
+
+        ScheduledMessageContentType.XML -> WeMessageApi.sendXmlAppMsg(talker, value)
+        ScheduledMessageContentType.IMAGE -> WeMessageApi.sendImage(talker, item.value)
+        ScheduledMessageContentType.VIDEO -> WeMessageApi.sendVideo(talker, item.value)
+        ScheduledMessageContentType.FILE ->
+            WeMessageApi.sendFile(talker, item.value, File(item.value).name)
+
+        ScheduledMessageContentType.EMOJI -> WeMessageApi.sendEmoji(talker, item.value)
+        ScheduledMessageContentType.VOICE ->
+            WeMessageApi.sendVoice(talker, item.value, scheduledVoiceDurationMs(item.value))
+    }
+}
+
+/** 语音时长取自模块的音频工具; 读不到时按 1 秒发送, 避免被微信拒收。 */
+private fun scheduledVoiceDurationMs(path: String): Int {
+    val duration = runCatching { AudioUtils.getDurationMs(path) }.getOrDefault(0L)
+    return (duration.takeIf { it > 0L } ?: 1000L).coerceAtMost(60_000L).toInt()
 }
