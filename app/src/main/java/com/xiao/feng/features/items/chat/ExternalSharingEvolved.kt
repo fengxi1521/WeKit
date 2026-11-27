@@ -224,7 +224,7 @@ object ExternalSharingEvolved : ClickableFeature() {
 
     /**
      * 读取宿主 `shortcuts.xml` 中声明的 `<share-target>`, 取一个支持分享给好友的目标。
-     * 优先取 `*/*` 类型的目标, 这样文字/图片/文件都能直达分享。
+     * 优先取通配 MIME 类型的目标, 这样文字/图片/文件都能直达分享。
      */
     private fun resolveHostShareTarget(): HostShareTarget? {
         val targets = runCatching { readHostShareTargets() }
