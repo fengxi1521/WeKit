@@ -53,7 +53,6 @@ import com.xiao.feng.featurepoints.dsl.dexMethod
 import com.xiao.feng.features.api.core.WeConversationApi
 import com.xiao.feng.features.api.core.WeDatabaseApi
 import com.xiao.feng.features.api.core.WeDatabaseListenerApi
-import com.xiao.feng.features.api.core.models.IWeContact
 import com.xiao.feng.features.api.ui.WeStartActivityApi
 import com.xiao.feng.features.core.ClickableFeature
 import com.xiao.feng.features.core.FeatureCategoryIds
@@ -61,7 +60,6 @@ import com.xiao.feng.features.items.chat.ConversationAggregation.syncFoldersToDa
 import com.xiao.feng.features.items.contacts.CustomLocalFriendAvatars
 import com.xiao.feng.i18n.LocalXiaoFengLocalizedContext
 import com.xiao.feng.ui.content.AlertDialogContent
-import com.xiao.feng.ui.content.BaseContactSelector
 import com.xiao.feng.ui.content.Button
 import com.xiao.feng.ui.content.ContactsSelector
 import com.xiao.feng.ui.content.DefaultColumn
@@ -84,8 +82,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 import java.lang.reflect.Proxy
-import java.text.Collator
-import java.util.Locale
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.io.path.div
@@ -765,8 +761,8 @@ object ConversationAggregation : ClickableFeature(),
     // Intercepts the "share to conversation" picker (SelectConversationUI) before WeChat's share
     // machinery runs. Our folder rows appear in that list because their parentRef is '' (root-level),
     // but they have no real chat thread — forwarding to one crashes. We cancel the call, show a
-    // picker scoped to that folder's members, then re-invoke doClickUser with the chosen member so
-    // the original share flow proceeds normally.
+    // multi-select picker scoped to that folder's members, then re-invoke doClickUser for every
+    // chosen member so WeChat's native picker checks them all and the user sends natively.
     private fun hookSelectConversationUi() {
         if (methodSelectConversationDoClickUser.isPlaceholder) return
         methodSelectConversationDoClickUser.hookBefore {
@@ -780,11 +776,11 @@ object ConversationAggregation : ClickableFeature(),
             // Cancel forwarding to the folder row itself — it has no real chat thread.
             result = null
 
-            showFolderMemberPicker(context, folder) { selectedWxId ->
+            showFolderMemberPicker(context, folder) { selectedWxIds ->
                 runCatching {
-                    originalMethod(arrayOf(selectedWxId))
+                    selectedWxIds.forEach { selectedWxId -> originalMethod(arrayOf(selectedWxId)) }
                 }.onFailure {
-                    WeLogger.e(TAG, "failed to forward share to member $selectedWxId", it)
+                    WeLogger.e(TAG, "failed to forward share to members $selectedWxIds", it)
                 }
             }
         }
@@ -823,28 +819,29 @@ object ConversationAggregation : ClickableFeature(),
         // Cancel the tap on the folder row itself — it has no real chat thread.
         param.result = null
 
-        showFolderMemberPicker(itemView.context, folder) { selectedWxId ->
+        showFolderMemberPicker(itemView.context, folder) { selectedWxIds ->
             runCatching {
-                folderField.set(selectedWxId)
                 try {
-                    // Re-run the ORIGINAL listener (bypasses this hook → no recursion) so WeChat
-                    // forwards to the real member exactly as if that row had been tapped.
-                    originalMethod()
+                    // 依次把每个成员写进模型并重放原生点击, 让微信自己把它们都加入转发列表。
+                    selectedWxIds.forEach { selectedWxId ->
+                        folderField.set(selectedWxId)
+                        originalMethod()
+                    }
                 } finally {
                     folderField.set(folderId)
                 }
             }.onFailure {
-                WeLogger.e(TAG, "failed to forward folder tap to member $selectedWxId", it)
+                WeLogger.e(TAG, "failed to forward folder tap to members $selectedWxIds", it)
             }
         }
     }
 
-    // Shows a picker scoped to a folder's members and invokes onMemberSelected with the chosen
-    // member's wxid. Shared by both the SelectConversationUI and MvvmContactListUI interceptions.
+    // 展示归拢文件夹内的成员多选列表, 确认后回传全部选中的成员 wxid。
+    // SelectConversationUI 与 MvvmContactListUI 两处拦截共用。
     private fun showFolderMemberPicker(
         context: Context,
         folder: ChatFolder,
-        onMemberSelected: (String) -> Unit
+        onMembersSelected: (List<String>) -> Unit
     ) {
         val members = getFolderMembers(folder).filterNot(::isFolderId).distinct()
         if (members.isEmpty()) {
@@ -858,61 +855,25 @@ object ConversationAggregation : ClickableFeature(),
                 WeDatabaseApi.getContacts().filter { it.wxId in membersSet }
             }
         }.getOrDefault(emptyList())
+        if (contacts.isEmpty()) {
+            showToast(localizedChatString(R.string.chat_aggregation_folder_empty))
+            return
+        }
 
         showComposeDialog(context) {
-            FolderShareTargetSelector(
+            ContactsSelector(
+                title = stringResource(R.string.chat_aggregation_select_forward_target),
                 contacts = contacts,
+                initialSelectedWxIds = emptySet(),
                 onDismiss = onDismiss,
-                onSelect = { selectedWxId ->
-                    onDismiss()
-                    onMemberSelected(selectedWxId)
+                onConfirm = { selected ->
+                    if (selected.isNotEmpty()) {
+                        onDismiss()
+                        onMembersSelected(selected.toList())
+                    }
                 }
             )
         }
-    }
-
-    // A member picker for the "share to conversation" folder interception. Mirrors the
-    // CustomLocalFriendAvatars pattern: no confirm button, each row carries a "选择" trailing
-    // button that fires the forward immediately (onItemclick does the same for convenience).
-    @Composable
-    private fun FolderShareTargetSelector(
-        contacts: List<IWeContact>,
-        onDismiss: () -> Unit,
-        onSelect: (String) -> Unit
-    ) {
-        var searchQuery by remember { mutableStateOf("") }
-        val chinaCollator = remember { Collator.getInstance(Locale.CHINA) }
-
-        val filteredContacts = remember(searchQuery, contacts, chinaCollator) {
-            contacts.filter {
-                it.displayName.contains(searchQuery, ignoreCase = true) ||
-                        it.wxId.contains(searchQuery, ignoreCase = true)
-            }.sortedWith(
-                compareBy<IWeContact> { it.displayName.isBlank() }
-                    .thenComparator { c1, c2 -> chinaCollator.compare(c1.displayName, c2.displayName) }
-            )
-        }
-
-        BaseContactSelector(
-            title = stringResource(R.string.chat_aggregation_select_forward_target),
-            searchQuery = searchQuery,
-            onSearchQueryChange = { searchQuery = it },
-            filteredContacts = filteredContacts,
-            confirmButtonText = "",
-            confirmButtonEnabled = false,
-            showConfirmButton = false,
-            dismissButtonText = stringResource(R.string.dialog_cancel),
-            onDismiss = onDismiss,
-            onConfirm = {},
-            selectionKey = Unit,
-            isSelected = { false },
-            trailingControl = { contact ->
-                TextButton(onClick = { onSelect(contact.wxId) }) {
-                    Text(stringResource(R.string.chat_aggregation_select))
-                }
-            },
-            onItemClick = { contact -> onSelect(contact.wxId) }
-        )
     }
 
     // Resolves the long-pressed conversation's username from the menu-create listener WeChat passes

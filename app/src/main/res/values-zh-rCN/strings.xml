@@ -821,7 +821,9 @@
     <string name="feature_emoji_game_control_name">表情游戏控制</string>
     <string name="feature_emoji_game_control_description">自定义猜拳和骰子的结果</string>
     <string name="feature_external_sharing_evolved_name">分享进化</string>
-    <string name="feature_external_sharing_evolved_description">让微信的系统分享菜单更易用 (没写完)</string>
+    <string name="feature_external_sharing_evolved_description">在系统分享面板中直接显示常用好友，点一下即可分享（长按微信图标也能看到）</string>
+    <string name="external_sharing_evolved_refreshed">已刷新 %1$d 个分享快捷方式</string>
+    <string name="external_sharing_evolved_unavailable">没有可用的分享快捷方式（无常用好友或快捷方式已达上限）</string>
     <string name="feature_fabricate_chat_history_message_name">伪造聊天记录消息</string>
     <string name="feature_fabricate_chat_history_message_description">创建伪造的聊天记录并生成卡片消息 XML</string>
     <string name="feature_fake_voice_duration_name">伪装语音时长</string>

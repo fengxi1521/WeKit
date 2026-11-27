@@ -793,7 +793,9 @@
     <string name="feature_emoji_game_control_name">表情遊戲控制</string>
     <string name="feature_emoji_game_control_description">自定義猜拳和骰子的結果</string>
     <string name="feature_external_sharing_evolved_name">分享進化</string>
-    <string name="feature_external_sharing_evolved_description">讓微信的系統分享菜單更易用 (沒寫完)</string>
+    <string name="feature_external_sharing_evolved_description">在系統分享面板中直接顯示常用好友，點一下即可分享（長按微信圖標也能看到）</string>
+    <string name="external_sharing_evolved_refreshed">已重新整理 %1$d 個分享捷徑</string>
+    <string name="external_sharing_evolved_unavailable">沒有可用的分享捷徑（無常用好友或捷徑已達上限）</string>
     <string name="feature_fabricate_chat_history_message_name">僞造聊天記錄消息</string>
     <string name="feature_fabricate_chat_history_message_description">創建僞造的聊天記錄並生成卡片消息 XML</string>
     <string name="feature_fake_voice_duration_name">僞裝語音時長</string>

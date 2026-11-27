@@ -859,7 +859,9 @@
     <string name="feature_emoji_game_control_name">Emoji game control</string>
     <string name="feature_emoji_game_control_description">Customize guessing and dice results</string>
     <string name="feature_external_sharing_evolved_name">Enhanced sharing</string>
-    <string name="feature_external_sharing_evolved_description">Make WeChat’s system sharing menu easier to use (not finished yet)</string>
+    <string name="feature_external_sharing_evolved_description">Show frequently used friends directly in the system share sheet (and in WeChat’s launcher shortcuts)</string>
+    <string name="external_sharing_evolved_refreshed">Refreshed %1$d share shortcuts</string>
+    <string name="external_sharing_evolved_unavailable">No share shortcut available (no frequent contacts or shortcut slots full)</string>
     <string name="feature_fabricate_chat_history_message_name">Fabricate chat history message</string>
     <string name="feature_fabricate_chat_history_message_description">Create fake chat history and generate card message XML</string>
     <string name="feature_fake_voice_duration_name">Fake voice duration</string>
