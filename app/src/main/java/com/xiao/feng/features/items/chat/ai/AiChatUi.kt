@@ -1,7 +1,6 @@
 package com.xiao.feng.features.items.chat.ai
 
 import android.content.Context
-import androidx.activity.ComponentActivity
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -415,7 +414,7 @@ fun showAiChatDialog(context: Context) {
 
 /** 让用户添加/删除 AI 可以跟发的本地表情图片（与「定时消息」的 EMOJI 内容一致）。 */
 private fun showAiChatStickerDialog(
-    context: ComponentActivity,
+    context: Context,
     initial: Set<String>,
     onUpdated: (Set<String>) -> Unit,
 ) {
