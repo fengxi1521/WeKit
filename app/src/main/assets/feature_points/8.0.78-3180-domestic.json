@@ -1417,6 +1417,12 @@
                 "methodShouldUseLightPush": "Lcom/tencent/mm/booter/m;->c()Z",
                 "methodShouldLaunchToMain": "Lvu1/q0;->bj(Lpc5/k4;Ljava/util/Map;Lcom/tencent/mm/pointers/PString;)Z"
             }
+        },
+        {
+            "technicalId": "自动回拍",
+            "descriptors": {
+                "methodPatMsgInsert": "Lnv3/l;->nj(Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;IJ)Landroid/util/Pair;"
+            }
         }
     ]
 }
