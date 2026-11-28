@@ -1,5 +1,6 @@
 package com.xiao.feng.features.items.chat.ai
 
+import android.content.Context
 import androidx.activity.ComponentActivity
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -46,10 +47,13 @@ import com.xiao.feng.ui.utils.showComposeDialog
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
-fun showAiChatDialog(context: ComponentActivity) {
+fun showAiChatDialog(context: Context, talker: String? = null) {
     showComposeDialog(context) {
         var enabledInput by remember { mutableStateOf(AiChat.chatEnabled) }
         var targetsInput by remember { mutableStateOf(AiChat.targets) }
+        var currentChatInput by remember {
+            mutableStateOf(talker != null && talker in AiChat.targets)
+        }
         var apiKeyInput by remember { mutableStateOf(AiChat.apiKey) }
         var baseUrlInput by remember { mutableStateOf(AiChat.baseUrl) }
         var modelInput by remember { mutableStateOf(AiChat.model) }
@@ -97,6 +101,21 @@ fun showAiChatDialog(context: ComponentActivity) {
                                     AiChat.restartAutomation()
                                 },
                             )
+                        }
+                        if (talker != null) {
+                            item {
+                                SwitchWidget(
+                                    title = stringResource(R.string.ai_chat_current_chat_title),
+                                    description = stringResource(R.string.ai_chat_current_chat_description),
+                                    checked = currentChatInput,
+                                    onCheckedChange = { checked ->
+                                        currentChatInput = checked
+                                        AiChat.setTargetEnabled(talker, checked)
+                                        targetsInput = AiChat.targets
+                                        enabledInput = AiChat.chatEnabled
+                                    },
+                                )
+                            }
                         }
                         item {
                             BaseWidget(

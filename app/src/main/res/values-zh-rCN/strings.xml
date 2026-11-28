@@ -4347,6 +4347,8 @@
     <string name="ai_chat_toggle_on">已在本聊天开启 AI 聊天</string>
     <string name="ai_chat_toggle_off">已在本聊天关闭 AI 聊天</string>
     <string name="ai_chat_enabled_title">启用 AI 聊天</string>
+    <string name="ai_chat_current_chat_title">本会话 AI 聊天</string>
+    <string name="ai_chat_current_chat_description">只影响当前会话，开启后这个会话由 AI 自动回复</string>
     <string name="ai_chat_enabled_description">在已选会话中自动回复</string>
     <string name="ai_chat_targets_title">聊天</string>
     <string name="ai_chat_targets_empty">尚未选择聊天</string>
@@ -4435,6 +4437,8 @@
     <string name="feature_qq_music_order_description">在聊天里发送歌名，自动回一张可播放的 QQ 音乐卡片</string>
     <string name="qq_music_order_need_keyword">请先在输入框输入歌名</string>
     <string name="qq_music_targets_title">其他人点歌的会话</string>
+    <string name="qq_music_current_chat_title">本会话点歌</string>
+    <string name="qq_music_current_chat_description">只影响当前会话，关闭后这个会话不再响应点歌</string>
     <string name="qq_music_targets_empty">仅处理自己发送的指令</string>
     <string name="qq_music_targets_count">已选择 %1$d 个会话</string>
     <string name="qq_music_select_title">选择会话</string>

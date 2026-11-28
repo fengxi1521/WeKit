@@ -27,7 +27,6 @@ import com.xiao.feng.features.items.chat.LocalStickerFiles
 import com.xiao.feng.utils.TargetProcess
 import com.xiao.feng.utils.TargetProcesses
 import com.xiao.feng.utils.WeLogger
-import com.xiao.feng.utils.android.showToast
 import com.xiao.feng.utils.strings.isGroupChatWxId
 import com.xiao.feng.utils.strings.stripWxId
 import kotlinx.coroutines.CoroutineScope
@@ -133,27 +132,19 @@ object AiChat : ClickableFeature(), WeDatabaseListenerApi.IInsertListener {
     private var scope = newScope()
     private var bubbleJob: Job? = null
 
-    /** 长按输入栏 "+" 打开的菜单里, 一键开关当前聊天的 AI。 */
+    /** 输入栏 "+" 菜单里的 AI 聊天入口: 单击打开配置, 当前会话的开关在配置里。 */
     private val menuProvider = WeChatInputBarMenuApi.IActionItemsProvider {
         val talker = WeCurrentConversationApi.value
         if (talker.isBlank()) return@IActionItemsProvider emptyList()
         val enabled = talker in targets
         listOf(
             WeChatInputBarMenuApi.ActionItem(
-                id = "ai_chat_toggle",
+                id = "ai_chat_settings",
                 icon = MaterialSymbols.Outlined.Chat,
                 label = localizedChatString(
                     if (enabled) R.string.ai_chat_toggle_menu_on else R.string.ai_chat_toggle_menu_off,
                 ),
-                onClick = { context, _ ->
-                    val nowEnabled = toggleTarget(talker)
-                    showToast(
-                        context,
-                        localizedChatString(
-                            if (nowEnabled) R.string.ai_chat_toggle_on else R.string.ai_chat_toggle_off,
-                        ),
-                    )
-                },
+                onClick = { context, _ -> showAiChatDialog(context, talker) },
             ),
         )
     }
@@ -185,16 +176,15 @@ object AiChat : ClickableFeature(), WeDatabaseListenerApi.IInsertListener {
         scope = newScope()
     }
 
-    /** 切换某个会话是否交给 AI; 打开时顺带启用全局开关, 免得多一步设置。 */
-    private fun toggleTarget(talker: String): Boolean {
+    /** 设置某个会话是否交给 AI; 打开时顺带启用全局开关, 免得多一步设置。 */
+    fun setTargetEnabled(talker: String, enabled: Boolean) {
         val next = targets.toMutableSet()
-        val enabled = if (next.remove(talker)) false else next.add(talker)
+        if (enabled) next.add(talker) else next.remove(talker)
         targets = next
         if (enabled) chatEnabled = true
         lastReplyAt.remove(talker)
         restartAutomation()
         WeLogger.i(TAG, "AI chat ${if (enabled) "enabled" else "disabled"} for $talker")
-        return enabled
     }
 
     /** 设置变化后重新评估冒泡循环。 */

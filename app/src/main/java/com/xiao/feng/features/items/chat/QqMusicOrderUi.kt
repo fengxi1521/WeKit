@@ -1,6 +1,6 @@
 package com.xiao.feng.features.items.chat
 
-import androidx.activity.ComponentActivity
+import android.content.Context
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.rememberScrollState
@@ -28,9 +28,12 @@ import com.xiao.feng.ui.utils.showComposeDialog
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
-fun showQqMusicOrderDialog(context: ComponentActivity) {
+fun showQqMusicOrderDialog(context: Context, talker: String? = null) {
     showComposeDialog(context) {
         var targetsInput by remember { mutableStateOf(QqMusicOrder.targets) }
+        var currentChatInput by remember {
+            mutableStateOf(talker == null || talker !in QqMusicOrder.disabledTargets)
+        }
         var allowSelfInput by remember { mutableStateOf(QqMusicOrder.allowSelfCommand) }
         var sendCardInput by remember { mutableStateOf(QqMusicOrder.sendAsCard) }
         var sendVoiceInput by remember { mutableStateOf(QqMusicOrder.sendAsVoice) }
@@ -58,6 +61,19 @@ fun showQqMusicOrderDialog(context: ComponentActivity) {
             text = {
                 Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
                     SegmentedColumn(contentPadding = PaddingValues(0.dp)) {
+                        if (talker != null) {
+                            item {
+                                SwitchWidget(
+                                    title = stringResource(R.string.qq_music_current_chat_title),
+                                    description = stringResource(R.string.qq_music_current_chat_description),
+                                    checked = currentChatInput,
+                                    onCheckedChange = { checked ->
+                                        currentChatInput = checked
+                                        QqMusicOrder.setTalkerDisabled(talker, !checked)
+                                    },
+                                )
+                            }
+                        }
                         item {
                             BaseWidget(
                                 title = stringResource(R.string.qq_music_targets_title),

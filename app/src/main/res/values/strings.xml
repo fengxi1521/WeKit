@@ -4317,6 +4317,8 @@
     <string name="ai_chat_toggle_on">AI chat enabled for this chat</string>
     <string name="ai_chat_toggle_off">AI chat disabled for this chat</string>
     <string name="ai_chat_enabled_title">Enable AI chat</string>
+    <string name="ai_chat_current_chat_title">AI chat in this chat</string>
+    <string name="ai_chat_current_chat_description">Only affects this chat; turn it on to let AI reply here automatically</string>
     <string name="ai_chat_enabled_description">Reply automatically in the selected chats</string>
     <string name="ai_chat_targets_title">Chats</string>
     <string name="ai_chat_targets_empty">No chats selected</string>
@@ -4405,6 +4407,8 @@
     <string name="feature_qq_music_order_description">Send a song name in a chat to get a playable QQ Music card</string>
     <string name="qq_music_order_need_keyword">Type a song name in the input box first</string>
     <string name="qq_music_targets_title">Chats for other members</string>
+    <string name="qq_music_current_chat_title">Music orders in this chat</string>
+    <string name="qq_music_current_chat_description">Only affects this chat; turn it off to stop answering music orders here</string>
     <string name="qq_music_targets_empty">Only commands you send are handled</string>
     <string name="qq_music_targets_count">%1$d chats selected</string>
     <string name="qq_music_select_title">Select chats</string>

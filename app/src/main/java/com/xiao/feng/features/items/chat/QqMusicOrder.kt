@@ -23,7 +23,6 @@ import com.xiao.feng.utils.HostInfo
 import com.xiao.feng.utils.TargetProcess
 import com.xiao.feng.utils.TargetProcesses
 import com.xiao.feng.utils.WeLogger
-import com.xiao.feng.utils.android.showToast
 import com.xiao.feng.utils.strings.isGroupChatWxId
 import com.xiao.feng.utils.strings.stripWxId
 import dev.ujhhgtg.reflekt.reflekt
@@ -118,59 +117,19 @@ object QqMusicOrder : ClickableFeature(), WeDatabaseListenerApi.IInsertListener 
     }
     private val processed = ConcurrentHashMap<String, Boolean>()
 
-    /** 长按聊天输入栏「+」菜单里的 QQ 点歌入口。 */
+    /** 聊天输入栏「+」菜单里的 QQ 点歌入口: 单击打开配置, 当前会话的开关在配置里。 */
     private val inputBarProvider = WeChatInputBarMenuApi.IActionItemsProvider {
         listOf(
             WeChatInputBarMenuApi.ActionItem(
-                id = "qq_music_order",
+                id = "qq_music_settings",
                 icon = MaterialSymbols.Outlined.Music_note,
                 label = HostLocalizedStrings.get(R.string.feature_qq_music_order_name),
                 isSupported = { _, _ -> WeCurrentConversationApi.value.isNotBlank() },
-                onClick = { context, chatFooter ->
-                    val talker = WeCurrentConversationApi.value
-                    if (talker in disabledTargets) {
-                        showToast(
-                            context,
-                            HostLocalizedStrings.get(R.string.qq_music_group_off_hint),
-                        )
-                        return@ActionItem
-                    }
-                    val keyword = chatFooter.lastText.trim()
-                    if (keyword.isEmpty()) {
-                        showToast(
-                            context,
-                            HostLocalizedStrings.get(R.string.qq_music_order_need_keyword),
-                        )
-                    } else {
-                        chatFooter.lastText = ""
-                        orderFromInputBar(talker, keyword)
-                    }
-                },
-                // 长按开关当前会话的点歌, 不影响其他群。
-                onLongClick = { context, _ ->
-                    val talker = WeCurrentConversationApi.value
-                    if (talker.isBlank()) return@ActionItem
-                    val disabled = talker !in disabledTargets
-                    setTalkerDisabled(talker, disabled)
-                    showToast(
-                        context,
-                        HostLocalizedStrings.get(
-                            if (disabled) R.string.qq_music_group_disabled
-                            else R.string.qq_music_group_enabled,
-                        ),
-                    )
+                onClick = { context, _ ->
+                    showQqMusicOrderDialog(context, WeCurrentConversationApi.value)
                 },
             ),
         )
-    }
-
-    /** 从输入栏菜单直接点歌, 跳过聊天指令解析。 */
-    fun orderFromInputBar(talker: String, keyword: String) {
-        if (talker.isBlank() || keyword.isBlank() || talker in disabledTargets) return
-        executor.execute {
-            runCatching { process(talker, WeApi.selfWxId, MusicCommand(keyword, null)) }
-                .onFailure { WeLogger.e(TAG, "failed to process music order from input bar", it) }
-        }
     }
 
     override fun onEnable() {
@@ -220,8 +179,8 @@ object QqMusicOrder : ClickableFeature(), WeDatabaseListenerApi.IInsertListener 
         WeLogger.i(TAG, "music order ${if (allowed) "enabled" else "disabled"} for $talker")
     }
 
-    /** 长按菜单入口切换整个会话的点歌开关。 */
-    private fun setTalkerDisabled(talker: String, disabled: Boolean) {
+    /** 切换整个会话的点歌开关; 由配置里的开关按钮调用。 */
+    fun setTalkerDisabled(talker: String, disabled: Boolean) {
         disabledTargets = if (disabled) disabledTargets + talker else disabledTargets - talker
         WeLogger.i(TAG, "music order ${if (disabled) "disabled" else "enabled"} in $talker")
     }
