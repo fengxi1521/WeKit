@@ -321,6 +321,10 @@ fun showAutoRepeatGroupDialog(context: Context, talker: String) {
     showComposeDialog(context) {
         var enabled by remember { mutableStateOf(AutoRepeat.isEnabled) }
         var groupEnabled by remember { mutableStateOf(AutoRepeat.isGroupEnabled(talker)) }
+        // 「生效会话」选了具体聊天时, 本群可能不在其中; 这种情况下也是实际关闭的。
+        var inScope by remember {
+            mutableStateOf(AutoRepeat.targets.isEmpty() || talker in AutoRepeat.targets)
+        }
 
         AlertDialogContent(
             modifier = Modifier.fillMaxWidth(),
@@ -342,14 +346,18 @@ fun showAutoRepeatGroupDialog(context: Context, talker: String) {
                         SwitchWidget(
                             title = stringResource(R.string.auto_repeat_group_switch_title),
                             description = stringResource(R.string.auto_repeat_group_switch_description),
-                            checked = enabled && groupEnabled,
+                            checked = enabled && groupEnabled && inScope,
                             onCheckedChange = { checked ->
                                 groupEnabled = checked
                                 AutoRepeat.setGroupEnabled(talker, checked)
-                                // 群里显示开启就必须真的生效: 一并打开总开关。
-                                if (checked && !enabled) {
-                                    enabled = true
-                                    AutoRepeat.applyToggle(true)
+                                if (checked) {
+                                    // 显示开启就必须真的生效: 补进生效会话并打开总开关。
+                                    AutoRepeat.addToGroup(talker)
+                                    inScope = true
+                                    if (!enabled) {
+                                        enabled = true
+                                        AutoRepeat.applyToggle(true)
+                                    }
                                 }
                             },
                         )

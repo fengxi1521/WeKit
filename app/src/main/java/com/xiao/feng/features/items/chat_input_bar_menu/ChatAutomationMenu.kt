@@ -33,11 +33,13 @@ object ChatAutomationMenu : ApiFeature(), WeChatInputBarMenuApi.IActionItemsProv
 
     override fun getActionItems(): List<WeChatInputBarMenuApi.ActionItem> {
         val talker = WeCurrentConversationApi.value
+        val groupOff = talker.isGroupChatWxId && (
+            !AutoRepeat.isGroupEnabled(talker) ||
+                (AutoRepeat.targets.isNotEmpty() && talker !in AutoRepeat.targets)
+            )
         val autoRepeatLabel = when {
             !AutoRepeat.isEnabled -> localizedChatInputString(R.string.auto_repeat_menu_label_off)
-            talker.isGroupChatWxId && !AutoRepeat.isGroupEnabled(talker) ->
-                localizedChatInputString(R.string.auto_repeat_menu_label_group_off)
-
+            groupOff -> localizedChatInputString(R.string.auto_repeat_menu_label_group_off)
             else -> localizedChatInputString(R.string.feature_auto_repeat_name)
         }
 
