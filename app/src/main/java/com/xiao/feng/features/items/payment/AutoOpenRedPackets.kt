@@ -337,7 +337,12 @@ object AutoOpenRedPackets : ClickableFeature(), WeDatabaseListenerApi.IInsertLis
             // 红包个数在 nativeurl 的 total_num 查询参数里(不是 XML 子节点); 取不到时不拦截, 避免误杀。
             val totalShares = uri.getQueryParameter("total_num")?.toIntOrNull()
                 ?: extractXmlParam(xmlContent, "total_num").toIntOrNull()
-            if (settings.minShares.enabled && totalShares != null) {
+            // 专属红包固定只有 1 个名额, 且只有 exclusive_recv_username 指定的那个人能领;
+            // 它不该被「最少红包个数」挡掉, 否则永远抢不到。
+            val isExclusive = extractXmlParam(xmlContent, "exclusive_recv_username").isNotEmpty()
+            if (isExclusive) {
+                WeLogger.i(TAG, "exclusive packet in $talker: bypassing minimum shares")
+            } else if (settings.minShares.enabled && totalShares != null) {
                 val minShares = settings.minShares.minShares.toIntOrNull() ?: 0
                 if (minShares > 0 && totalShares < minShares) {
                     WeLogger.i(TAG, "skipping packet in $talker: $totalShares shares < minimum $minShares")
