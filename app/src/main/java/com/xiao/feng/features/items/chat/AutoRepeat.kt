@@ -5,7 +5,6 @@ import android.content.Context
 import androidx.activity.ComponentActivity
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -30,6 +29,7 @@ import com.xiao.feng.ui.content.ContactsSelector
 import com.xiao.feng.ui.content.DefaultColumn
 import com.xiao.feng.ui.content.m3.BaseItemContainer
 import com.xiao.feng.ui.content.m3.IntNumberPickerWidget
+import com.xiao.feng.ui.content.m3.SwitchWidget
 import com.xiao.feng.ui.utils.ListItem
 import com.xiao.feng.ui.utils.showComposeDialog
 import com.xiao.feng.utils.WeLogger
@@ -185,18 +185,16 @@ object AutoRepeat : ClickableFeature(), WeDatabaseListenerApi.IInsertListener {
 
     fun isGroupEnabled(groupId: String): Boolean = groupId !in mutedGroups
 
-    /** 切换某个群的自动复读开关, 返回切换后的状态(是否开启)。 */
-    fun toggleGroup(groupId: String): Boolean {
-        val enable = groupId in mutedGroups
-        mutedGroups = if (enable) mutedGroups - groupId else mutedGroups + groupId
-        return enable
+    fun setGroupEnabled(groupId: String, enabled: Boolean) {
+        mutedGroups = if (enabled) mutedGroups - groupId else mutedGroups + groupId
     }
 
     private fun newScope() = CoroutineScope(Dispatchers.IO + SupervisorJob())
 }
 
-fun showAutoRepeatDialog(context: Context) {
+fun showAutoRepeatDialog(context: Context, groupId: String? = null) {
     showComposeDialog(context) {
+        var enabled by remember { mutableStateOf(AutoRepeat.isEnabled) }
         var targets by remember { mutableStateOf(AutoRepeat.targets) }
         var threshold by remember {
             mutableIntStateOf(
@@ -229,11 +227,32 @@ fun showAutoRepeatDialog(context: Context) {
             title = { Text(stringResource(R.string.feature_auto_repeat_name)) },
             text = {
                 DefaultColumn {
-                    Text(
-                        stringResource(R.string.feature_auto_repeat_description),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
+                    BaseItemContainer {
+                        SwitchWidget(
+                            title = stringResource(R.string.feature_auto_repeat_name),
+                            description = stringResource(R.string.feature_auto_repeat_description),
+                            checked = enabled,
+                            onCheckedChange = { checked ->
+                                enabled = checked
+                                AutoRepeat.applyToggle(checked)
+                            },
+                        )
+                    }
+
+                    if (groupId != null && groupId.isGroupChatWxId) {
+                        var groupEnabled by remember { mutableStateOf(AutoRepeat.isGroupEnabled(groupId)) }
+                        BaseItemContainer {
+                            SwitchWidget(
+                                title = stringResource(R.string.auto_repeat_group_switch_title),
+                                description = stringResource(R.string.auto_repeat_group_switch_description),
+                                checked = groupEnabled,
+                                onCheckedChange = { checked ->
+                                    groupEnabled = checked
+                                    AutoRepeat.setGroupEnabled(groupId, checked)
+                                },
+                            )
+                        }
+                    }
 
                     ListItem(
                         modifier = Modifier.clickable {

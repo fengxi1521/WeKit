@@ -4404,7 +4404,8 @@
     <string name="auto_repeat_toast_disabled">已关闭自动复读</string>
     <string name="auto_repeat_menu_label_off">自动复读（已关闭）</string>
     <string name="auto_repeat_menu_label_group_off">自动复读（本群已关闭）</string>
-    <string name="auto_repeat_group_only">仅群聊支持单独开关</string>
+    <string name="auto_repeat_group_switch_title">本群自动复读</string>
+    <string name="auto_repeat_group_switch_description">只影响当前群聊，关闭后本群不再自动复读</string>
     <string name="auto_repeat_interval_title">复读间隔</string>
     <string name="auto_repeat_interval_description">两次自动复读之间至少间隔这么久，避免短时间内连续复读</string>
     <string name="auto_repeat_interval_suffix">秒</string>

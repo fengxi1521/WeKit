@@ -4374,7 +4374,8 @@
     <string name="auto_repeat_toast_disabled">Auto repeat disabled</string>
     <string name="auto_repeat_menu_label_off">Auto repeat (off)</string>
     <string name="auto_repeat_menu_label_group_off">Auto repeat (off in this group)</string>
-    <string name="auto_repeat_group_only">Per-group switch is only available in group chats</string>
+    <string name="auto_repeat_group_switch_title">Auto repeat in this group</string>
+    <string name="auto_repeat_group_switch_description">Only affects this group; turn it off to stop auto repeat here</string>
     <string name="auto_repeat_interval_title">Repeat interval</string>
     <string name="auto_repeat_interval_description">Minimum time between two auto repeats, so it won’t repeat several times in a short period</string>
     <string name="auto_repeat_interval_suffix">s</string>

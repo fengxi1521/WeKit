@@ -16,7 +16,6 @@ import com.xiao.feng.features.items.chat.showAutoRepeatDialog
 import com.xiao.feng.features.items.chat.ai.showAtReplyDialog
 import com.xiao.feng.features.items.chat.ai.showAtReplyGroupDialog
 import com.xiao.feng.features.items.payment.RedPacketSettings
-import com.xiao.feng.utils.android.showToast
 import com.xiao.feng.utils.strings.isGroupChatWxId
 
 /**
@@ -54,30 +53,9 @@ object ChatAutomationMenu : ApiFeature(), WeChatInputBarMenuApi.IActionItemsProv
                 id = "auto_repeat_settings",
                 icon = MaterialSymbols.Outlined.Format_quote,
                 label = autoRepeatLabel,
-                // 单击调配置, 长按切换当前群聊的开关。
-                onClick = { context, _ -> showAutoRepeatDialog(context) },
-                onLongClick = { context, _ ->
-                    when {
-                        talker.isBlank() -> Unit
-                        !talker.isGroupChatWxId -> showToast(
-                            context,
-                            localizedChatInputString(R.string.auto_repeat_group_only),
-                        )
-
-                        else -> {
-                            val enabled = AutoRepeat.toggleGroup(talker)
-                            showToast(
-                                context,
-                                localizedChatInputString(
-                                    if (enabled) {
-                                        R.string.auto_repeat_toast_enabled
-                                    } else {
-                                        R.string.auto_repeat_toast_disabled
-                                    }
-                                ),
-                            )
-                        }
-                    }
+                // 单击进入配置, 总开关和当前群的开关都做成了开关按钮。
+                onClick = { context, _ ->
+                    showAutoRepeatDialog(context, WeCurrentConversationApi.value)
                 },
                 order = 2,
             ),
