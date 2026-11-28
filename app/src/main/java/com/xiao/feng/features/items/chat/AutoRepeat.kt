@@ -33,6 +33,7 @@ import com.xiao.feng.ui.content.m3.SwitchWidget
 import com.xiao.feng.ui.utils.ListItem
 import com.xiao.feng.ui.utils.showComposeDialog
 import com.xiao.feng.utils.WeLogger
+import com.xiao.feng.utils.serialization.XmlUtils
 import com.xiao.feng.utils.strings.isGroupChatWxId
 import com.xiao.feng.utils.strings.stripWxId
 import kotlinx.coroutines.CoroutineScope
@@ -72,6 +73,7 @@ object AutoRepeat : ClickableFeature(), WeDatabaseListenerApi.IInsertListener {
     private const val KEY_INTERVAL_SECONDS = "auto_repeat_interval_seconds"
 
     private const val SEND_DELAY_MILLIS = 500L
+    private const val DICE_COOLDOWN_MILLIS = 3_000L
     private const val MAX_SEEN_KEYS = 256
 
     /** 生效会话; 为空表示所有聊天。 */
@@ -93,6 +95,7 @@ object AutoRepeat : ClickableFeature(), WeDatabaseListenerApi.IInsertListener {
         var lastText: String = "",
         var count: Int = 0,
         var lastSentAt: Long = 0L,
+        var lastDiceSentAt: Long = 0L,
     )
 
     private val lock = Any()
@@ -118,13 +121,19 @@ object AutoRepeat : ClickableFeature(), WeDatabaseListenerApi.IInsertListener {
     override fun onInsert(table: String, values: ContentValues) {
         if (table != "message") return
         if ((values.getAsInteger("isSend") ?: 0) != 0) return
-        if ((values.getAsInteger("type") ?: return) != MessageType.TEXT.code) return
+        val type = values.getAsInteger("type") ?: return
+        if (type != MessageType.TEXT.code && type != MessageType.STICKER.code) return
 
         val talker = values.getAsString("talker") ?: return
         if (targets.isNotEmpty() && talker !in targets) return
         if (talker in mutedGroups) return
 
         val rawContent = values.getAsString("content") ?: return
+        if (type == MessageType.STICKER.code) {
+            repeatDice(talker, rawContent)
+            return
+        }
+
         val text = (if (talker.isGroupChatWxId) rawContent.stripWxId() else rawContent).trim()
         if (text.isEmpty()) return
 
@@ -167,6 +176,36 @@ object AutoRepeat : ClickableFeature(), WeDatabaseListenerApi.IInsertListener {
             delay(SEND_DELAY_MILLIS)
             val sent = runCatching { WeMessageApi.sendText(talker, text) }.getOrDefault(false)
             WeLogger.i(TAG, "auto repeat: talker=$talker threshold=$threshold sent=$sent")
+        }
+    }
+
+    /**
+     * 对方发骰子时回一个骰子; 点数由微信随机生成, 这里只负责发出动作。
+     * 用固定短冷却, 避免群里多人同时发骰子时连续刷屏。
+     */
+    private fun repeatDice(talker: String, rawContent: String) {
+        val md5 = XmlUtils.extractXmlAttr(rawContent, "md5")
+            .ifEmpty { XmlUtils.extractXmlTag(rawContent, "md5") }
+        if (!md5.equals(EmojiGameControl.MD5_DICE, ignoreCase = true)) return
+
+        val now = System.currentTimeMillis()
+        val shouldSend = synchronized(lock) {
+            val state = states.getOrPut(talker) { ConversationState() }
+            if (now - state.lastDiceSentAt < DICE_COOLDOWN_MILLIS) {
+                false
+            } else {
+                state.lastDiceSentAt = now
+                true
+            }
+        }
+        if (!shouldSend) return
+
+        scope.launch {
+            delay(SEND_DELAY_MILLIS)
+            val sent = runCatching {
+                WeMessageApi.sendEmojiByMd5(talker, EmojiGameControl.MD5_DICE)
+            }.getOrDefault(false)
+            WeLogger.i(TAG, "auto repeat dice: talker=$talker sent=$sent")
         }
     }
 

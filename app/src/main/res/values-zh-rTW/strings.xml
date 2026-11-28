@@ -4298,7 +4298,7 @@
     <string name="feature_auto_pat_back_name">自動回拍</string>
     <string name="feature_auto_pat_back_description">別人拍你時自動拍回去，可指定生效的群聊或好友</string>
     <string name="feature_auto_repeat_name">自動複讀</string>
-    <string name="feature_auto_repeat_description">會話中連續出現相同訊息達到設定條數時自動複讀，可指定生效的群聊或好友</string>
+    <string name="feature_auto_repeat_description">會話中連續出現相同訊息達到設定條數時自動複讀；對方發骰子時也會隨機回一個骰子。可指定生效的群聊或好友</string>
     <string name="auto_repeat_menu_enable">開啟自動複讀</string>
     <string name="auto_repeat_menu_disable">關閉自動複讀</string>
     <string name="auto_repeat_toast_enabled">已開啟自動複讀</string>

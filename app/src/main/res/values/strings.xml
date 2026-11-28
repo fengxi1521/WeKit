@@ -4375,7 +4375,7 @@
     <string name="feature_auto_pat_back_name">Auto pat back</string>
     <string name="feature_auto_pat_back_description">Automatically pat back when someone pats you. Choose the chats or groups where it applies.</string>
     <string name="feature_auto_repeat_name">Auto repeat</string>
-    <string name="feature_auto_repeat_description">Automatically repeat the message when the same text arrives several times in a row. Choose the chats or groups where it applies.</string>
+    <string name="feature_auto_repeat_description">Automatically repeat the message when the same text arrives several times in a row, and roll a dice back when someone sends one. Choose the chats or groups where it applies.</string>
     <string name="auto_repeat_menu_enable">Enable auto repeat</string>
     <string name="auto_repeat_menu_disable">Disable auto repeat</string>
     <string name="auto_repeat_toast_enabled">Auto repeat enabled</string>
