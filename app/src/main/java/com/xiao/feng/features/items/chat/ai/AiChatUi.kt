@@ -47,13 +47,10 @@ import com.xiao.feng.ui.utils.showComposeDialog
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
-fun showAiChatDialog(context: Context, talker: String? = null) {
+fun showAiChatDialog(context: Context) {
     showComposeDialog(context) {
         var enabledInput by remember { mutableStateOf(AiChat.chatEnabled) }
         var targetsInput by remember { mutableStateOf(AiChat.targets) }
-        var currentChatInput by remember {
-            mutableStateOf(talker != null && talker in AiChat.targets)
-        }
         var apiKeyInput by remember { mutableStateOf(AiChat.apiKey) }
         var baseUrlInput by remember { mutableStateOf(AiChat.baseUrl) }
         var modelInput by remember { mutableStateOf(AiChat.model) }
@@ -101,21 +98,6 @@ fun showAiChatDialog(context: Context, talker: String? = null) {
                                     AiChat.restartAutomation()
                                 },
                             )
-                        }
-                        if (talker != null) {
-                            item {
-                                SwitchWidget(
-                                    title = stringResource(R.string.ai_chat_current_chat_title),
-                                    description = stringResource(R.string.ai_chat_current_chat_description),
-                                    checked = currentChatInput,
-                                    onCheckedChange = { checked ->
-                                        currentChatInput = checked
-                                        AiChat.setTargetEnabled(talker, checked)
-                                        targetsInput = AiChat.targets
-                                        enabledInput = AiChat.chatEnabled
-                                    },
-                                )
-                            }
                         }
                         item {
                             BaseWidget(
@@ -447,6 +429,50 @@ private fun showAiChatStickerDialog(
                 LocalStickerFilesContent(context, paths) { selected ->
                     paths = selected
                     onUpdated(selected)
+                }
+            },
+            confirmButton = {
+                Button(onClick = onDismiss) {
+                    Text(stringResource(R.string.action_done))
+                }
+            },
+        )
+    }
+}
+
+/** 聊天菜单长按入口: 只调整当前会话的 AI 聊天, 不进完整设置。 */
+fun showAiChatGroupDialog(context: Context, talker: String) {
+    showComposeDialog(context) {
+        var enabled by remember { mutableStateOf(AiChat.chatEnabled) }
+        var chatOn by remember { mutableStateOf(talker in AiChat.targets) }
+
+        AlertDialogContent(
+            title = { Text(stringResource(R.string.ai_chat_current_chat_title)) },
+            text = {
+                SegmentedColumn(contentPadding = PaddingValues(0.dp)) {
+                    item {
+                        SwitchWidget(
+                            title = stringResource(R.string.ai_chat_enabled_title),
+                            description = stringResource(R.string.ai_chat_enabled_description),
+                            checked = enabled,
+                            onCheckedChange = {
+                                enabled = it
+                                AiChat.applyToggle(it)
+                            },
+                        )
+                    }
+                    item {
+                        SwitchWidget(
+                            title = stringResource(R.string.ai_chat_current_chat_title),
+                            description = stringResource(R.string.ai_chat_current_chat_description),
+                            checked = chatOn,
+                            onCheckedChange = {
+                                chatOn = it
+                                AiChat.setTargetEnabled(talker, it)
+                                enabled = AiChat.chatEnabled
+                            },
+                        )
+                    }
                 }
             },
             confirmButton = {

@@ -192,7 +192,7 @@ object AutoRepeat : ClickableFeature(), WeDatabaseListenerApi.IInsertListener {
     private fun newScope() = CoroutineScope(Dispatchers.IO + SupervisorJob())
 }
 
-fun showAutoRepeatDialog(context: Context, groupId: String? = null) {
+fun showAutoRepeatDialog(context: Context) {
     showComposeDialog(context) {
         var enabled by remember { mutableStateOf(AutoRepeat.isEnabled) }
         var targets by remember { mutableStateOf(AutoRepeat.targets) }
@@ -237,21 +237,6 @@ fun showAutoRepeatDialog(context: Context, groupId: String? = null) {
                                 AutoRepeat.applyToggle(checked)
                             },
                         )
-                    }
-
-                    if (groupId != null && groupId.isGroupChatWxId) {
-                        var groupEnabled by remember { mutableStateOf(AutoRepeat.isGroupEnabled(groupId)) }
-                        BaseItemContainer {
-                            SwitchWidget(
-                                title = stringResource(R.string.auto_repeat_group_switch_title),
-                                description = stringResource(R.string.auto_repeat_group_switch_description),
-                                checked = groupEnabled,
-                                onCheckedChange = { checked ->
-                                    groupEnabled = checked
-                                    AutoRepeat.setGroupEnabled(groupId, checked)
-                                },
-                            )
-                        }
                     }
 
                     ListItem(
@@ -318,6 +303,55 @@ fun showAutoRepeatDialog(context: Context, groupId: String? = null) {
             confirmButton = {
                 Button(onClick = onDismiss) {
                     Text(stringResource(R.string.dialog_close))
+                }
+            },
+        )
+    }
+}
+
+/** 聊天菜单长按入口: 只调整当前群的自动复读, 不进完整设置。 */
+fun showAutoRepeatGroupDialog(context: Context, talker: String) {
+    if (!talker.isGroupChatWxId) {
+        showAutoRepeatDialog(context)
+        return
+    }
+
+    showComposeDialog(context) {
+        var enabled by remember { mutableStateOf(AutoRepeat.isEnabled) }
+        var groupEnabled by remember { mutableStateOf(AutoRepeat.isGroupEnabled(talker)) }
+
+        AlertDialogContent(
+            modifier = Modifier.fillMaxWidth(),
+            title = { Text(stringResource(R.string.auto_repeat_group_switch_title)) },
+            text = {
+                DefaultColumn {
+                    BaseItemContainer {
+                        SwitchWidget(
+                            title = stringResource(R.string.feature_auto_repeat_name),
+                            description = stringResource(R.string.feature_auto_repeat_description),
+                            checked = enabled,
+                            onCheckedChange = {
+                                enabled = it
+                                AutoRepeat.applyToggle(it)
+                            },
+                        )
+                    }
+                    BaseItemContainer {
+                        SwitchWidget(
+                            title = stringResource(R.string.auto_repeat_group_switch_title),
+                            description = stringResource(R.string.auto_repeat_group_switch_description),
+                            checked = groupEnabled,
+                            onCheckedChange = {
+                                groupEnabled = it
+                                AutoRepeat.setGroupEnabled(talker, it)
+                            },
+                        )
+                    }
+                }
+            },
+            confirmButton = {
+                Button(onClick = onDismiss) {
+                    Text(stringResource(R.string.action_done))
                 }
             },
         )

@@ -117,7 +117,7 @@ object QqMusicOrder : ClickableFeature(), WeDatabaseListenerApi.IInsertListener 
     }
     private val processed = ConcurrentHashMap<String, Boolean>()
 
-    /** 聊天输入栏「+」菜单里的 QQ 点歌入口: 单击打开配置, 当前会话的开关在配置里。 */
+    /** 聊天输入栏「+」菜单里的 QQ 点歌入口: 单击进完整配置, 长按只调当前会话的开关。 */
     private val inputBarProvider = WeChatInputBarMenuApi.IActionItemsProvider {
         listOf(
             WeChatInputBarMenuApi.ActionItem(
@@ -125,8 +125,10 @@ object QqMusicOrder : ClickableFeature(), WeDatabaseListenerApi.IInsertListener 
                 icon = MaterialSymbols.Outlined.Music_note,
                 label = HostLocalizedStrings.get(R.string.feature_qq_music_order_name),
                 isSupported = { _, _ -> WeCurrentConversationApi.value.isNotBlank() },
-                onClick = { context, _ ->
-                    showQqMusicOrderDialog(context, WeCurrentConversationApi.value)
+                onClick = { context, _ -> showQqMusicOrderDialog(context) },
+                onLongClick = { context, _ ->
+                    val talker = WeCurrentConversationApi.value
+                    if (talker.isNotBlank()) showQqMusicGroupDialog(context, talker)
                 },
             ),
         )

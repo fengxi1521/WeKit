@@ -132,7 +132,7 @@ object AiChat : ClickableFeature(), WeDatabaseListenerApi.IInsertListener {
     private var scope = newScope()
     private var bubbleJob: Job? = null
 
-    /** 输入栏 "+" 菜单里的 AI 聊天入口: 单击打开配置, 当前会话的开关在配置里。 */
+    /** 输入栏 "+" 菜单里的 AI 聊天入口: 单击进完整配置, 长按只调当前会话的开关。 */
     private val menuProvider = WeChatInputBarMenuApi.IActionItemsProvider {
         val talker = WeCurrentConversationApi.value
         if (talker.isBlank()) return@IActionItemsProvider emptyList()
@@ -144,7 +144,8 @@ object AiChat : ClickableFeature(), WeDatabaseListenerApi.IInsertListener {
                 label = localizedChatString(
                     if (enabled) R.string.ai_chat_toggle_menu_on else R.string.ai_chat_toggle_menu_off,
                 ),
-                onClick = { context, _ -> showAiChatDialog(context, talker) },
+                onClick = { context, _ -> showAiChatDialog(context) },
+                onLongClick = { context, _ -> showAiChatGroupDialog(context, talker) },
             ),
         )
     }

@@ -13,6 +13,7 @@ import com.xiao.feng.features.core.ApiFeature
 import com.xiao.feng.features.core.FeatureCategoryIds
 import com.xiao.feng.features.items.chat.AutoRepeat
 import com.xiao.feng.features.items.chat.showAutoRepeatDialog
+import com.xiao.feng.features.items.chat.showAutoRepeatGroupDialog
 import com.xiao.feng.features.items.chat.ai.showAtReplyDialog
 import com.xiao.feng.features.items.chat.ai.showAtReplyGroupDialog
 import com.xiao.feng.features.items.payment.RedPacketSettings
@@ -53,9 +54,11 @@ object ChatAutomationMenu : ApiFeature(), WeChatInputBarMenuApi.IActionItemsProv
                 id = "auto_repeat_settings",
                 icon = MaterialSymbols.Outlined.Format_quote,
                 label = autoRepeatLabel,
-                // 单击进入配置, 总开关和当前群的开关都做成了开关按钮。
-                onClick = { context, _ ->
-                    showAutoRepeatDialog(context, WeCurrentConversationApi.value)
+                // 单击进完整配置, 长按只调当前群的开关。
+                onClick = { context, _ -> showAutoRepeatDialog(context) },
+                onLongClick = { context, _ ->
+                    val current = WeCurrentConversationApi.value
+                    if (current.isNotBlank()) showAutoRepeatGroupDialog(context, current)
                 },
                 order = 2,
             ),
