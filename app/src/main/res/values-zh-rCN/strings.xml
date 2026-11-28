@@ -3696,6 +3696,12 @@
     <string name="payment_red_packet_block_new_groups_description">之后新加入的群默认不抢，可在群设置里单独打开</string>
     <string name="payment_red_packet_stats_title">抢红包统计</string>
     <string name="payment_red_packet_stats">累计 %1$d 个 · ¥%2$.2f；今日 %3$d 个 · ¥%4$.2f</string>
+    <string name="payment_red_packet_stats_total">累计</string>
+    <string name="payment_red_packet_stats_summary">%1$d 个 · ¥%2$.2f</string>
+    <string name="payment_red_packet_stats_today">今天 (%1$s)</string>
+    <string name="payment_red_packet_stats_empty">暂无统计数据</string>
+    <string name="payment_red_packet_stats_clear">清除统计</string>
+    <string name="payment_red_packet_stats_clear_confirm">确定清除全部红包统计数据吗？此操作不可撤销。</string>
     <string name="payment_red_packet_default_grab">默认抢红包</string>
     <string name="payment_red_packet_default_all">默认抢所有联系人, 分联系人设置可单独关闭</string>
     <string name="payment_red_packet_default_none">默认不抢任何联系人, 分联系人设置可单独开启</string>

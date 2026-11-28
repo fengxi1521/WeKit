@@ -292,35 +292,62 @@ object RedPacketSettings {
 
     private var statsRaw: String by prefOption("red_packet_stats", "")
 
-    /** 抢红包统计 (累计与当天), 对应 Hchat 红包面板里的统计信息。 */
+    /** 某一天抢到的红包数量与金额; key 为 yyyy-MM-dd。 */
+    @Serializable
+    data class DayStat(
+        val count: Int = 0,
+        val amountCents: Long = 0L,
+    )
+
+    /** 抢红包统计, 按天累计。 */
     @Serializable
     data class Stats(
         val count: Int = 0,
         val amountCents: Long = 0L,
+        val daily: Map<String, DayStat> = emptyMap(),
+    )
+
+    /** 旧版本只存了累计与当天汇总, 读取时并进 [Stats.daily], 避免升级后丢掉当天的数据。 */
+    @Serializable
+    private data class LegacyStats(
+        val today: String = "",
         val todayCount: Int = 0,
         val todayAmountCents: Long = 0L,
-        val today: String = "",
     )
 
     fun stats(): Stats {
         val raw = statsRaw
         if (raw.isBlank()) return Stats()
-        return runCatching { DefaultJson.decodeFromString<Stats>(raw) }.getOrDefault(Stats())
+        val stats = runCatching { DefaultJson.decodeFromString<Stats>(raw) }.getOrDefault(Stats())
+        if (stats.daily.isNotEmpty()) return stats
+        val legacy = runCatching { DefaultJson.decodeFromString<LegacyStats>(raw) }.getOrNull()
+            ?: return stats
+        if (legacy.today.isBlank() || legacy.todayCount <= 0) return stats
+        return stats.copy(
+            daily = mapOf(legacy.today to DayStat(legacy.todayCount, legacy.todayAmountCents)),
+        )
     }
 
     fun recordGrab(amountCents: Long) {
         val today = LocalDate.now().toString()
         val current = stats()
-        val base = if (current.today == today) current else current.copy(todayCount = 0, todayAmountCents = 0)
+        val todayStat = current.daily[today] ?: DayStat()
         statsRaw = DefaultJson.encodeToString(
-            base.copy(
-                count = base.count + 1,
-                amountCents = base.amountCents + amountCents,
-                todayCount = base.todayCount + 1,
-                todayAmountCents = base.todayAmountCents + amountCents,
-                today = today,
+            current.copy(
+                count = current.count + 1,
+                amountCents = current.amountCents + amountCents,
+                daily = current.daily + (
+                    today to DayStat(
+                        count = todayStat.count + 1,
+                        amountCents = todayStat.amountCents + amountCents,
+                    )
+                ),
             ),
         )
+    }
+
+    fun clearStats() {
+        statsRaw = ""
     }
 
     /** 首次运行时把现有群聊记为已知, 避免把老群误判成新进群。 */
@@ -438,20 +465,115 @@ object RedPacketSettings {
                             )
                         }
                         item {
-                            BaseWidget(
+                            val todayStat = statsSnapshot.daily[LocalDate.now().toString()]
+                                ?: RedPacketSettings.DayStat()
+                            PaymentNavigationRow(
                                 title = stringResource(R.string.payment_red_packet_stats_title),
                                 description = stringResource(
                                     R.string.payment_red_packet_stats,
                                     statsSnapshot.count,
                                     statsSnapshot.amountCents / 100.0,
-                                    statsSnapshot.todayCount,
-                                    statsSnapshot.todayAmountCents / 100.0,
+                                    todayStat.count,
+                                    todayStat.amountCents / 100.0,
                                 ),
+                                onClick = { showStatsDialog(context) },
                             )
                         }
                     }
                 },
                 dismissButton = { TextButton(onDismiss) { Text(stringResource(R.string.dialog_close)) } }
+            )
+        }
+    }
+
+    private fun showStatsDialog(context: Context) {
+        showComposeDialog(context) {
+            var stats by remember { mutableStateOf(RedPacketSettings.stats()) }
+            var confirmClear by remember { mutableStateOf(false) }
+            val days = stats.daily.entries.sortedByDescending { it.key }
+            val today = LocalDate.now().toString()
+
+            if (confirmClear) {
+                AlertDialogContent(
+                    title = { Text(stringResource(R.string.payment_red_packet_stats_clear)) },
+                    text = { Text(stringResource(R.string.payment_red_packet_stats_clear_confirm)) },
+                    confirmButton = {
+                        Button(onClick = {
+                            RedPacketSettings.clearStats()
+                            stats = RedPacketSettings.stats()
+                            confirmClear = false
+                        }) { Text(stringResource(R.string.dialog_confirm)) }
+                    },
+                    dismissButton = {
+                        TextButton(onClick = { confirmClear = false }) {
+                            Text(stringResource(R.string.dialog_cancel))
+                        }
+                    },
+                )
+                return@showComposeDialog
+            }
+
+            AlertDialogContent(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .fillMaxHeight(),
+                title = { Text(stringResource(R.string.payment_red_packet_stats_title)) },
+                text = {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .verticalScroll(rememberScrollState()),
+                    ) {
+                        SegmentedColumn(contentPadding = PaddingValues(0.dp)) {
+                            item(key = "stats_total") {
+                                BaseWidget(
+                                    iconPlaceholder = false,
+                                    title = stringResource(R.string.payment_red_packet_stats_total),
+                                    description = stringResource(
+                                        R.string.payment_red_packet_stats_summary,
+                                        stats.count,
+                                        stats.amountCents / 100.0,
+                                    ),
+                                )
+                            }
+                            if (days.isEmpty()) {
+                                item(key = "stats_empty") {
+                                    BaseWidget(
+                                        iconPlaceholder = false,
+                                        title = stringResource(R.string.payment_red_packet_stats_empty),
+                                    )
+                                }
+                            } else {
+                                days.forEach { (day, stat) ->
+                                    item(key = "stats_day_$day") {
+                                        BaseWidget(
+                                            iconPlaceholder = false,
+                                            title = if (day == today) {
+                                                stringResource(R.string.payment_red_packet_stats_today, day)
+                                            } else {
+                                                day
+                                            },
+                                            description = stringResource(
+                                                R.string.payment_red_packet_stats_summary,
+                                                stat.count,
+                                                stat.amountCents / 100.0,
+                                            ),
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                confirmButton = {
+                    TextButton(
+                        onClick = { confirmClear = true },
+                        enabled = stats.count > 0,
+                    ) { Text(stringResource(R.string.payment_red_packet_stats_clear)) }
+                },
+                dismissButton = {
+                    TextButton(onDismiss) { Text(stringResource(R.string.dialog_close)) }
+                },
             )
         }
     }

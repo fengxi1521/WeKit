@@ -3613,6 +3613,12 @@
     <string name="payment_red_packet_block_new_groups_description">之後新加入的群預設不搶，可在群設定裡單獨開啟</string>
     <string name="payment_red_packet_stats_title">搶紅包統計</string>
     <string name="payment_red_packet_stats">累計 %1$d 個 · ¥%2$.2f；今日 %3$d 個 · ¥%4$.2f</string>
+    <string name="payment_red_packet_stats_total">累計</string>
+    <string name="payment_red_packet_stats_summary">%1$d 個 · ¥%2$.2f</string>
+    <string name="payment_red_packet_stats_today">今天 (%1$s)</string>
+    <string name="payment_red_packet_stats_empty">暫無統計數據</string>
+    <string name="payment_red_packet_stats_clear">清除統計</string>
+    <string name="payment_red_packet_stats_clear_confirm">確定清除全部紅包統計數據嗎？此操作不可撤銷。</string>
     <string name="payment_red_packet_default_grab">默認搶紅包</string>
     <string name="payment_red_packet_default_all">默認搶所有聯繫人, 分聯繫人設置可單獨關閉</string>
     <string name="payment_red_packet_default_none">默認不搶任何聯繫人, 分聯繫人設置可單獨開啓</string>

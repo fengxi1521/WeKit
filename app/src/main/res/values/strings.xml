@@ -3657,6 +3657,12 @@
     <string name="payment_red_packet_block_new_groups_description">Groups joined after enabling this are skipped by default; enable them individually in group settings</string>
     <string name="payment_red_packet_stats_title">Red packet statistics</string>
     <string name="payment_red_packet_stats">Total %1$d · ¥%2$.2f; today %3$d · ¥%4$.2f</string>
+    <string name="payment_red_packet_stats_total">Total</string>
+    <string name="payment_red_packet_stats_summary">%1$d grabbed · ¥%2$.2f</string>
+    <string name="payment_red_packet_stats_today">Today (%1$s)</string>
+    <string name="payment_red_packet_stats_empty">No statistics yet</string>
+    <string name="payment_red_packet_stats_clear">Clear statistics</string>
+    <string name="payment_red_packet_stats_clear_confirm">Clear all red packet statistics? This cannot be undone.</string>
     <string name="payment_red_packet_default_grab">Claim red packets by default</string>
     <string name="payment_red_packet_default_all">Claim red packets from all contacts by default; per-contact settings can disable this</string>
     <string name="payment_red_packet_default_none">Do not claim red packets from any contact by default; per-contact settings can enable this</string>
