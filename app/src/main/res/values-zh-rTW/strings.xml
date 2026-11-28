@@ -4295,6 +4295,12 @@
     <string name="auto_repeat_menu_disable">關閉自動複讀</string>
     <string name="auto_repeat_toast_enabled">已開啟自動複讀</string>
     <string name="auto_repeat_toast_disabled">已關閉自動複讀</string>
+    <string name="auto_repeat_menu_label_off">自動複讀（已關閉）</string>
+    <string name="auto_repeat_menu_label_group_off">自動複讀（本群已關閉）</string>
+    <string name="auto_repeat_group_only">僅群聊支援單獨開關</string>
+    <string name="auto_repeat_interval_title">複讀間隔</string>
+    <string name="auto_repeat_interval_description">兩次自動複讀之間至少間隔這麼久，避免短時間內連續複讀</string>
+    <string name="auto_repeat_interval_suffix">秒</string>
     <string name="feature_follow_repeat_name">跟發複讀</string>
     <string name="feature_follow_repeat_description">在群聊裡挑群友跟發：他發什麼，你就跟著發一樣的內容（文字、圖片、語音、影片、表情等）</string>
     <string name="follow_repeat_group_only">跟發複讀僅支援群聊</string>

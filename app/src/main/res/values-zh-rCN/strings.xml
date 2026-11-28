@@ -4402,6 +4402,12 @@
     <string name="auto_repeat_menu_disable">关闭自动复读</string>
     <string name="auto_repeat_toast_enabled">已开启自动复读</string>
     <string name="auto_repeat_toast_disabled">已关闭自动复读</string>
+    <string name="auto_repeat_menu_label_off">自动复读（已关闭）</string>
+    <string name="auto_repeat_menu_label_group_off">自动复读（本群已关闭）</string>
+    <string name="auto_repeat_group_only">仅群聊支持单独开关</string>
+    <string name="auto_repeat_interval_title">复读间隔</string>
+    <string name="auto_repeat_interval_description">两次自动复读之间至少间隔这么久，避免短时间内连续复读</string>
+    <string name="auto_repeat_interval_suffix">秒</string>
     <string name="feature_follow_repeat_name">跟发复读</string>
     <string name="feature_follow_repeat_description">在群聊里挑群友跟发：他发什么，你就跟着发一样的内容（文字、图片、语音、视频、表情等）</string>
     <string name="follow_repeat_group_only">跟发复读仅支持群聊</string>

@@ -17,6 +17,7 @@ import com.xiao.feng.features.items.chat.ai.showAtReplyDialog
 import com.xiao.feng.features.items.chat.ai.showAtReplyGroupDialog
 import com.xiao.feng.features.items.payment.RedPacketSettings
 import com.xiao.feng.utils.android.showToast
+import com.xiao.feng.utils.strings.isGroupChatWxId
 
 /**
  * 长按聊天输入栏 "+" 弹出的菜单里的设置入口：抢红包配置（全局 / 单独会话）和艾特回复。
@@ -30,62 +31,80 @@ object ChatAutomationMenu : ApiFeature(), WeChatInputBarMenuApi.IActionItemsProv
     override val categoryIds = listOf(FeatureCategoryIds.CHAT)
     override val descriptionRes = R.string.feature_chat_automation_menu_description
 
-    override fun getActionItems(): List<WeChatInputBarMenuApi.ActionItem> = listOf(
-        // 模块入口常驻最顶部, 点击直接进入小枫设置主页。
-        WeChatInputBarMenuApi.ActionItem(
-            id = "xfeng_module_settings",
-            icon = MaterialSymbols.Outlined.Settings,
-            label = localizedChatInputString(R.string.xfeng_module_menu_entry),
-            onClick = { context, _ -> WeSettingsInjector.openSettingsDialog(context) },
-            order = 0,
-        ),
-        WeChatInputBarMenuApi.ActionItem(
-            id = "auto_repeat_toggle",
-            icon = MaterialSymbols.Outlined.Format_quote,
-            label = localizedChatInputString(
-                if (AutoRepeat.isEnabled) {
-                    R.string.auto_repeat_menu_disable
-                } else {
-                    R.string.auto_repeat_menu_enable
-                }
+    override fun getActionItems(): List<WeChatInputBarMenuApi.ActionItem> {
+        val talker = WeCurrentConversationApi.value
+        val autoRepeatLabel = when {
+            !AutoRepeat.isEnabled -> localizedChatInputString(R.string.auto_repeat_menu_label_off)
+            talker.isGroupChatWxId && !AutoRepeat.isGroupEnabled(talker) ->
+                localizedChatInputString(R.string.auto_repeat_menu_label_group_off)
+
+            else -> localizedChatInputString(R.string.feature_auto_repeat_name)
+        }
+
+        return listOf(
+            // 模块入口常驻最顶部, 点击直接进入小枫设置主页。
+            WeChatInputBarMenuApi.ActionItem(
+                id = "xfeng_module_settings",
+                icon = MaterialSymbols.Outlined.Settings,
+                label = localizedChatInputString(R.string.xfeng_module_menu_entry),
+                onClick = { context, _ -> WeSettingsInjector.openSettingsDialog(context) },
+                order = 0,
             ),
-            // 单击直接开关, 长按进入完整的会话范围 / 阈值设置。
-            onClick = { context, _ ->
-                val next = !AutoRepeat.isEnabled
-                AutoRepeat.applyToggle(next)
-                showToast(
-                    context,
-                    localizedChatInputString(
-                        if (next) R.string.auto_repeat_toast_enabled else R.string.auto_repeat_toast_disabled
-                    )
-                )
-            },
-            onLongClick = { context, _ -> showAutoRepeatDialog(context) },
-            order = 2,
-        ),
-        WeChatInputBarMenuApi.ActionItem(
-            id = "red_packet_settings",
-            icon = MaterialSymbols.Outlined.Redeem,
-            label = localizedChatInputString(R.string.red_packet_menu_entry),
-            onClick = { context, _ -> RedPacketSettings.showMainDialog(context) },
-            // 长按直接打开当前会话的规则, 不再走「单独会话设置 → 选择会话」两步。
-            onLongClick = { context, _ ->
-                val talker = WeCurrentConversationApi.value
-                if (talker.isNotBlank()) RedPacketSettings.showConversationDialog(context, talker)
-            },
-        ),
-        WeChatInputBarMenuApi.ActionItem(
-            id = "at_reply_settings",
-            icon = MaterialSymbols.Outlined.Smart_toy,
-            label = localizedChatInputString(R.string.feature_at_reply_name),
-            onClick = { context, _ -> showAtReplyDialog(context) },
-            // 长按只调当前群的开关, 不影响其他群。
-            onLongClick = { context, _ ->
-                val talker = WeCurrentConversationApi.value
-                if (talker.isNotBlank()) showAtReplyGroupDialog(context, talker)
-            },
-        ),
-    )
+            WeChatInputBarMenuApi.ActionItem(
+                id = "auto_repeat_settings",
+                icon = MaterialSymbols.Outlined.Format_quote,
+                label = autoRepeatLabel,
+                // 单击调配置, 长按切换当前群聊的开关。
+                onClick = { context, _ -> showAutoRepeatDialog(context) },
+                onLongClick = { context, _ ->
+                    when {
+                        talker.isBlank() -> Unit
+                        !talker.isGroupChatWxId -> showToast(
+                            context,
+                            localizedChatInputString(R.string.auto_repeat_group_only),
+                        )
+
+                        else -> {
+                            val enabled = AutoRepeat.toggleGroup(talker)
+                            showToast(
+                                context,
+                                localizedChatInputString(
+                                    if (enabled) {
+                                        R.string.auto_repeat_toast_enabled
+                                    } else {
+                                        R.string.auto_repeat_toast_disabled
+                                    }
+                                ),
+                            )
+                        }
+                    }
+                },
+                order = 2,
+            ),
+            WeChatInputBarMenuApi.ActionItem(
+                id = "red_packet_settings",
+                icon = MaterialSymbols.Outlined.Redeem,
+                label = localizedChatInputString(R.string.red_packet_menu_entry),
+                onClick = { context, _ -> RedPacketSettings.showMainDialog(context) },
+                // 长按直接打开当前会话的规则, 不再走「单独会话设置 → 选择会话」两步。
+                onLongClick = { context, _ ->
+                    val current = WeCurrentConversationApi.value
+                    if (current.isNotBlank()) RedPacketSettings.showConversationDialog(context, current)
+                },
+            ),
+            WeChatInputBarMenuApi.ActionItem(
+                id = "at_reply_settings",
+                icon = MaterialSymbols.Outlined.Smart_toy,
+                label = localizedChatInputString(R.string.feature_at_reply_name),
+                onClick = { context, _ -> showAtReplyDialog(context) },
+                // 长按只调当前群的开关, 不影响其他群。
+                onLongClick = { context, _ ->
+                    val current = WeCurrentConversationApi.value
+                    if (current.isNotBlank()) showAtReplyGroupDialog(context, current)
+                },
+            ),
+        )
+    }
 
     override fun onEnable() {
         WeChatInputBarMenuApi.addProvider(this)

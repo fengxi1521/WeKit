@@ -48,6 +48,10 @@ private const val AUTO_REPEAT_DEFAULT_THRESHOLD = 2
 private const val AUTO_REPEAT_MIN_THRESHOLD = 2
 private const val AUTO_REPEAT_MAX_THRESHOLD = 20
 
+private const val AUTO_REPEAT_DEFAULT_INTERVAL_SECONDS = 3
+private const val AUTO_REPEAT_MIN_INTERVAL_SECONDS = 1
+private const val AUTO_REPEAT_MAX_INTERVAL_SECONDS = 120
+
 /**
  * 会话里连续出现相同的文本消息达到设定条数后, 自动发送同一句话。
  *
@@ -64,16 +68,26 @@ object AutoRepeat : ClickableFeature(), WeDatabaseListenerApi.IInsertListener {
     private const val TAG = "AutoRepeat"
     private const val KEY_TARGETS = "auto_repeat_targets"
     private const val KEY_THRESHOLD = "auto_repeat_threshold"
+    private const val KEY_MUTED_GROUPS = "auto_repeat_muted_groups"
+    private const val KEY_INTERVAL_SECONDS = "auto_repeat_interval_seconds"
 
     private const val SEND_DELAY_MILLIS = 500L
-    private const val SEND_COOLDOWN_MILLIS = 3_000L
     private const val MAX_SEEN_KEYS = 256
 
     /** 生效会话; 为空表示所有聊天。 */
     var targets: Set<String> by prefOption(KEY_TARGETS, emptySet<String>())
 
+    /** 单独关闭自动复读的群; 由输入栏「+」菜单长按切换。 */
+    var mutedGroups: Set<String> by prefOption(KEY_MUTED_GROUPS, emptySet<String>())
+
     /** 连续相同消息达到该条数后自动复读。 */
     var repeatThreshold: Int by prefOption(KEY_THRESHOLD, AUTO_REPEAT_DEFAULT_THRESHOLD)
+
+    /** 两次自动复读之间的最小间隔(秒), 避免短时间内连续复读。 */
+    var repeatIntervalSeconds: Int by prefOption(
+        KEY_INTERVAL_SECONDS,
+        AUTO_REPEAT_DEFAULT_INTERVAL_SECONDS,
+    )
 
     private class ConversationState(
         var lastText: String = "",
@@ -108,12 +122,15 @@ object AutoRepeat : ClickableFeature(), WeDatabaseListenerApi.IInsertListener {
 
         val talker = values.getAsString("talker") ?: return
         if (targets.isNotEmpty() && talker !in targets) return
+        if (talker in mutedGroups) return
 
         val rawContent = values.getAsString("content") ?: return
         val text = (if (talker.isGroupChatWxId) rawContent.stripWxId() else rawContent).trim()
         if (text.isEmpty()) return
 
         val threshold = repeatThreshold.coerceIn(AUTO_REPEAT_MIN_THRESHOLD, AUTO_REPEAT_MAX_THRESHOLD)
+        val cooldownMillis =
+            repeatIntervalSeconds.coerceIn(AUTO_REPEAT_MIN_INTERVAL_SECONDS, AUTO_REPEAT_MAX_INTERVAL_SECONDS) * 1000L
         val now = System.currentTimeMillis()
         val shouldRepeat = synchronized(lock) {
             // 宿主可能重复插入同一行, 先按消息标识去重, 避免把一条消息算成两条。
@@ -134,7 +151,7 @@ object AutoRepeat : ClickableFeature(), WeDatabaseListenerApi.IInsertListener {
                 state.count = 1
             }
 
-            if (state.count >= threshold && now - state.lastSentAt >= SEND_COOLDOWN_MILLIS) {
+            if (state.count >= threshold && now - state.lastSentAt >= cooldownMillis) {
                 state.count = 0
                 state.lastSentAt = now
                 true
@@ -162,8 +179,17 @@ object AutoRepeat : ClickableFeature(), WeDatabaseListenerApi.IInsertListener {
 
     /** 「退群清理」入口: 从生效集合移除。 */
     fun removeFromGroup(groupId: String) {
-        if (groupId !in targets) return
-        targets = targets - groupId
+        if (groupId in targets) targets = targets - groupId
+        if (groupId in mutedGroups) mutedGroups = mutedGroups - groupId
+    }
+
+    fun isGroupEnabled(groupId: String): Boolean = groupId !in mutedGroups
+
+    /** 切换某个群的自动复读开关, 返回切换后的状态(是否开启)。 */
+    fun toggleGroup(groupId: String): Boolean {
+        val enable = groupId in mutedGroups
+        mutedGroups = if (enable) mutedGroups - groupId else mutedGroups + groupId
+        return enable
     }
 
     private fun newScope() = CoroutineScope(Dispatchers.IO + SupervisorJob())
@@ -175,6 +201,14 @@ fun showAutoRepeatDialog(context: Context) {
         var threshold by remember {
             mutableIntStateOf(
                 AutoRepeat.repeatThreshold.coerceIn(AUTO_REPEAT_MIN_THRESHOLD, AUTO_REPEAT_MAX_THRESHOLD)
+            )
+        }
+        var interval by remember {
+            mutableIntStateOf(
+                AutoRepeat.repeatIntervalSeconds.coerceIn(
+                    AUTO_REPEAT_MIN_INTERVAL_SECONDS,
+                    AUTO_REPEAT_MAX_INTERVAL_SECONDS,
+                )
             )
         }
         var contacts by remember { mutableStateOf<List<IWeContact>>(emptyList()) }
@@ -241,6 +275,22 @@ fun showAutoRepeatDialog(context: Context) {
                             onValueChange = { value ->
                                 threshold = value
                                 AutoRepeat.repeatThreshold = value
+                            },
+                        )
+                    }
+
+                    BaseItemContainer {
+                        IntNumberPickerWidget(
+                            title = stringResource(R.string.auto_repeat_interval_title),
+                            description = stringResource(R.string.auto_repeat_interval_description),
+                            value = interval,
+                            startInt = AUTO_REPEAT_MIN_INTERVAL_SECONDS,
+                            endInt = AUTO_REPEAT_MAX_INTERVAL_SECONDS,
+                            stepSize = 1,
+                            valueSuffix = stringResource(R.string.auto_repeat_interval_suffix),
+                            onValueChange = { value ->
+                                interval = value
+                                AutoRepeat.repeatIntervalSeconds = value
                             },
                         )
                     }

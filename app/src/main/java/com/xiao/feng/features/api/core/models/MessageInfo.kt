@@ -7,6 +7,7 @@ import com.xiao.feng.features.api.core.WeApi
 import com.xiao.feng.features.api.core.WeMessageApi
 import com.xiao.feng.utils.reflection.cachedField
 import com.xiao.feng.utils.serialization.NativeXmlParser
+import com.xiao.feng.utils.serialization.XmlArray
 import com.xiao.feng.utils.serialization.XmlObject
 import com.xiao.feng.utils.serialization.XmlUtils
 import com.xiao.feng.utils.serialization.asInt
@@ -230,17 +231,39 @@ class MessageInfo(val instance: Any) {
 
         private val xml = NativeXmlParser.toXmlObject(xmlStr.cleanupXml())
 
-        val createTime by lazy { recordObj["createTime"]!!.asLong }
-        val fromUser by lazy { recordObj["fromUser"]!!.asString }
-        val pattedUser by lazy { recordObj["pattedUser"]!!.asString }
-        val readStatus by lazy { recordObj["readStatus"]!!.asInt }
-        val recordNum by lazy { xml.getByPath("msg.appmsg.patMsg.records.recordNum")!!.asInt }
-        val showModifyTip by lazy { recordObj["showModifyTip"]!!.asInt }
-        val svrId by lazy { recordObj["svrId"]!!.asLong }
+        /**
+         * 拍一拍消息可以包含多条记录: 微信会把同一会话里接连的拍一拍合并进同一条消息,
+         * 此时 `<record>` 是数组而不是单个节点。
+         */
+        val records: List<PatRecord> by lazy {
+            when (val node = xml.getByPath("msg.appmsg.patMsg.records.record")) {
+                is XmlArray -> node.mapNotNull { it as? XmlObject }.map(::PatRecord)
+                is XmlObject -> listOf(PatRecord(node))
+                else -> emptyList()
+            }
+        }
+
+        private val latestRecord: PatRecord get() = records.last()
+
+        val createTime by lazy { latestRecord.createTime }
+        val fromUser by lazy { latestRecord.fromUser }
+        val pattedUser by lazy { latestRecord.pattedUser }
+        val readStatus by lazy { latestRecord.readStatus }
+        val recordNum by lazy { xml.getByPath("msg.appmsg.patMsg.records.recordNum")?.asInt ?: records.size }
+        val showModifyTip by lazy { latestRecord.showModifyTip }
+        val svrId by lazy { latestRecord.svrId }
         val talker by lazy { xml.getByPath("msg.appmsg.patMsg.chatUser")!!.asString }
-        val template by lazy { recordObj["template"]!!.asString }
-        val recordObj by lazy {
-            xml.getByPath("msg.appmsg.patMsg.records.record")!! as XmlObject
+        val template by lazy { latestRecord.template }
+        val recordObj by lazy { latestRecord.obj }
+
+        class PatRecord(val obj: XmlObject) {
+            val createTime by lazy { obj["createTime"]!!.asLong }
+            val fromUser by lazy { obj["fromUser"]!!.asString }
+            val pattedUser by lazy { obj["pattedUser"]!!.asString }
+            val readStatus by lazy { obj["readStatus"]!!.asInt }
+            val showModifyTip by lazy { obj["showModifyTip"]!!.asInt }
+            val svrId by lazy { obj["svrId"]!!.asLong }
+            val template by lazy { obj["template"]!!.asString }
         }
     }
 

@@ -1,6 +1,5 @@
 package com.xiao.feng.features.items.chat
 
-import android.content.ContentValues
 import androidx.activity.ComponentActivity
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -15,13 +14,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import com.xiao.feng.R
 import com.xiao.feng.data.KvStore.prefOption
+import com.xiao.feng.featurepoints.abc.IResolveDex
+import com.xiao.feng.featurepoints.dsl.dexMethod
 import com.xiao.feng.features.api.core.WeApi
 import com.xiao.feng.features.api.core.WeDatabaseApi
-import com.xiao.feng.features.api.core.WeDatabaseListenerApi
 import com.xiao.feng.features.api.core.WeMessageApi
 import com.xiao.feng.features.api.core.models.IWeContact
-import com.xiao.feng.features.api.core.models.MessageInfo
-import com.xiao.feng.features.api.core.models.MessageType
 import com.xiao.feng.features.core.ClickableFeature
 import com.xiao.feng.features.core.FeatureCategoryIds
 import com.xiao.feng.ui.content.AlertDialogContent
@@ -43,10 +41,13 @@ import kotlinx.coroutines.withContext
 /**
  * 别人拍我一拍时, 自动在同一个会话里拍回去。
  *
- * 触发点是宿主写入消息表 (`WeDatabaseListenerApi.IInsertListener`), 因此不依赖 Dex 目标。
- * 只对「别人拍我」回拍: 自己发出的拍一拍 (`fromUser == self`) 不会再触发, 天然避免死循环。
+ * `PatMsgExtension.insertPatMsg` 是宿主拍一拍消息的唯一写入点: 第一条拍一拍会插入新消息,
+ * 接连的拍一拍则被合并进已有消息。只在数据库插入事件上挂钩会漏掉合并的那些 (表现就是
+ * 回拍一次之后第二次没反应), 所以这里直接挂钩写入器本身, 两条分支都能覆盖。
+ *
+ * 只对「别人拍我」回拍: 自己发出的拍一拍不会再触发, 天然避免死循环。
  */
-object AutoPatBack : ClickableFeature(), WeDatabaseListenerApi.IInsertListener {
+object AutoPatBack : ClickableFeature(), IResolveDex {
 
     override val technicalId = "自动回拍"
     override val nameRes = R.string.feature_auto_pat_back_name
@@ -57,74 +58,45 @@ object AutoPatBack : ClickableFeature(), WeDatabaseListenerApi.IInsertListener {
     private const val KEY_TARGETS = "auto_pat_back_targets"
 
     private const val REPLY_DELAY_MILLIS = 800L
-    private const val REPLY_COOLDOWN_MILLIS = 3_000L
-    private const val MAX_DEDUP_KEYS = 128
+
+    /** `PatMsgExtension.insertPatMsg(talker, fromUser, pattedUser, ...)`: 拍一拍消息的唯一写入器。 */
+    private val methodPatMsgInsert by dexMethod()
 
     /** 生效会话; 为空表示所有聊天。 */
     var targets: Set<String> by prefOption(KEY_TARGETS, emptySet<String>())
-
-    private val lock = Any()
-    private val dedupKeys = LinkedHashSet<String>()
-    private val lastReplyAt = HashMap<String, Long>()
 
     private var scope = newScope()
 
     override fun onEnable() {
         if (!scope.coroutineContext[Job]!!.isActive) scope = newScope()
-        WeDatabaseListenerApi.addListener(this)
+        if (methodPatMsgInsert.isPlaceholder) {
+            WeLogger.e(TAG, "pat message writer wasn't resolved; auto pat back is skipped")
+            return
+        }
+
+        methodPatMsgInsert.hookAfter {
+            val talker = args[0] as String
+            val fromUser = args[1] as String
+            val pattedUser = args[2] as String
+
+            // 只有「别人拍我」才回拍; 自己发出的拍一拍不处理。
+            if (pattedUser != WeApi.selfWxId || fromUser == WeApi.selfWxId) return@hookAfter
+            if (targets.isNotEmpty() && talker !in targets) return@hookAfter
+
+            // 被隐藏联系人拦截时宿主返回 (0, 0), 表示没有真的写入消息, 不回拍。
+            val msgId = (result as? android.util.Pair<*, *>)?.first as? Long ?: return@hookAfter
+            if (msgId == 0L) return@hookAfter
+
+            scope.launch {
+                delay(REPLY_DELAY_MILLIS)
+                val sent = runCatching { WeMessageApi.sendPat(talker, fromUser) }.getOrDefault(false)
+                WeLogger.i(TAG, "auto pat back: talker=$talker from=$fromUser sent=$sent")
+            }
+        }
     }
 
     override fun onDisable() {
-        WeDatabaseListenerApi.removeListener(this)
         scope.cancel()
-        synchronized(lock) {
-            dedupKeys.clear()
-            lastReplyAt.clear()
-        }
-    }
-
-    override fun onInsert(table: String, values: ContentValues) {
-        if (table != "message") return
-        if ((values.getAsInteger("type") ?: return) != MessageType.PAT.code) return
-
-        val talker = values.getAsString("talker") ?: return
-        if (targets.isNotEmpty() && talker !in targets) return
-
-        val content = values.getAsString("content") ?: return
-        val (pattedUser, fromUser) = runCatching {
-            val pat = MessageInfo.PatMessage(content)
-            pat.pattedUser to pat.fromUser
-        }.getOrNull() ?: return
-
-        // 只有「别人拍我」才回拍; 自己发出的拍一拍不处理。
-        if (pattedUser != WeApi.selfWxId || fromUser == WeApi.selfWxId) return
-
-        val replyKey = "$talker|$fromUser"
-        val dedupKey = "$replyKey|${values.get("createTime")}|${values.get("msgSvrId")}"
-        if (!markReplyAllowed(dedupKey, replyKey)) return
-
-        scope.launch {
-            delay(REPLY_DELAY_MILLIS)
-            val sent = runCatching { WeMessageApi.sendPat(talker, fromUser) }.getOrDefault(false)
-            WeLogger.i(TAG, "auto pat back: talker=$talker from=$fromUser sent=$sent")
-        }
-    }
-
-    /** 宿主可能重复插入同一行, 这里去重; 同时限制同一人短时间内被连续回拍。 */
-    private fun markReplyAllowed(dedupKey: String, replyKey: String): Boolean = synchronized(lock) {
-        val now = System.currentTimeMillis()
-        val coolingDown = lastReplyAt[replyKey]?.let { now - it < REPLY_COOLDOWN_MILLIS } ?: false
-        if (dedupKeys.contains(dedupKey) || coolingDown) return@synchronized false
-
-        if (dedupKeys.size >= MAX_DEDUP_KEYS) {
-            dedupKeys.iterator().run {
-                next()
-                remove()
-            }
-        }
-        dedupKeys += dedupKey
-        lastReplyAt[replyKey] = now
-        true
     }
 
     override fun onClick(context: ComponentActivity) = showAutoPatBackDialog(context)
