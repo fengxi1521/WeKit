@@ -464,7 +464,7 @@ fun showAiChatGroupDialog(context: Context, talker: String) {
                         SwitchWidget(
                             title = stringResource(R.string.ai_chat_current_chat_title),
                             description = stringResource(R.string.ai_chat_current_chat_description),
-                            checked = chatOn,
+                            checked = enabled && chatOn,
                             onCheckedChange = {
                                 chatOn = it
                                 AiChat.setTargetEnabled(talker, it)

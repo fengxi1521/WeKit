@@ -134,7 +134,9 @@ object AutoRepeat : ClickableFeature(), WeDatabaseListenerApi.IInsertListener {
         val now = System.currentTimeMillis()
         val shouldRepeat = synchronized(lock) {
             // 宿主可能重复插入同一行, 先按消息标识去重, 避免把一条消息算成两条。
-            val dedupKey = "$talker|${values.get("createTime")}|${values.get("msgSvrId")}"
+            // 不能只用 createTime/msgSvrId: 收到的新消息在插入阶段可能还没有这两个字段,
+            // 那样同一个会话里所有消息会得到相同的 key, 只有第一条能计数, 永远触发不了复读。
+            val dedupKey = "$talker|$text|${values.get("createTime")}|${values.get("msgSvrId")}"
             if (!seenKeys.add(dedupKey)) return@synchronized false
             if (seenKeys.size > MAX_SEEN_KEYS) {
                 seenKeys.iterator().run {
@@ -340,10 +342,15 @@ fun showAutoRepeatGroupDialog(context: Context, talker: String) {
                         SwitchWidget(
                             title = stringResource(R.string.auto_repeat_group_switch_title),
                             description = stringResource(R.string.auto_repeat_group_switch_description),
-                            checked = groupEnabled,
-                            onCheckedChange = {
-                                groupEnabled = it
-                                AutoRepeat.setGroupEnabled(talker, it)
+                            checked = enabled && groupEnabled,
+                            onCheckedChange = { checked ->
+                                groupEnabled = checked
+                                AutoRepeat.setGroupEnabled(talker, checked)
+                                // 群里显示开启就必须真的生效: 一并打开总开关。
+                                if (checked && !enabled) {
+                                    enabled = true
+                                    AutoRepeat.applyToggle(true)
+                                }
                             },
                         )
                     }
