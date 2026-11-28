@@ -126,7 +126,11 @@ object FollowRepeat : SwitchFeature(), WeDatabaseListenerApi.IInsertListener {
         if ("$prefix$sender" !in snapshot) return
         if (!RepeatMessages.isSupported(msgInfo)) return
 
-        val dedupKey = "$talker|${values.getAsLong("createTime")}|${values.getAsLong("msgSvrId")}"
+        // 收到的新消息在插入阶段可能还没有 createTime/msgSvrId; 只按这两个字段去重会把后续
+        // 消息全当成同一行丢弃, 导致跟发复读只对第一条消息生效。这里把发送者和内容也算进去。
+        val dedupKey =
+            "$talker|$sender|${msgInfo.typeCode}|${values.getAsString("content")}|" +
+                "${values.getAsLong("createTime")}|${values.getAsLong("msgSvrId")}"
         synchronized(lock) {
             if (!seenKeys.add(dedupKey)) return
             if (seenKeys.size > MAX_SEEN_KEYS) {
